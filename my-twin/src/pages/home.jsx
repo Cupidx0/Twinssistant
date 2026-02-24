@@ -2,7 +2,7 @@ import React,{useEffect,useState} from "react";
 import {Button} from "@mui/material";
 import toast, { Toaster } from "react-hot-toast";
 import {Link} from "react-router-dom";
-import {Dashboard, Delete,SmartToy,
+import {Anchor,Delete,SmartToy,
         Upload,Work,Code} from "@mui/icons-material";  
 function Home () {
     const [dateAndTime, setDateAndTime] = useState(new Date().toLocaleString("en-GB",{fullDate:'long', hour:'2-digit', minute:'2-digit', second:'2-digit'}));
@@ -134,7 +134,7 @@ return (
     <main className=" w-screen rounded-md border border-white bg-black text-white h-screen overflow-none">
             <div className="h-[100px] w-full flex items-center justify-between font-bold text-xl p-5 text-left bg-black gap-4 rounded-md border border-white !overflow-auto">
                     <div className="flex items-center gap-2">
-                      <Dashboard 
+                      <Anchor
                       fontColor="primary"
                       style={{ fontSize: '40px' }}
                        className="text-blue-200" />
