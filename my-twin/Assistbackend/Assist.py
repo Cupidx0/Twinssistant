@@ -1,0 +1,524 @@
+from pickle import GET
+from flask import Flask, request, jsonify, session
+from flask_cors import CORS
+import openai
+import os
+import os.path
+from dotenv import load_dotenv
+from firebase_admin import credentials, firestore, initialize_app   
+import requests
+import cv2
+from dateutil import parser
+import dateparser
+from tavily import TavilyClient
+from datetime import datetime, timedelta
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+from werkzeug.utils import secure_filename
+import json
+
+# Load env variables
+load_dotenv()
+api_key = os.getenv("OPENWEATHER_API_KEY")
+city = "horley"
+tavilyclient = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
+openai.api_key = os.getenv("OPENAI_API_KEY")
+SCOPES = ["https://www.googleapis.com/auth/calendar"]
+# Initialize Firebase properly
+cred = credentials.Certificate("tw.json")  # 👈 your Firebase service account JSON
+firebase_app = initialize_app(cred)
+db = firestore.client()
+
+# Flask app
+app = Flask(__name__)
+CORS(app, supports_credentials=True, origins=["http://localhost:5173"])
+
+@app.route('/')
+def home():
+    return "Welcome to the Assistant API!"
+def get_tavily_results(query, num_results=5):
+    """Helper to fetch Tavily search results."""
+    try:
+        results = tavilyclient.search(query=query, max_results=num_results)
+        return results.get("results", [])
+    except Exception as e:
+        return [{"title": "Error", "url": "", "content": str(e)}]
+def parse_natural_datetime(text, base_time=None):
+    """
+    Convert natural language datetime (e.g. 'tomorrow 7pm') into ISO 8601.
+    If parsing fails, returns None.
+    """
+    settings = {"RELATIVE_BASE": base_time or datetime.now()}
+    dt = dateparser.parse(text, settings=settings)
+    return dt.isoformat() if dt else None
+def get_creds():
+    """
+    Load credentials from token.json. 
+    Raises error if not found, instructing to run login_calendar.py first.
+    """
+    from google.oauth2.credentials import Credentials
+    if not os.path.exists("token.json"):
+        raise FileNotFoundError("token.json not found. Run login_calendar.py first.")
+    return Credentials.from_authorized_user_file("token.json", SCOPES)
+@app.route('/calendar', methods=['GET'])
+def calendar():
+    try:
+        creds = get_creds()
+        service = build("calendar", "v3", credentials=creds)
+        today = datetime.utcnow().date()
+        now = str(today) + "T00:00:00Z"
+        events_result = service.events().list(
+            calendarId="alamugodwin@gmail.com",
+            timeMin=now,
+            maxResults=10,
+            singleEvents=True,
+            orderBy="startTime",
+        ).execute()
+        events = events_result.get("items", [])
+        total_duration = timedelta(
+            seconds=0,
+            minutes=0,
+            hours=0,
+        )
+
+        formatted = []
+        id = 0
+        for event in events:
+            start = event["start"].get("dateTime", event["start"].get("date"))
+            end = event["end"].get("dateTime", event["end"].get("date"))
+            try:
+                start_dt = parser.isoparse(start)
+                end_dt = parser.isoparse(end)
+                duration = end_dt - start_dt
+                total_duration += duration
+            except Exception as e:
+                duration = "N/A"
+            id += 1
+            event["id"] = id
+            event["duration"] = str(duration)
+            formatted.append({event['summary']: {'start': start, 'end': end, 'duration': str(duration)}})
+
+        return jsonify({"events": formatted})
+
+    except HttpError as error:
+        return jsonify({"error": str(error)}), 500
+
+
+# ✅ single clean version
+def add_event_to_calendar(summary, start_time, end_time):
+    creds = get_creds()
+    service = build("calendar", "v3", credentials=creds)
+    event = {
+        "summary": summary,
+        "start": {"dateTime": start_time, "timeZone": "Europe/London"},
+        "end": {"dateTime": end_time, "timeZone": "Europe/London"},
+    }
+    created_event = service.events().insert(calendarId="alamugodwin@gmail.com", body=event).execute()
+    #return f"Event created: {created_event.get('htmlLink')}"
+    return created_event
+
+
+@app.route('/calendar/add', methods=['POST'])
+def calendar_add():
+    try:
+        data = request.get_json()
+        summary = data.get("summary")
+        end_time = data.get("end")  # ISO 8601 string
+        user_id = data.get("userId","default_user")
+        if not all([summary, end_time]):
+            return jsonify({"error": "summary and end are required"}), 400
+
+        end_time_obj = datetime.fromisoformat(end_time)
+        start_time = end_time_obj - timedelta(hours=1)
+
+        # Add to Google Calendar
+        result = add_event_to_calendar(
+            summary,
+            start_time.isoformat(),
+            end_time_obj.isoformat()
+        )
+
+        # Firestore upsert
+        event_doc = {
+            "summary": summary,
+            "start": start_time.isoformat(),
+            "end": end_time_obj.isoformat(),
+            "duration": str(end_time_obj - start_time),
+            "googleEventId": result.get("id"),  # returned from Google Calendar
+            "htmlLink":result.get("htmlLink"),
+            "userId": user_id,
+        }
+        db.collection("events").document(result["id"]).set(event_doc, merge=True)
+
+        return jsonify({"reply":f"Event Created:{result.get('htmlLink')}"})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+calendar_functions = [
+    {
+        "name": "get_calendar_events",
+        "description": "Retrieve upcoming events from the user's Google Calendar",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "maxResults": {"type": "integer", "description": "Number of events to fetch (default 5)"}
+            }
+        }
+    },
+    {
+        "name": "add_calendar_event",
+        "description": "Add a new event to the user's Google Calendar",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "summary": {"type": "string", "description": "Event title"},
+                "end": {"type": "string", "description": "End time in ISO 8601 format"}
+            },
+            "required": ["summary", "end"]
+        }
+    }
+]
+
+
+def get_calendar_events(user_id, maxResults=5):
+    creds = get_creds()
+    service = build("calendar", "v3", credentials=creds)
+
+    today = datetime.utcnow().date()
+    now = str(today) + "T00:00:00Z"
+
+    events_result = service.events().list(
+        calendarId="alamugodwin@gmail.com",  # or dynamic if needed
+        timeMin=now,
+        maxResults=maxResults,
+        singleEvents=True,
+        orderBy="startTime",
+        timeZone="Europe/London",
+    ).execute()
+
+    events = events_result.get("items", [])
+    total_duration = timedelta()
+    formatted = []
+    id_counter = 0
+
+    for event in events:
+        start = event["start"].get("dateTime", event["start"].get("date"))
+        end = event["end"].get("dateTime", event["end"].get("date"))
+        try:
+            start_dt = parser.isoparse(start)
+            end_dt = parser.isoparse(end)
+            duration = end_dt - start_dt
+            total_duration += duration
+        except Exception:
+            duration = "N/A"
+
+        google_id = event.get("id")
+        id_counter += 1
+
+        event_doc = {
+            "id": id_counter,
+            "summary": event.get("summary", "No Title"),
+            "start": start or "N/A",
+            "end": end or "N/A",
+            "duration": str(duration),
+            "googleEventId": google_id,
+            "userId": user_id,
+        }
+
+        # Firestore upsert
+        snapshot = db.collection("events").where("googleEventId", "==", google_id).limit(1).get()
+        if not snapshot:
+            db.collection("events").document(google_id).set(event_doc, merge=True)
+        else:
+            for doc in snapshot:
+                db.collection("events").document(doc.id).set(event_doc, merge=True)
+
+        formatted.append(event_doc)
+
+    return {
+        "events": formatted,
+        "total_duration": str(total_duration)
+    }
+print(get_calendar_events)
+@app.route("/calendar/get", methods=["POST"])
+def fetch_calendar_events():
+    data = request.get_json()
+    user_id = data.get("userId")
+    max_results = data.get("maxResults", 5)
+    events = get_calendar_events(user_id=user_id, maxResults=max_results)
+    return jsonify(events)
+
+
+@app.route('/calendar/delete', methods=['DELETE'])
+def calendar_delete():
+    try:
+        data = request.get_json()
+        event_id = data.get("eventId")
+        user_id = data.get("userId")
+
+        if not event_id:
+            return jsonify({"error": "eventId is required"}), 400
+
+        # 🔹 Delete from Google Calendar
+        creds = get_creds()
+        service = build("calendar", "v3", credentials=creds)
+        service.events().delete(
+            calendarId="alamugodwin@gmail.com",
+            eventId=event_id
+        ).execute()
+
+        # 🔹 Delete from Firestore
+        docs = db.collection("events") \
+                 .where("googleEventId", "==", event_id) \
+                 .where("userId", "==", user_id) \
+                 .stream()
+        for doc in docs:
+            doc.reference.delete()
+
+        return jsonify({"success": True, "reply": f"Event {event_id} deleted successfully."})
+
+    except HttpError as error:
+        return jsonify({"success": False, "error": f"Google Calendar error: {str(error)}"}), 500
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/calendar/manage', methods=['POST'])
+def calendar_manage():
+    try:
+        data = request.get_json()
+        message = data.get("question", "").strip()
+        calevent = fetch_calendar_events()
+        if not message:
+            return jsonify({"error": "Please provide a question."}), 400
+        prompt =( f"User request: {message}\nManage Google Calendar accordingly.\n"
+                   "add events with start and end times, or fetch upcoming events.\n"
+                     "Always provide start and end times in natural language or ISO format.\n"
+                     f"use {calevent} to fetch events and add events with add_calendar_event.\n"
+                     "start with a friendly greeting and confirm actions."
+                   )
+        response = openai.ChatCompletion.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a smart assistant that manages Google Calendar. Always try to provide start and end times in natural language or ISO format."},
+                {"role": "user", "content":prompt}
+            ],
+            functions=calendar_functions,
+            function_call="auto"
+        )
+
+        choice = response["choices"][0]
+        msg = choice["message"]
+
+        if msg.get("function_call"):
+            fn = msg["function_call"]
+            fn_name = fn["name"]
+            args = json.loads(fn["arguments"])
+
+            if fn_name == "get_calendar_events":
+                events = fetch_calendar_events()
+                return jsonify({"reply": events})
+
+            elif fn_name == "add_calendar_event":
+                summary = args["summary"]
+                end_time = parse_natural_datetime(args["end"])
+
+                if not end_time:
+                    return jsonify({"error": "Could not parse date/time"}), 400
+
+                end_time_obj = datetime.fromisoformat(end_time)
+                start_time = end_time_obj - timedelta(hours=1)
+
+                result = add_event_to_calendar(summary, start_time.isoformat(), end_time_obj.isoformat())
+                return jsonify({"reply": result})
+
+        return jsonify({"reply": msg.get("content", "Sorry, I could not process that.")})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+@app.route('/weather', methods=['POST'])
+def getWeather():
+    try:
+        data = request.get_json()
+        city = data.get("location", "London")  # ✅ get city from frontend, fallback to London
+
+        url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
+        weather_data = requests.get(url).json()
+
+        if weather_data.get("main"):
+            temp = weather_data["main"]["temp"]
+            desc = weather_data["weather"][0]["description"]
+
+            # ✅ return structured JSON instead of a single string
+            return jsonify({
+                "weather": {
+                    "city": city,
+                    "temperature": temp,
+                    "description": desc
+                }
+            })
+
+        return jsonify({"error": "Sorry, I could not fetch the weather right now."}), 404
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+@app.route('/outfit',methods=['POST'])
+def outfit():
+    try:
+        data = request.get_json()
+        message = data.get("fit", "").strip()
+        city = "Horley"
+        weather = getWeather()
+        if not message:
+            return jsonify({"error": "Please provide a question."}), 400
+        prompt =( 
+                  f"User request: {message}\n Suggest outfit for user based on the weather.\n"
+                  f"use the {weather} to decide which outfit to recommend to the user and also for the {city}location.\n"
+                  "output the weather info to the user before the outfit idea. \n"
+                  "start with a friendly greeting and confirm actions."
+                   )
+        response = openai.ChatCompletion.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a smart assistant that manages Fashion closet. Always try to provide relevant outfit to the user based on the weather."},
+                {"role": "user", "content":prompt}
+            ],
+            max_tokens=180,
+            temperature=0.7
+        )
+        outgen = response["choices"][0]["message"]["content"].strip()
+        return jsonify({'outgen':outgen})
+    except Exception as e:
+        return jsonify({"error":str(e)}),500
+
+@app.route('/chat', methods=['POST'])
+def chat():
+    try:
+        data = request.get_json()
+        message = data.get("question", "").strip()
+        if not message:
+            return jsonify({"error": "Please provide a question."}), 400
+
+        # Weather check
+        if "weather" in message.lower():
+            url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
+            weather_data = requests.get(url).json()
+            if weather_data.get("main"):
+                temp = weather_data["main"]["temp"]
+                desc = weather_data["weather"][0]["description"]
+                return jsonify({"reply": f"The current weather in {city} is {temp}°C with {desc}."})
+            return jsonify({"reply": "Sorry, I could not fetch the weather right now."})
+        #prompt
+        creatorname = "Godwin Alamu"
+        if not creatorname:
+            return jsonify({"reply":"hello designated user"})
+        history = load_chat_history()
+        if history.count("User:") > 20:  # 20 exchanges
+            return jsonify({"reply": "Your chat history is too long. Do you want to clear it (Y/N)?"})
+        #tavily response
+        calevent = fetch_calendar_events()
+        # Tavily search trigger
+        today = datetime.now().strftime("%Y-%m-%d")
+        time = datetime.now().strftime("%H:%M:%S")
+        web_context = ""
+        if any(word in message.lower() for word in ["latest", "news", "search", "youtube", "today","current","year",
+                                                    "music","song","songs","weather","sports","football","cricket","president",
+                                                    "prime minister","capital of","country","countries","who is","what is",
+                                                    "when is","where is","how to","define"]):
+            try:
+                results = tavilyclient.search(query=message, max_results=5)
+                items = results.get("results", []) if isinstance(results, dict) else results
+                if items:
+                    # Build web context string
+                    web_context = "\n".join(
+                        [f"{r.get('title', 'No title')}: {r.get('url','')}" for r in items]
+                    )
+            except Exception as e:
+                web_context = f"(Tavily search failed: {e})"
+
+        prompt = (
+            f"Web context: {web_context}\n"
+            f"User request: {message}\n"
+            "use web context if provided - it overrides your pre-trained knowledge.\n"
+            "Do not mention your training data or knowledge cut-off,instead use search results for fresh info.\n"
+            f"verify your information with web context before answering.\n"
+            f"use {calevent} to fetch events from calendar and add events with add_calendar_event.\n"
+            f"use past chat history from {history} for context if it relates to user request.\n"
+            "You are the user's personal AI Digital Twin assistant. "
+            "Be concise, practical, and supportive. "
+            "You handle:\n"
+            "- Weather → suggest outfits from closet (if available) or general weather-appropriate ideas.\n"
+            "- Career → help with CV/cover letters, interview prep, coding guidance.\n"
+            "- Learning → explain coding/DSA step by step, generate study plans.\n"
+            "- Productivity → plan tasks, manage time, suggest routines.\n"
+            "- Personal → be empathetic, motivational, and supportive.\n"
+            "- Fun → share jokes, trivia, light-hearted content.\n"
+            "- Calendar → manage Google Calendar events (add, fetch, delete).\n"
+            "- Scrape the internet for and provide links for the user if needed.\n"
+            "- Sing → provide lyrics or sing a few lines and also suggest a song.\n"
+            f"I am still a prototype created by {creatorname}, and i am still in development, so I may not be able to answer all questions perfectly,"
+            " but I will do my best to assist you.\n"
+            "\n"
+            "Rules:\n"
+            "- When giving code, format it cleanly and explain briefly.\n"
+            "- Use simple language, avoid jargon.\n"
+            "- Be friendly and approachable.\n"
+            "- Verify your information with web context before answering.\n"
+            "- Do not just use your pre-trained knowledge cut-off of 2023 to answer, always check the web context.\n"
+            f"- Use {web_context} for real-time info.\n"
+            "- Suggest helpful links or resources if relevant (but keep it simple).\n"
+            "- Remember: the user is a developer learning Python, React, and DSA for apprenticeships.\n"
+            "- Always end with a follow-up question to keep the conversation going.\n"
+        )
+        # assistant name
+        assistantname = data.get("assistantname", "").strip()
+        namer = f"{assistantname}" or "Ashen"
+        # Otherwise ask OpenAI
+        response = openai.ChatCompletion.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": f"You are a helpful assistant,and your name is {namer},Current date is {today}, Current time is {time}."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=180,
+            temperature=0.7
+        )
+        reply = response["choices"][0]["message"]["content"].strip()
+        if "*" in reply:
+            reply = reply.replace("*", "")
+         # Save chat to local file
+        with open("chat/chat_history.txt", "a") as f:
+            f.write(f"User: {message}\nAssistant: {reply}\n\n")
+        return jsonify({"reply": reply})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+@app.route("/load_history", methods=["GET"])
+def load_chat_history(n=10):
+    if os.path.exists("chat/chat_history.txt"):
+        with open("chat/chat_history.txt", "r", encoding="utf-8") as f:
+            lines = f.readlines()
+        convo = "".join(lines[-(n*2):])
+        return convo 
+    return ""
+@app.route("/clear", methods=["POST"])
+def clear_chat():
+    try:
+        data = request.get_json()
+        confirmation = data.get("confirmation", "").strip().lower()
+        if confirmation == "yes":
+            with open("chat/chat_history.txt", "w", encoding="utf-8") as f:
+                f.write("")
+            return jsonify({"reply": "Chat history cleared."})
+        return jsonify({"reply": "Chat history not cleared."})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500  
+if __name__ == '__main__':
+    if not os.path.exists("chat"):
+        os.makedirs("chat")
+    app.run(debug=True)
+
