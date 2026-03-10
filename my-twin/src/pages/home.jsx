@@ -3,10 +3,9 @@ import {Card, CardContent, Typography,
   Button, TextField, Stack, Divider} from "@mui/material";
 import toast, { Toaster } from "react-hot-toast";
 import {Link} from "react-router-dom";
-<<<<<<< Updated upstream
+/* Updated upstream*/
 import {Anchor,Delete,SmartToy,
         Upload,Work,Code} from "@mui/icons-material";  
-=======
 import { fetchAssistantResponse } from "../Utils/Assistant";
 import {useAuth} from "./AuthContext";
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
@@ -17,10 +16,7 @@ import Linkify from 'react-linkify';
 //import { collection, getDoc, query, where, doc, deleteDoc } from "firebase/firestore";
 import enGB from "date-fns/locale/en-GB";
 import { Dialog, DialogTitle, DialogContent, DialogActions} from "@mui/material";
-import {Dashboard, Delete,SmartToy,
-        Upload,Work,Code} from "@mui/icons-material";
-
->>>>>>> Stashed changes
+/* Stashed changes*/
 function Home () {
     const [dateAndTime, setDateAndTime] = useState(new Date().toLocaleString("en-GB",{fullDate:'long', hour:'2-digit', minute:'2-digit', second:'2-digit'}));
     const [tasks, setTasks] = useState([]);
@@ -420,8 +416,8 @@ const userDetails = user ? `Logged in as: ${user.email}` : "Not logged in";
         happyNewMonthandYear();
    }, [usertime,holidate]);
 return (
-    <main className=" w-screen rounded-md border border-white bg-black text-white h-screen overflow-none">
-            <div className="h-[100px] w-full flex items-center justify-between font-bold text-xl p-5 text-left bg-black gap-4 rounded-md border border-white !overflow-auto">
+    <main className=" w-screen rounded-md border border-white bg-slate-950 text-white h-screen overflow-none">
+            <div className="h-[100px] w-full flex items-center justify-between font-bold text-xl p-5 text-left bg-black gap-4 rounded-md border border-black !overflow-auto">
                     <div className="flex items-center gap-2">
                       <Anchor
                       fontColor="primary"
@@ -451,10 +447,11 @@ return (
                             </li>
                     </ul>
             </div>
-            <div className="flex flex-col md:flex-row h-[700px] w-auto p-5 m-6 gap-4 rounded-md border border-white !overflow-auto">
-                    <section className="block flex-col md:flex-row md:h-[300px] w-[700px] p-6 m-6 gap-4 rounded-md border border-white !overflow-auto">
+            <div className="flex flex-col md:flex-row h-[700px] w-auto p-5 m-6 gap-4 rounded-md border border-slate-800 !overflow-auto">
+                <div className=" h-auto max-w-[400px] p-5 m-6 gap-6 rounded-md border border-slate-800 !overflow-auto">
+                    <section className="block flex-col md:flex-row md:h-[300px] w-auto p-6 m-6 gap-4 rounded-md border border-slate-800 !overflow-auto">
                         <ul className="block flex-col md:flex-row gap-4">
-                                {weather ? <li className="font-bold rounded-md border border-white p-5 text-orange-500">weather:{weather}</li> : <li>Loading weather...</li>}
+                                {weather ? <li className="font-bold rounded-md border border-slate-800 p-5 text-orange-500">weather:{weather}</li> : <li>Loading weather...</li>}
                                 {
                                 events.length > 0 ? (
                                         events.map((event) => (
@@ -472,7 +469,8 @@ return (
                                                 </li>
                                         ))
                                         ) : (
-                                        <li className="font-bold rounded-md border border-white p-5 bg-blue-500">no summary
+                                        <li className="font-bold rounded-md border border-slate-800 p-5 bg-slate-900">
+                                        no summary
                                         <br/>summary should contain the following:
                                         <br/>coursera completed courses and left,
                                         <br/>projects done,
@@ -486,17 +484,16 @@ return (
                                         </li>
                         </ul>
                  </section>
-
-                    <div className=" h-auto max-w-[400px] p-5 m-6 gap-6 rounded-md border border-white !overflow-auto">
+                 <section className=" h-auto max-w-[400px] p-5 m-6 gap-6 rounded-md border border-slate-800 !overflow-auto">
                             <h3 className="text-blue-300 text-lg font-bold m-3"><SmartToy/>AI Chat Assistant</h3>
-                            <div className="rounded-md border border-white p-2 mb-4 bg-white text-black text-lg">
+                            <div className="rounded-md border border-slate-800 p-2 mb-4 bg-slate-800 text-white text-lg">
                                     <h4 className="text-blue-400 text-left font-bold"><SmartToy/>AI response</h4>
                                     {/*{AiReply ? AiReply :"no reply"}*/}
                                     <h4 className="text-gray-500 text-right font-bold">
                                         <div className="text-blue-300 text-left font-bold m-3">You asked:</div>
                                         <p>{localStorage.getItem("userQuestion")}</p>
                                         <Linkify><p className="text-left">{localStorage.getItem("AiReply")}</p></Linkify>
-                                        <p className="text-blue-500">{question ? question : "ask me anything!"}</p>
+                                        <p className="text-white">{question ? question : "ask me anything!"}</p>
                                     </h4>
                             </div>
                             <Dialog open={openConfirm} onClose={handleCancelClear}>
@@ -527,7 +524,7 @@ return (
                                     onClick={handleuserQuestionChange}
                                     style={{ margin: '5px' }}
                                     component="span"
-                                    className="bg-blue-500 text-white p-2 rounded-md m-2">Ask</Button>
+                                    className="bg-blue-600 text-white p-2 rounded-md m-2">Ask</Button>
                                     <Button variant="contained"
                                     color="primary"
                                     size="small"
@@ -539,7 +536,7 @@ return (
                                     color="primary"
                                     size="small"
                                     style={{ margin: '5px' }}
-                                    className="bg-blue-500 text-white p-2 rounded-md m-2">Suggest an outfit</Button>
+                                    className="bg-blue-600 text-white p-2 rounded-md m-2">Suggest an outfit</Button>
                                     <Button variant="contained"
                                     component="span"
                                     color="primary"
@@ -565,9 +562,10 @@ return (
                                         placeholder="New task..."
                                         />
                             </section>
+                    </section>
                     </div>
-                    <section className="md:flex-col md:h-[600px] w-[600px] p-2 m-6 gap-2 rounded-md border border-white !overflow-auto">
-                        <section className="h-auto max-h-[100vh] rounded-md border border-white p-5 m-6 bg-gray-500 text-black text-lg gap-4 overflow-auto">
+                    <div className=" md:flex-col md: h-[600px] w-[600px] p-2 m-2 gap-2 text-white rounded-md border border-black !overflow-auto">
+                    <section className="md:flex-col md:h-[400px] w-[300px] p-2 m-2 gap-2 rounded-md border border-slate-900 !overflow-auto">
                                 <h3 className="text-xl font-bold">To - Do List</h3>
                                 <ul className="list-disc list-none p-4 text-green-500 font-bold">
                                         {events.length >0 ? events.map((event) => (
@@ -632,7 +630,7 @@ return (
                                                 <TextField
                                                 type="datetime-local"
                                                 id="todo-due-date"
-                                                //style={{marginRight:'30px'}}
+                                                style={{backgroundColor:"#e6e2e2e4", color:"white"}}
                                                 sx={{ width: 200 }}
                                                 value={dueDateInput}
                                                 onChange={(e) => setDueDateInput(e.target.value)}
@@ -655,15 +653,14 @@ return (
                                         </Stack>
                                 </ul>
                         </section>
-                        <section className="h-auto rounded-md border border-white m-6 bg-slate-700 text-black text-lg gap-2 overflow-auto">
-                                <Card sx={{ p: 2, borderRadius: "16px", boxShadow: 3 }}>
-                                        <CardContent>
-                                        <Typography variant="h5" gutterBottom>
+                                <Card sx={{ p: 4, borderRadius: "16px", boxShadow: 3,height:"auto", maxHeight:450, width: 300, maxWidth: "600px", overflow: "hidden" }}>
+                                        <CardContent >
+                                        <Typography variant="h6" gutterBottom>
                                                 📅 My Calendar
                                         </Typography>
 
                                         {/* Interactive Calendar */}
-                                        <Calendar
+                                        <Calendar 
                                                 localizer={localizer}
                                                 events={events.map(ev => ({
                                                 title: ev.summary || "No title",
@@ -672,7 +669,7 @@ return (
                                                 }))}
                                                 startAccessor="start"
                                                 endAccessor="end"
-                                                style={{ height: 500, margin: "20px 0" }}
+                                                style={{ height: 350,width: 200, margin: "10px 0" }}
                                                 selectable
                                                 onSelectSlot={(slot) => {
                                                 console.log("Selected slot:", slot);
@@ -687,15 +684,16 @@ return (
                                         <Divider sx={{ my: 2 }} />
                                         </CardContent>
                                 </Card>
-                        </section>
+                                </div>
+                    <section className="h-auto max-h-[400px] max-w-[200px] rounded-md border border-slate-900 p-5 m-6 bg-slate-850  text-lg gap-4 !overflow-auto">
+                            <h3 className="font-bold text-blue-200">Outfit of the Day</h3>
+                            {outstart ? <p className="text-white">{outstart}</p>:<p className="text-white">Today's outfit suggestion based on weather and schedule.</p>}
                     </section>
-                    <section className="h-auto max-h-[400px] max-w-[300px] rounded-md border border-white p-5 m-6 bg-slate-600 text-black text-lg gap-4 !overflow-auto">
-                            <h3>Outfit of the Day</h3>
-                            {outstart ? <p className="text-slate-300">{outstart}</p>:<p className="text-slate-300">Today's outfit suggestion based on weather and schedule.</p>}
-                    </section>
-                    <section className="h-auto max-h-[400px] rounded-md border border-white p-5 m-6 bg-slate-600 text-black text-lg gap-4">
+                    <section className="h-auto max-h-[400px] rounded-md border border-slate-800 p-5 m-6 bg-slate-850 text-white text-lg gap-4">
                             <h3>Study Progress</h3>
-                            <progress value="70" max="100"></progress>
+                            <progress value="70" max="100" className="w-full h-6 rounded-md border border-white bg-slate-700">
+                                    70% completed
+                            </progress>
                     </section>
             </div>
             </div>
