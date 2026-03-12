@@ -56,13 +56,68 @@ def parse_natural_datetime(text, base_time=None):
     return dt.isoformat() if dt else None
 def get_creds():
     """
-    Load credentials from token.json. 
+    Load credentials from token.json and refresh if expired.
     Raises error if not found, instructing to run login_calendar.py first.
     """
     from google.oauth2.credentials import Credentials
     if not os.path.exists("token.json"):
         raise FileNotFoundError("token.json not found. Run login_calendar.py first.")
-    return Credentials.from_authorized_user_file("token.json", SCOPES)
+    creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+    if creds and not creds.valid and creds.expired and creds.refresh_token:
+        creds.refresh(Request())
+        with open("token.json", "w") as token:
+            token.write(creds.to_json())
+    return creds
+
+def get_request_json():
+    data = request.get_json(silent=True)
+    return data if isinstance(data, dict) else {}
+
+def safe_get_calendar_events(data):
+    try:
+        user_id = data.get("userId")
+        max_results = data.get("maxResults", 5)
+        return get_calendar_events(user_id=user_id, maxResults=max_results)
+    except Exception as e:
+        return {"error": str(e)}
+
+def create_chat_completion(model, messages, functions=None, function_call=None, **kwargs):
+    if hasattr(openai, "ChatCompletion"):
+        payload = {"model": model, "messages": messages, **kwargs}
+        if functions is not None:
+            payload["functions"] = functions
+        if function_call is not None:
+            payload["function_call"] = function_call
+        return openai.ChatCompletion.create(**payload)
+    if hasattr(openai, "OpenAI"):
+        client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        if functions is not None:
+            tools = [{"type": "function", "function": fn} for fn in functions]
+            tool_choice = "auto" if function_call in (None, "auto") else {"type": "function", "function": {"name": function_call}}
+            return client.chat.completions.create(
+                model=model,
+                messages=messages,
+                tools=tools,
+                tool_choice=tool_choice,
+                **kwargs
+            )
+        return client.chat.completions.create(model=model, messages=messages, **kwargs)
+    raise RuntimeError("OpenAI client is not available.")
+
+def extract_message_content(response):
+    try:
+        return response["choices"][0]["message"]["content"]
+    except TypeError:
+        return response.choices[0].message.content
+
+def extract_function_call(message):
+    if isinstance(message, dict):
+        return message.get("function_call")
+    tool_calls = getattr(message, "tool_calls", None)
+    if tool_calls:
+        tool = tool_calls[0]
+        return {"name": tool.function.name, "arguments": tool.function.arguments}
+    return None
 @app.route('/calendar', methods=['GET'])
 def calendar():
     try:
@@ -247,10 +302,8 @@ def get_calendar_events(user_id, maxResults=5):
 print(get_calendar_events)
 @app.route("/calendar/get", methods=["POST"])
 def fetch_calendar_events():
-    data = request.get_json()
-    user_id = data.get("userId")
-    max_results = data.get("maxResults", 5)
-    events = get_calendar_events(user_id=user_id, maxResults=max_results)
+    data = get_request_json()
+    events = safe_get_calendar_events(data)
     return jsonify(events)
 
 
@@ -290,9 +343,9 @@ def calendar_delete():
 @app.route('/calendar/manage', methods=['POST'])
 def calendar_manage():
     try:
-        data = request.get_json()
+        data = get_request_json()
         message = data.get("question", "").strip()
-        calevent = fetch_calendar_events()
+        calevent = safe_get_calendar_events(data)
         if not message:
             return jsonify({"error": "Please provide a question."}), 400
         prompt =( f"User request: {message}\nManage Google Calendar accordingly.\n"
@@ -301,7 +354,7 @@ def calendar_manage():
                      f"use {calevent} to fetch events and add events with add_calendar_event.\n"
                      "start with a friendly greeting and confirm actions."
                    )
-        response = openai.ChatCompletion.create(
+        response = create_chat_completion(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "You are a smart assistant that manages Google Calendar. Always try to provide start and end times in natural language or ISO format."},
@@ -311,13 +364,12 @@ def calendar_manage():
             function_call="auto"
         )
 
-        choice = response["choices"][0]
-        msg = choice["message"]
+        msg = response["choices"][0]["message"] if isinstance(response, dict) else response.choices[0].message
+        fn = extract_function_call(msg)
 
-        if msg.get("function_call"):
-            fn = msg["function_call"]
+        if fn:
             fn_name = fn["name"]
-            args = json.loads(fn["arguments"])
+            args = json.loads(fn.get("arguments") or "{}")
 
             if fn_name == "get_calendar_events":
                 events = fetch_calendar_events()
@@ -336,7 +388,8 @@ def calendar_manage():
                 result = add_event_to_calendar(summary, start_time.isoformat(), end_time_obj.isoformat())
                 return jsonify({"reply": result})
 
-        return jsonify({"reply": msg.get("content", "Sorry, I could not process that.")})
+        content = msg.get("content") if isinstance(msg, dict) else getattr(msg, "content", None)
+        return jsonify({"reply": content or "Sorry, I could not process that."})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -381,7 +434,7 @@ def outfit():
                   "output the weather info to the user before the outfit idea. \n"
                   "start with a friendly greeting and confirm actions."
                    )
-        response = openai.ChatCompletion.create(
+        response = create_chat_completion(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "You are a smart assistant that manages Fashion closet. Always try to provide relevant outfit to the user based on the weather."},
@@ -390,15 +443,15 @@ def outfit():
             max_tokens=180,
             temperature=0.7
         )
-        outgen = response["choices"][0]["message"]["content"].strip()
+        outgen = extract_message_content(response).strip()
         return jsonify({'outgen':outgen})
     except Exception as e:
         return jsonify({"error":str(e)}),500
 
-@app.route('/chat', methods=['POST'])
+@app.route('/api/chat', methods=['POST'])
 def chat():
     try:
-        data = request.get_json()
+        data = get_request_json()
         message = data.get("question", "").strip()
         if not message:
             return jsonify({"error": "Please provide a question."}), 400
@@ -420,7 +473,7 @@ def chat():
         if history.count("User:") > 20:  # 20 exchanges
             return jsonify({"reply": "Your chat history is too long. Do you want to clear it (Y/N)?"})
         #tavily response
-        calevent = fetch_calendar_events()
+        calevent = safe_get_calendar_events(data)
         # Tavily search trigger
         today = datetime.now().strftime("%Y-%m-%d")
         time = datetime.now().strftime("%H:%M:%S")
@@ -478,7 +531,7 @@ def chat():
         assistantname = data.get("assistantname", "").strip()
         namer = f"{assistantname}" or "Ashen"
         # Otherwise ask OpenAI
-        response = openai.ChatCompletion.create(
+        response = create_chat_completion(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": f"You are a helpful assistant,and your name is {namer},Current date is {today}, Current time is {time}."},
@@ -487,7 +540,7 @@ def chat():
             max_tokens=180,
             temperature=0.7
         )
-        reply = response["choices"][0]["message"]["content"].strip()
+        reply = extract_message_content(response).strip()
         if "*" in reply:
             reply = reply.replace("*", "")
          # Save chat to local file
@@ -521,4 +574,3 @@ if __name__ == '__main__':
     if not os.path.exists("chat"):
         os.makedirs("chat")
     app.run(debug=True)
-

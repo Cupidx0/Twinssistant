@@ -6,7 +6,7 @@ import {Link} from "react-router-dom";
 /* Updated upstream*/
 import {Anchor,Delete,SmartToy,
         Upload,Work,Code} from "@mui/icons-material";  
-import { fetchAssistantResponse } from "../Utils/Assistant";
+import {ChatAPI} from "../Utils/Assistant";
 import {useAuth} from "./AuthContext";
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay, set } from "date-fns";
@@ -65,7 +65,7 @@ function Home () {
                 setTasks(data.events || []);
                 setEvents(data.events || []);
                 const storedQuestions = localStorage.getItem("userQuestion");
-                const storedReplies = localStorage.getItem("Aireply");
+                const storedReplies = localStorage.getItem("AiReply");
                 if(storedQuestions){
                         setQuestion(storedQuestions);
                 }
@@ -270,66 +270,22 @@ function Home () {
         }
     }, []);
     const handleuserQuestionChange = async () => {
-        if(!question.trim()){
-            toast.error("Please enter a question.");
-        }else{
-            localStorage.setItem("userQuestion", question.trim());
-            toast.success("Question submitted successfully!");
+        if(question.trim() === ""){
+                toast.error("Please enter a question.");
+                return;
         }
-        try{
-                const reply = await fetchAssistantResponse(question);
-                if(reply){
-                        toast.success("message sent.")
-                        setAiReply(reply);
-                        toast.success(`Assistant reply: ${reply}`);
-                        localStorage.setItem("AiReply",reply);
-                }
-                if (reply.includes("Do you want to clear it")) {
-                        setOpenConfirm(true);  // open confirmation dialog
-                }
-        }catch(error){
-                console.error("message error",error);
-                toast.error("an error occurred with the sending process .");
-        }
-        if (reply.includes("event:")) {
-                const redueDate = new Date(dueDateInput).toISOString().replace("Z", "+00:00");
-                try {
-                        const res = await fetch("http://127.0.0.1:5000/calendar/add", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ summary: todoTaskInput, end: redueDate ,UserId:user.uid || user.email||"default_user"}),
-                });
-                const data = await res.json();
-                alert(data.reply || data.error);
-                if(data.error){
-                        toast.error(data.error);
-                }else{
-                        toast.success(`Task "${todoTaskInput}" added successfully!`);
-                        setTodoTaskInput("");
-                        setDueDateInput("");
-                }
-        }catch(error){
-                console.error("Error adding event:", error);
-                toast.error("Failed to add task",error);
-        }
-        if (reply.includes("task:")) {
+        else{
+                toast.success("Question sent to assistant!");
                 try{
-                        const events = await fetch("http://127.0.0.1:5000/calendar/get");
-                        if(!events.ok){
-                        const errorData = await events.json().catch(() => ({}));
-                        throw new Error(`HTTP error! status: ${events.status}, message: ${errorData.error||'Unknown error'}`);
-                        }
-                        const data = await events.json();
-                        toast.success("Events fetched successfully!");
-                        setTasks(data.events || []);
-                        return data.events;
+                        const response = await ChatAPI.fetchAssistantResponse(question);
+                        setAiReply(response.reply || "No response from assistant.");
                 }catch(error){
                         console.error("Error fetching assistant response:", error);
-                        throw error;
+                        toast.error("Failed to get response from assistant.");
                 }
         }
-        setQuestion("");
-    }};
+    };
+
     const handleConfirmClear = async () => {
                 try{
                         const res = await fetch("http://127.0.0.1:5000/clear", {
@@ -488,7 +444,7 @@ return (
                             <h3 className="text-blue-300 text-lg font-bold m-3"><SmartToy/>AI Chat Assistant</h3>
                             <div className="rounded-md border border-slate-800 p-2 mb-4 bg-slate-800 text-white text-lg">
                                     <h4 className="text-blue-400 text-left font-bold"><SmartToy/>AI response</h4>
-                                    {/*{AiReply ? AiReply :"no reply"}*/}
+                                    {AiReply ? AiReply :"no reply"}
                                     <h4 className="text-gray-500 text-right font-bold">
                                         <div className="text-blue-300 text-left font-bold m-3">You asked:</div>
                                         <p>{localStorage.getItem("userQuestion")}</p>

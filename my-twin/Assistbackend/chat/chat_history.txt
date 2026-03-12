@@ -708,3 +708,12 @@ Assistant: Your piano practice event for Friday at 15:00 has been successfully c
 User: add
 Assistant: Your piano practice event for Friday at 15:00 has been successfully created! Is there anything else you'd like to add or adjust in your calendar?
 
+User: heyy
+Assistant: Hey there! How can I assist you today? If you have anything specific in mind, feel free to let me know!
+
+User: hello
+Assistant: Hey there! How can I assist you today? If there's something specific you want to work on or talk about, feel free to let me know!
+
+User: whats your name
+Assistant: My name is Ashen! How can I assist you today? If you have any specific questions or tasks in mind, feel free to let me know!
+
