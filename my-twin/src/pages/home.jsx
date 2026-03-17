@@ -2,10 +2,11 @@ import React,{use, useEffect,useState} from "react";
 import {Card, CardContent, Typography,
   Button, TextField, Stack, Divider} from "@mui/material";
 import toast, { Toaster } from "react-hot-toast";
-import {Link} from "react-router-dom";
+import {Link, replace} from "react-router-dom";
 /* Updated upstream*/
-import {Anchor,Delete,SmartToy,
-        Upload,Work,Code} from "@mui/icons-material";  
+import {Anchor,Delete,SmartToy,Inventory,MusicNote,
+        Settings,CalendarMonth,Inventory2,Cloud,
+        Upload,Work,Code,ArrowUpwardTwoTone} from "@mui/icons-material";  
 import {ChatAPI} from "../Utils/Assistant";
 import {useAuth} from "./AuthContext";
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
@@ -269,15 +270,17 @@ function Home () {
             cvinput.removeEventListener("change",handleFileChange);
         }
     }, []);
-    const handleuserQuestionChange = async () => {
-        if(question.trim() === ""){
+    const handleuserQuestionChange = async (overrideQuestion) => {
+        const nextQuestion = (overrideQuestion ?? question).trim();
+        if(nextQuestion === ""){
                 toast.error("Please enter a question.");
                 return;
         }
         else{
                 toast.success("Question sent to assistant!");
                 try{
-                        const response = await ChatAPI.fetchAssistantResponse(question);
+                        setQuestion(nextQuestion);
+                        const response = await ChatAPI.fetchAssistantResponse(nextQuestion);
                         setAiReply(response.reply || "No response from assistant.");
                 }catch(error){
                         console.error("Error fetching assistant response:", error);
@@ -322,7 +325,8 @@ function Home () {
         toast.success("All tasks removed!");
 
 };
-const userDetails = user ? `Logged in as: ${user.email}` : "Not logged in";
+const mail = user ? user.email.replace("@gmail.com","") : "";
+const userDetails = user ? `${mail}` : "Not logged in";
    useEffect(() => {
         const interval = setInterval(() => {
             setDateAndTime(new Date().toLocaleString());
@@ -388,61 +392,24 @@ return (
                     </div>
             </div>
             <div className="flex flex-col md:flex-row h-[700px] w-full">
-            <div className="h-auto p-5 m-6 gap-6 rounded-md border border-white">
+            <div className="h-auto rounded-md border border-white">
                     <ul className="block flex-col md:flex-row gap-5 text-lg font-bold ">
-                            <li className="mb-4"><Link to="/closet" className="text-white font-bold">Closet</Link></li>
-                         <li className="mb-4"><Link to="/study" className="text-white font-bold"><Code/>Study</Link></li>
-                            <input type="file" className="hidden" id="cv-upload" />
-                            <label htmlFor="cv-upload" className="cursor-pointer">
-                                    {cvFile ? <span className="text-blue-500"><Link to="/cv"><Work/>View CV</Link></span> : <span className="text-red-500"><Upload/>Upload CV</span>}
-                            </label>
-                            <li><Link to="/planner" className="text-white font-bold">Planner</Link></li>
+                             <li> <Cloud/></li>
+                            <li className="mb-4"><Link to="/closet" className="text-white font-bold"><Inventory2/></Link></li>
+                            <li className="mb-4"><Link to="/study" className="text-white font-bold"><Code/>Study</Link></li>
+                            <li><Link to="" className="text-white font-bold"><MusicNote/>Music</Link></li>
+                            <li><Link to="/planner" className="text-white font-bold"><CalendarMonth/></Link></li>
+                            <li><Link to="" className="text-white font-bold"><Inventory/></Link></li>
                             <li>
                                 {/*change to settings later on*/}
-                                <Link to="/login" className="text-white font-bold">Settings/login</Link>
+                                <Link to="/login" className="text-white font-bold"><Settings/>/login</Link>
                             </li>
                     </ul>
             </div>
-            <div className="flex flex-col md:flex-row h-[700px] w-auto p-5 m-6 gap-4 rounded-md border border-slate-800 !overflow-auto">
-                <div className=" h-auto max-w-[400px] p-5 m-6 gap-6 rounded-md border border-slate-800 !overflow-auto">
-                    <section className="block flex-col md:flex-row md:h-[300px] w-auto p-6 m-6 gap-4 rounded-md border border-slate-800 !overflow-auto">
-                        <ul className="block flex-col md:flex-row gap-4">
-                                {weather ? <li className="font-bold rounded-md border border-slate-800 p-5 text-orange-500">weather:{weather}</li> : <li>Loading weather...</li>}
-                                {
-                                events.length > 0 ? (
-                                        events.map((event) => (
-                                                <li key={event.id} className="text-underlined">
-                                                {event.summary ? event.summary : "No Title"} - Due:{" "}
-                                                {event.end
-                                                ? new Date(event.end).toLocaleString([], {
-                                                        year: "numeric",
-                                                        month: "2-digit",
-                                                        day: "2-digit",
-                                                        hour: "2-digit",
-                                                        minute: "2-digit",
-                                                })
-                                                : "N/A"}
-                                                </li>
-                                        ))
-                                        ) : (
-                                        <li className="font-bold rounded-md border border-slate-800 p-5 bg-slate-900">
-                                        no summary
-                                        <br/>summary should contain the following:
-                                        <br/>coursera completed courses and left,
-                                        <br/>projects done,
-                                        <br/>calendar events,
-                                        <br/>leetcode problems solved,
-                                        <br/>github contributions
-                                        </li>
-                                        )}
-                                        <li className="font-bold rounded-md border border-white p-5 bg-sky-500">
-                                        Start my day
-                                        </li>
-                        </ul>
-                 </section>
-                 <section className=" h-auto max-w-[400px] p-5 m-6 gap-6 rounded-md border border-slate-800 !overflow-auto">
-                            <h3 className="text-blue-300 text-lg font-bold m-3"><SmartToy/>AI Chat Assistant</h3>
-                            <div className="rounded-md border border-slate-800 p-2 mb-4 bg-slate-800 text-white text-lg">
+            <div className="flex flex-col md:flex-row h-full w-full rounded-md !overflow-auto">
+                 <section className=" h-auto max-w-[1000px] p-2 rounded-md bg-gradient-to-br from-slate-900 via-black to-slate-800 border border-slate-900 !overflow-auto">
+                            <h3 className="text-white text-lg font-bold m-3"><SmartToy/>AI Chat Assistant</h3>
+                            <div className="rounded-md border border-slate-800 p-2 mb-4 backdrop-blur-sm text-white text-lg">
                                     <h4 className="text-blue-400 text-left font-bold"><SmartToy/>AI response</h4>
                                     {AiReply ? AiReply :"no reply"}
                                     <h4 className="text-gray-500 text-right font-bold">
@@ -462,49 +429,55 @@ return (
                                         <Button onClick={handleConfirmClear} color="error" variant="contained">Yes, Clear</Button>
                                 </DialogActions>
                             </Dialog>
-                            <li className="font-bold rounded-sm border border-blue-500  mb-4 cursor-pointer list-none">
-                                <input type="file" className="hidden" id="file-upload" />
-                                <label className="cursor-pointer" htmlFor="file-upload">
-                                    <Upload />
-                                </label>
-                                </li>
-                            <input className="rounded-sm border border-white p-2 mb-4 w-[180px] max-h-[200px]"
-                            id="user-question"
-                            value={question}
-                            onChange={(e) => setQuestion(e.target.value)}
-                            type="text" placeholder="Ask me anything..." />
+                            <div className="relative flex flex-row w-full max-w-full items-center">
+                                <input className="rounded-xl border border-white p-3 mb-4 w-screen bg-slate-900 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        id="user-question"
+                                        value={question}
+                                        onChange={(e) => setQuestion(e.target.value)}
+                                        type="text" placeholder="Ask me anything..."
+                                        />
+                                        <Button variant="contained"
+                                                color="primary"
+                                                size="small"
+                                                onClick={() => handleuserQuestionChange(question)}
+                                                style={{ margin: '2px', backgroundColor: '#c1de19', backdropFilter:"blur(10px)",border:"1px solid #daf701", color:"#000000" }}
+                                                component="span"
+                                                className="absolute right-[70px] top-1 w-[20px] transform -translate-y-4 rounded-md"><ArrowUpwardTwoTone /></Button>
+                                                <li className="font-bold rounded-md border border-blue-500 w-[fit-content] absolute right-[20px] transform -translate-y-4  cursor-pointer list-none">
+                                                        <input type="file" className="hidden" id="file-upload" />
+                                                        <label className="cursor-pointer" htmlFor="file-upload">
+                                                        <Upload />
+                                                        </label>
+                                                </li>
+                                </div>
                             <section className=" gap-4 mb-4">
                                     <Button variant="contained"
                                     color="primary"
                                     size="small"
-                                    onClick={handleuserQuestionChange}
-                                    style={{ margin: '5px' }}
+                                    onClick={() => handleuserQuestionChange("Tailor my CV")}
+                                    style={{ margin: '5px',padding: '10px', backgroundColor: '#c0de1922', backdropFilter:"blur(10px)",border:"1px solid #daf701", color:"#bff900" }}
                                     component="span"
-                                    className="bg-blue-600 text-white p-2 rounded-md m-2">Ask</Button>
-                                    <Button variant="contained"
-                                    color="primary"
-                                    size="small"
-                                    style={{ margin: '5px' }}
-                                    component="span"
-                                    className="bg-blue-500 text-white p-2 rounded-md m-2">Tailor my CV</Button>
+                                    className="bg-emerald-500 text-white p-2 rounded-md m-2">Tailor my CV</Button>
                                     <Button variant="contained"
                                     component="span"
                                     color="primary"
                                     size="small"
-                                    style={{ margin: '5px' }}
+                                    onClick={()=> handleuserQuestionChange("Suggest an outfit")}
+                                    style={{ margin: '5px',padding: '10px', backgroundColor: '#46e55622', backdropFilter:"blur(10px)",border:"1px solid #46e556", color:"#46e556" }}
                                     className="bg-blue-600 text-white p-2 rounded-md m-2">Suggest an outfit</Button>
                                     <Button variant="contained"
                                     component="span"
                                     color="primary"
                                     size="small"
-                                    style={{ margin: '5px' }}
+                                    onClick={() => handleuserQuestionChange("Plan my day")}
+                                    style={{ margin: '5px',padding: '10px', backgroundColor: '#46e55622', backdropFilter:"blur(10px)",border:"1px solid #46e556", color:"#46e556" }}
                                     className="bg-blue-500 text-white p-2 rounded-md m-2">Plan my day</Button>
                                     <Button
                                         size="small"
                                         variant="contained"
                                         color="primary"
-                                        onClick={() => setAiTasks('')}
-                                        style={{ margin: '5px' }}
+                                        onClick={() => handleuserQuestionChange(AiTasks)}
+                                        style={{ margin: '5px',padding: '10px', backgroundColor: '#7d7d7da9', backdropFilter:"blur(10px)",border:"1px solid #09090900", color:"#fffdfd" }}
                                         className="w-[200px] bg-surface text-primary rounded-2xl shadow-soft border border-border hover:bg-accent-indigo-light transition"
                                         >
                                         {localStorage.getItem("AiTasks") ? localStorage.getItem("AiTasks") : "No tasks added yet"}
@@ -519,8 +492,8 @@ return (
                                         />
                             </section>
                     </section>
-                    </div>
-                    <div className=" md:flex-col md: h-[600px] w-[600px] p-2 m-2 gap-2 text-white rounded-md border border-black !overflow-auto">
+                    <div className=" md:flex-col md: h-[600px] max-h-[h-full] w-[400px] text-white rounded-md border border-black !overflow-auto">
+                        {/*
                     <section className="md:flex-col md:h-[400px] w-[300px] p-2 m-2 gap-2 rounded-md border border-slate-900 !overflow-auto">
                                 <h3 className="text-xl font-bold">To - Do List</h3>
                                 <ul className="list-disc list-none p-4 text-green-500 font-bold">
@@ -541,7 +514,7 @@ return (
                                                 onClick={() => deleteDocField(event.googleEventId)}
                                                 style={{ marginLeft: "10px" }}
                                                 >
-                                                {/*onClick={() => handleRemoveTask(index)}*/}
+                                                {/*onClick={() => handleRemoveTask(index)}
                                                 <Delete
                                                         fontSize="small"
                                                         style={{ color: 'white' }}
@@ -615,7 +588,7 @@ return (
                                                 📅 My Calendar
                                         </Typography>
 
-                                        {/* Interactive Calendar */}
+                                        {/* Interactive Calendar 
                                         <Calendar 
                                                 localizer={localizer}
                                                 events={events.map(ev => ({
@@ -650,7 +623,52 @@ return (
                             <progress value="70" max="100" className="w-full h-6 rounded-md border border-white bg-slate-700">
                                     70% completed
                             </progress>
-                    </section>
+                    </section> 
+                */}
+                <section className="block flex-col md:flex-row md:h-auto w-auto p-2 rounded-md border border-slate-800 !overflow-auto">
+                        <ul className="block flex-col md:flex-row gap-4">
+                                {weather ? <li className="font-bold rounded-md p-5 ">weather:{weather}</li> : <li>Loading weather...</li>}
+                                {
+                                events.length > 0 ? (
+                                        events.map((event) => (
+                                                <li key={event.id} className="text-underlined">
+                                                {event.summary ? event.summary : "No Title"} - Due:{" "}
+                                                {event.end
+                                                ? new Date(event.end).toLocaleString([], {
+                                                        year: "numeric",
+                                                        month: "2-digit",
+                                                        day: "2-digit",
+                                                        hour: "2-digit",
+                                                        minute: "2-digit",
+                                                })
+                                                : "N/A"}
+                                                </li>
+                                        ))
+                                        ) : (
+                                        <li className="font-bold rounded-md border border-slate-800 p-5 bg-slate-900">
+                                        no summary
+                                        <br/>summary should contain the following:
+                                        <br/>coursera completed courses and left,
+                                        <br/>projects done,
+                                        <br/>calendar events,
+                                        <br/>leetcode problems solved,
+                                        <br/>github contributions
+                                        </li>
+                                        )}
+                        </ul>
+                 </section>
+                 <section className="h-auto max-h-[400px] rounded-md p-5 m-6 bg-slate-850 text-white text-lg gap-4">
+                        <Button variant="contained"
+                                color="primary"
+                                size="small"
+                                onClick=''
+                                style={{ margin: '5px',padding: '10px', backgroundColor: '#46e55622', backdropFilter:"blur(10px)",border:"1px solid #46e556", color:"#46e556" }}
+                                className="bg-blue-500 text-white p-4 rounded-md m-2">
+                                <input type="file" className="hidden" id="cv-upload" />
+                                <label htmlFor="cv-upload" className="cursor-pointer"></label>
+                                {cvFile ? <span className="text-blue-500"><Link to="/cv"><Work/>View CV</Link></span> : <span>Upload your CV <ArrowUpwardTwoTone/></span>}</Button>
+                </section>
+                 </div>
             </div>
             </div>
     </main>

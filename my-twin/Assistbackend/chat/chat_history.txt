@@ -717,3 +717,129 @@ Assistant: Hey there! How can I assist you today? If there's something specific 
 User: whats your name
 Assistant: My name is Ashen! How can I assist you today? If you have any specific questions or tasks in mind, feel free to let me know!
 
+User: heyy
+Assistant: Hey there! How can I assist you today? If you have something specific in mind or need help with your calendar, just let me know!
+
+User: heyy
+Assistant: Hey there! How can I assist you today? If there's anything specific you want to work on, whether it's coding, your calendar, or something else, just let me know!
+
+User: heyy
+Assistant: Hey there! How can I assist you today? If you have something specific in mind or need help with your calendar, just let me know!
+
+User: heyy
+Assistant: Hey there! How can I assist you today? If you have any specific questions or tasks in mind, feel free to let me know!
+
+User: Tailor my CV
+Assistant: To tailor your CV effectively, I’ll need some details about your background, skills, and the type of positions you’re targeting. Here are a few questions to get us started:
+
+1. What is your current job title and experience level?
+2. What are your key skills and technologies you want to highlight (e.g., Python, React, DSA)?
+3. What type of positions are you applying for (e.g., internships, full-time roles)?
+4. Do you have any specific achievements or projects you want to include?
+
+Once I have this information, I can help you create a polished CV that stands out!
+
+User: Plan my day
+Assistant: To help you plan your day effectively, could you share what tasks or events you have in mind? For example, do you have any appointments, work tasks, or personal commitments? If you want to include time for studying or working on your CV, let me know that as well!
+
+User: Suggest an outfit
+Assistant: Sure! To suggest an outfit, I need to know a bit about the weather in your area or the occasion you're dressing for. Are you planning for a casual day out, a work event, or something else? Also, do you have any preferred colors or styles? Let me know!
+
+User: Plan my day
+Assistant: To help you plan your day, could you please share any specific tasks or events you have scheduled? For instance, do you have any appointments, work tasks, or personal commitments? Additionally, if you want to include time for studying or working on your CV, let me know!
+
+User: yooo
+Assistant: Hey there! How can I assist you today? Are you looking for help with your CV, planning your day, or maybe something else? Let me know!
+
+User: whats the time
+Assistant: What time would you like to plan your day for? If you have specific tasks or events in mind, please share them so I can help you create an effective schedule!
+
+User: Plan my day
+Assistant: To help you plan your day effectively, could you please let me know what tasks or events you have in mind? For instance, do you have any appointments, work tasks, or personal commitments? Additionally, if you want to include time for studying or working on your CV, please share that too!
+
+User: whats the time
+Assistant: The current time is 20:29:30. How can I assist you with planning your day or any other tasks?
+
+User: Tailor my CV
+Assistant: What specific aspects of your CV would you like to tailor? For example, do you want to focus on formatting, highlighting specific skills or experiences, or adjusting it for a particular job application? Let me know how I can help!
+
+User: Suggest an outfit
+Assistant: What specific tasks or events do you have planned for your day? This will help me create a tailored schedule for you! If you have any appointments, study sessions, or personal commitments in mind, please share them.
+
+User: Plan my day
+Assistant: To help you plan your day effectively, could you please share any specific tasks or events you have in mind? For example, do you have any appointments, work tasks, or personal commitments? Additionally, if you want to include time for studying or working on your CV, please let me know!
+
+User: whats the time
+Assistant: The current time is 20:45:10. How can I assist you with planning your day or any other tasks?
+
+User: Suggest an outfit
+Assistant: To suggest an outfit, could you please tell me what the weather is like where you are or what activities you have planned for the day? This will help me make the best suggestions for you!
+
+User: Plan my day
+Assistant: To help you plan your day effectively, could you please share any specific tasks or events you have in mind? For example, do you have any appointments, work tasks, or personal commitments? Additionally, if you want to include time for studying or working on your CV, please let me know!
+
+User: whats the time
+Assistant: The current time is 20:46:20. How can I assist you further with your plans or tasks for the evening?
+
+User: yoo
+Assistant: What's the weather like in your area, or what activities do you have planned for the day? This will help me suggest a suitable outfit for you!
+
+User: bfbfd
+Assistant: It seems like you might have entered a random string, "bfbfd." If you intended to ask something specific or need assistance with your plans or tasks for the day, please let me know! I'm here to help with scheduling, outfit suggestions, or any other queries you may have. What would you like to focus on?
+
+User: Tailor my CV
+Assistant: To help you tailor your CV effectively, please provide some details about your current skills, experiences, and the type of positions you are applying for. Additionally, if you have a specific format or style in mind, let me know! This way, I can give you the best suggestions for making your CV stand out.
+
+User: Suggest an outfit
+Assistant: It seems like you're looking for an outfit suggestion! Could you please let me know the weather in your area or what activities you have planned for the day? This will help me provide you with the best outfit options!
+
+User: Suggest an outfit
+Assistant: To suggest an outfit, could you please let me know the weather in your area or what activities you have planned for the day? This will help me provide you with the best outfit options!
+
+User: Tailor my CV
+Assistant: To help you tailor your CV effectively, please provide some details about your current skills, experiences, and the type of positions you are applying for. Additionally, if you have a specific format or style in mind, let me know! This way, I can give you the best suggestions for making your CV stand out.
+
+User: Suggest an outfit
+Assistant: To suggest the perfect outfit, it would be really helpful to know the weather in your area or what activities you have planned for the day. Are you dressing for a casual day out, a formal event, or maybe something sporty? Let me know, and I can recommend something suitable!
+
+User: whats the time
+Assistant: What would you like to focus on today? If you're looking for an outfit suggestion, please let me know the weather or your activities. If you need help with your CV or something else, just share the details!
+
+User: chinese
+Assistant: It looks like you're interested in tailoring your CV or getting some outfit suggestions. How can I assist you today? If you have specific details about your skills, experiences, or the kind of positions you're applying for, I can help you craft a standout CV. Alternatively, if you need outfit suggestions, please let me know the weather or your plans!
+
+User: standout CV
+Assistant: To create a standout CV, let's focus on making it visually appealing and content-rich. Here are some tips to help you craft an impressive CV:
+
+1. Contact Information: Include your name, phone number, email, and LinkedIn profile at the top.
+
+2. Professional Summary: Write a brief summary (2-3 sentences) highlighting your key skills and what you bring to a potential employer.
+
+3. Skills Section: List relevant skills, especially those mentioned in the job descriptions you’re targeting. This can include technical skills like Python, React, and DSA, as well as soft skills.
+
+4. Work Experience: 
+   - Use bullet points for clarity. 
+   - Start each point with strong action verbs (e.g., Developed, Designed, Implemented).
+   - Quantify your achievements where possible (e.g., “Increased website traffic by
+
+User: Tailor my CV
+Assistant: To tailor your CV into a standout version, let’s focus on structuring it effectively and ensuring it highlights your skills and experiences. Here’s a suggested format along with some tips:
+
+### CV Structure:
+
+1. Contact Information:
+   - Your Name
+   - Phone Number
+   - Email Address
+   - LinkedIn Profile or Personal Website (if applicable)
+
+2. Professional Summary:
+   - A brief statement (2-3 sentences) that summarizes your career goals, key skills, and what you can offer to potential employers. 
+
+3. Skills:
+   - List relevant technical skills (e.g., Python, React, Data Structures & Algorithms) and soft skills (e.g., teamwork, communication).
+   - Tailor this section to match the skills mentioned in the job descriptions you are applying for.
+
+4. Work Experience:
+   - Job Title
+
