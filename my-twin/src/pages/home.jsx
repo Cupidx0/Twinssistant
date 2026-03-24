@@ -4,6 +4,8 @@ import {Card, CardContent, Typography,
 import toast, { Toaster } from "react-hot-toast";
 import {Link, replace} from "react-router-dom";
 /* Updated upstream*/
+import Weather_cv from "./page_connect/Weather_cv";
+import Calendar_g from "./page_connect/Calendar";
 import {Anchor,Delete,SmartToy,Inventory,MusicNote,
         Settings,CalendarMonth,Inventory2,Cloud,
         Upload,Work,Code,ArrowUpwardTwoTone} from "@mui/icons-material";  
@@ -31,27 +33,15 @@ function Home () {
     const[AiReply, setAiReply] = useState("");
     const [question, setQuestion] = useState("");
     const [openConfirm, setOpenConfirm] = useState(false);
-    const [cvFile, setCvFile] = useState(null);
     const [events, setEvents] = useState([]);
-    const [weather, setWeather] = useState("");
-    const [summary, setSummary] = useState("");
+    //const [weather, setWeather] = useState("");
+    const [section, setSection] = useState("weather");
     const [outstart, setOutstart] = useState("");
     const [end, setEnd] = useState("");
     //const [dueDate, setDueDate] = useState("");
     //const [CalendarEvents, setCalendarEvents] = useState([]);
 
-        const locales = {
-        "en-GB": enGB,
-        };
-
-        const localizer = dateFnsLocalizer({
-                format,
-                parse,
-                startOfWeek: () => startOfWeek(new Date(), { weekStartsOn: 1 }),
-                getDay,
-                locales,
-        });
-    useEffect(() => {
+    /*useEffect(() => {
         const refreshTasks= async()=>{
                 try{
                     // 1. Load local tasks
@@ -80,30 +70,7 @@ function Home () {
                  }
         };
         refreshTasks();
-    },[user?.uid],[]);
-    useEffect(()=>{
-        const fetchWeather = async ()=>{
-                try{
-                        const res = await fetch ("http://127.0.0.1:5000/weather",{
-                                method:"POST",
-                                headers:{"Content-Type":"application/json"},
-                                body:JSON.stringify({location:"London"}),
-                        });
-                        const data = await res.json();
-                        if (data.weather) {
-                                setWeather(`${data.weather.temperature}°C, ${data.weather.description}`);
-                                //toast.success(`Weather fetched for ${data.weather.city}`);
-                        } else {
-                               toast.error(data.error || "Failed to get weather");
-                        }
-                        return data.weather;
-                }catch(error){
-                        //console.error("Error fetching weather:", error);
-                        //toast.error("Error fetching weather");
-                }
-        }
-        fetchWeather();
-    },[weather]);
+    },[user?.uid],[]);   
     const deleteDocField = async (eventId) => {
         try {
         const res = await fetch("http://127.0.0.1:5000/calendar/delete", {
@@ -133,7 +100,7 @@ function Home () {
         console.error("Error deleting:", error);
         toast.error("Failed to delete task.");
         }
-  };
+  };*/
   useEffect(()=>{
         const fetchFit = async ()=> {
                 try{
@@ -192,32 +159,11 @@ function Home () {
         setDueDateInput("");
     }
     // refresh events after adding
-    const refreshed = await fetch("http://127.0.0.1:5000/calendar/get", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user?.uid || user?.email }),
-        }).then(r => r.json());
-    setEvents(refreshed.events || []);
-    setTasks(refreshed.events ||[]);
-    } catch (error) {
-        console.error("Error adding event:", error);
-        toast.error("Failed to add task",error);
     }
-    try{
-        const events = await fetch("http://127.0.0.1:5000/calendar/get");
-        if(!events.ok){
-            const errorData = await events.json().catch(() => ({}));
-            throw new Error(`HTTP error! status: ${events.status}, message: ${errorData.error||'Unknown error'}`);
-        }
-        const data = await events.json();
-        toast.success("Events fetched successfully!");
-        setTasks(data.events||[]);
-        return data.events;
-    }catch(error){
-        console.error("Error fetching assistant response:", error);
-        throw error;
-    }
-    }
+    catch(error){
+        toast.error("Failed to add task");
+        console.error("Error adding task:", error);}
+}
     useEffect(() => {
         const pastDued = tasks.filter(t => new Date(t.end) < new Date());
         setPastDue(pastDued);
@@ -253,23 +199,6 @@ function Home () {
             taskInput.removeEventListener("change", handleAiTasks);
         };
     }, [AiTasks]);
-    useEffect(() => {
-        const cvinput = document.getElementById("cv-upload");
-        const handleFileChange = (e) => {
-            const file = e.target.files[0];
-            if(file){
-                setCvFile(file);
-                alert(`CV file ${file.name} uploaded successfully!`);
-                toast.success(`CV file ${file.name} uploaded successfully!`);
-            }else{
-                toast.error("No file selected.");
-            }
-        };
-        cvinput.addEventListener("change",handleFileChange);
-        return ()=>{
-            cvinput.removeEventListener("change",handleFileChange);
-        }
-    }, []);
     const handleuserQuestionChange = async (overrideQuestion) => {
         const nextQuestion = (overrideQuestion ?? question).trim();
         if(nextQuestion === ""){
@@ -394,11 +323,11 @@ return (
             <div className="flex flex-col md:flex-row h-[700px] w-full">
             <div className="h-auto rounded-md border border-white">
                     <ul className="block flex-col md:flex-row gap-5 text-lg font-bold ">
-                             <li> <Cloud/></li>
+                             <li onClick={()=>setSection("weather")}><Cloud/></li>
                             <li className="mb-4"><Link to="/closet" className="text-white font-bold"><Inventory2/></Link></li>
                             <li className="mb-4"><Link to="/study" className="text-white font-bold"><Code/>Study</Link></li>
                             <li><Link to="" className="text-white font-bold"><MusicNote/>Music</Link></li>
-                            <li><Link to="/planner" className="text-white font-bold"><CalendarMonth/></Link></li>
+                            <li onClick={()=>setSection("cal")} className="text-white font-bold"><CalendarMonth/></li>
                             <li><Link to="" className="text-white font-bold"><Inventory/></Link></li>
                             <li>
                                 {/*change to settings later on*/}
@@ -582,37 +511,6 @@ return (
                                         </Stack>
                                 </ul>
                         </section>
-                                <Card sx={{ p: 4, borderRadius: "16px", boxShadow: 3,height:"auto", maxHeight:450, width: 300, maxWidth: "600px", overflow: "hidden" }}>
-                                        <CardContent >
-                                        <Typography variant="h6" gutterBottom>
-                                                📅 My Calendar
-                                        </Typography>
-
-                                        {/* Interactive Calendar 
-                                        <Calendar 
-                                                localizer={localizer}
-                                                events={events.map(ev => ({
-                                                title: ev.summary || "No title",
-                                                start: new Date(ev.start),
-                                                end: new Date(ev.end)
-                                                }))}
-                                                startAccessor="start"
-                                                endAccessor="end"
-                                                style={{ height: 350,width: 200, margin: "10px 0" }}
-                                                selectable
-                                                onSelectSlot={(slot) => {
-                                                console.log("Selected slot:", slot);
-                                                setDueDateInput(slot.end.toISOString());
-                                                toast.success("Slot selected! Fill in the summary to add event.");
-                                                }}
-                                                onSelectEvent={(event) => {
-                                                alert(`Selected event: ${event.title}`);
-                                                }}
-                                        />
-
-                                        <Divider sx={{ my: 2 }} />
-                                        </CardContent>
-                                </Card>
                                 </div>
                     <section className="h-auto max-h-[400px] max-w-[200px] rounded-md border border-slate-900 p-5 m-6 bg-slate-850  text-lg gap-4 !overflow-auto">
                             <h3 className="font-bold text-blue-200">Outfit of the Day</h3>
@@ -625,50 +523,9 @@ return (
                             </progress>
                     </section> 
                 */}
-                <section className="block flex-col md:flex-row md:h-auto w-auto p-2 rounded-md border border-slate-800 !overflow-auto">
-                        <ul className="block flex-col md:flex-row gap-4">
-                                {weather ? <li className="font-bold rounded-md p-5 ">weather:{weather}</li> : <li>Loading weather...</li>}
-                                {
-                                events.length > 0 ? (
-                                        events.map((event) => (
-                                                <li key={event.id} className="text-underlined">
-                                                {event.summary ? event.summary : "No Title"} - Due:{" "}
-                                                {event.end
-                                                ? new Date(event.end).toLocaleString([], {
-                                                        year: "numeric",
-                                                        month: "2-digit",
-                                                        day: "2-digit",
-                                                        hour: "2-digit",
-                                                        minute: "2-digit",
-                                                })
-                                                : "N/A"}
-                                                </li>
-                                        ))
-                                        ) : (
-                                        <li className="font-bold rounded-md border border-slate-800 p-5 bg-slate-900">
-                                        no summary
-                                        <br/>summary should contain the following:
-                                        <br/>coursera completed courses and left,
-                                        <br/>projects done,
-                                        <br/>calendar events,
-                                        <br/>leetcode problems solved,
-                                        <br/>github contributions
-                                        </li>
-                                        )}
-                        </ul>
-                 </section>
-                 <section className="h-auto max-h-[400px] rounded-md p-5 m-6 bg-slate-850 text-white text-lg gap-4">
-                        <Button variant="contained"
-                                color="primary"
-                                size="small"
-                                onClick=''
-                                style={{ margin: '5px',padding: '10px', backgroundColor: '#46e55622', backdropFilter:"blur(10px)",border:"1px solid #46e556", color:"#46e556" }}
-                                className="bg-blue-500 text-white p-4 rounded-md m-2">
-                                <input type="file" className="hidden" id="cv-upload" />
-                                <label htmlFor="cv-upload" className="cursor-pointer"></label>
-                                {cvFile ? <span className="text-blue-500"><Link to="/cv"><Work/>View CV</Link></span> : <span>Upload your CV <ArrowUpwardTwoTone/></span>}</Button>
-                </section>
-                 </div>
+                {section === "weather" && <Weather_cv />}
+                {section === "cal" && <Calendar_g />}
+                </div>
             </div>
             </div>
     </main>

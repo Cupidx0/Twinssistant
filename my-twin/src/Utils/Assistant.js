@@ -60,3 +60,53 @@ export const ChatAPI = {
     }
   },
 };
+export const WeatherAPI = {
+  fetchWeather : async ()=>{
+                try{
+                        const res = await api.post("/weather", {
+                                location: "London"
+                        });
+                        return res.data;
+                }catch(error){
+                    throw error;
+        
+                }
+        },
+};
+export const CalendarAPI = {
+    addEvent: async (summary, dueDate, user) => {
+    try {
+        await api.post("/calendar/add", {
+        summary,
+        dueDate,
+        userId: user?.uid || user?.email,
+        });
+        // Refresh events after adding
+        const refreshed = await fetch("/calendar/get", {
+          body: JSON.stringify({ userId: user?.uid || user?.email }),
+        });
+        if (!refreshed.ok) {
+          const errorData = await refreshed.json().catch(() => ({}));
+          throw new Error(`HTTP error! status: ${refreshed.status}, message: ${errorData.error || 'Unknown error'}`);
+        }
+    } catch (error) {
+        console.error("Error adding event:", error);
+        toast.error("Failed to add task",error);
+    }
+    fetchEvents(); // Refresh events after adding
+  },
+  fetchEvents: async () => {
+    try{
+        const events = await fetch("/calendar/get");
+        if(!events.ok){
+            const errorData = await events.json().catch(() => ({}));
+            throw new Error(`HTTP error! status: ${events.status}, message: ${errorData.error||'Unknown error'}`);
+        }
+        const data = await events.json();
+        return data.events;
+    }catch(error){
+        console.error("Error fetching assistant response:", error);
+        throw error;
+    }
+  },
+};
