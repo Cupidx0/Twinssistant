@@ -302,9 +302,12 @@ def get_calendar_events(user_id, maxResults=5):
 print(get_calendar_events)
 @app.route("/calendar/get", methods=["POST"])
 def fetch_calendar_events():
-    data = get_request_json()
-    events = safe_get_calendar_events(data)
-    return jsonify(events)
+    try:
+        data = get_request_json()
+        events = safe_get_calendar_events(data)
+        return jsonify({"events":events})  
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500  
 
 
 @app.route('/calendar/delete', methods=['DELETE'])
@@ -424,12 +427,14 @@ def outfit():
     try:
         data = request.get_json()
         message = data.get("fit", "").strip()
+        user_time = datetime.now()
         city = "Horley"
         weather = getWeather()
         if not message:
             return jsonify({"error": "Please provide a question."}), 400
         prompt =( 
-                  f"User request: {message}\n Suggest outfit for user based on the weather.\n"
+                  f"User request: {message}\n Suggest outfit for user based on the weather and the {user_time} time."
+                  "based on if its morning ,afternoon and night.\n"
                   f"use the {weather} to decide which outfit to recommend to the user and also for the {city}location.\n"
                   "output the weather info to the user before the outfit idea. \n"
                   "start with a friendly greeting and confirm actions."
@@ -437,7 +442,7 @@ def outfit():
         response = create_chat_completion(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are a smart assistant that manages Fashion closet. Always try to provide relevant outfit to the user based on the weather."},
+                {"role": "system", "content": "You are a smart assistant that manages Fashion closet. Always try to provide relevant outfit to the user based on the weather whilst keeping your word length at a minimum."},
                 {"role": "user", "content":prompt}
             ],
             max_tokens=180,
@@ -545,7 +550,7 @@ def chat():
             reply = reply.replace("*", "")
          # Save chat to local file
         with open("chat/chat_history.txt", "a") as f:
-            f.write(f"User: {message}\nAssistant: {reply}\n\n")
+            f.write(f"User: {message}\nAssistant: {reply}\n")
         return jsonify({"reply": reply})
 
     except Exception as e:

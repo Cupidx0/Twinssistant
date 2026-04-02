@@ -59,6 +59,14 @@ export const ChatAPI = {
       throw error;
     }
   },
+  fetchFit :async (fit)=> {
+    try{
+        const response = await api.post("/outfit",{ fit });
+          return response.data;
+    }catch(error){
+        throw error;
+    }
+  },
 };
 export const WeatherAPI = {
   fetchWeather : async ()=>{
@@ -97,13 +105,16 @@ export const CalendarAPI = {
   },
   fetchEvents: async () => {
     try{
-        const events = await fetch("/calendar/get");
-        if(!events.ok){
-            const errorData = await events.json().catch(() => ({}));
-            throw new Error(`HTTP error! status: ${events.status}, message: ${errorData.error||'Unknown error'}`);
+        const response = await api.post("/calendar/get");
+        if (!response || !response.data) {
+            throw new Error("No data received from server");
         }
-        const data = await events.json();
-        return data.events;
+        const payload = response.data;
+        // Backend returns: { events: { events: [...], total_duration: "..." } }
+        const events = Array.isArray(payload?.events)
+          ? payload.events
+          : payload?.events?.events;
+        return events || [];
     }catch(error){
         console.error("Error fetching assistant response:", error);
         throw error;

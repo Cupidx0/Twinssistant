@@ -6,6 +6,7 @@ import {Link, replace} from "react-router-dom";
 /* Updated upstream*/
 import Weather_cv from "./page_connect/Weather_cv";
 import Calendar_g from "./page_connect/Calendar";
+import Outfit_of_day from "./page_connect/Outfit_of_day";
 import {Anchor,Delete,SmartToy,Inventory,MusicNote,
         Settings,CalendarMonth,Inventory2,Cloud,
         Upload,Work,Code,ArrowUpwardTwoTone} from "@mui/icons-material";  
@@ -101,32 +102,6 @@ function Home () {
         toast.error("Failed to delete task.");
         }
   };*/
-  useEffect(()=>{
-        const fetchFit = async ()=> {
-                try{
-                        const res =  await fetch("http://127.0.0.1:5000/outfit",{
-                                method:"POST",
-                                headers:{"Content-Type":"application/json"},
-                                body:JSON.stringify({fit:"generate a random outfit for me to wear based on the weather."}),
-                        });
-                        const data = await res.json();
-                        if (data.outgen) {
-                                setOutstart(`${data.outgen}`);
-                                //toast.success(`Weather fetched for ${data.weather.city}`);
-                        } else {
-                               toast.error(data.error || "Failed to get weather");
-                        }
-                        return data.outgen;
-                }catch(error){
-                        //console.error("Error fetching weather:", error);
-                        //toast.error("Error fetching weather");
-                }
-        }
-        fetchFit();
-        //set interval for 30 mins
-        const interval = setInterval(fetchFit, 1800000);
-        return ()=> clearInterval(interval);
-  },[]);
   // Add new event
   const handleAddTask = async () => {
     const currentDate = new Date().toISOString().slice(0, 16);
@@ -328,7 +303,7 @@ return (
                             <li className="mb-4"><Link to="/study" className="text-white font-bold"><Code/>Study</Link></li>
                             <li><Link to="" className="text-white font-bold"><MusicNote/>Music</Link></li>
                             <li onClick={()=>setSection("cal")} className="text-white font-bold"><CalendarMonth/></li>
-                            <li><Link to="" className="text-white font-bold"><Inventory/></Link></li>
+                            <li onClick={()=>setSection("oot")} className="text-white font-bold" label="Outfit of the Day"><Inventory2/>Outfit of the Day</li>
                             <li>
                                 {/*change to settings later on*/}
                                 <Link to="/login" className="text-white font-bold"><Settings/>/login</Link>
@@ -405,7 +380,7 @@ return (
                                         size="small"
                                         variant="contained"
                                         color="primary"
-                                        onClick={() => handleuserQuestionChange(AiTasks)}
+                                        onClick={() => handleuserQuestionChange(localStorage.getItem("AiTasks") ? `${localStorage.getItem("AiTasks")}` : "No tasks added yet")}
                                         style={{ margin: '5px',padding: '10px', backgroundColor: '#7d7d7da9', backdropFilter:"blur(10px)",border:"1px solid #09090900", color:"#fffdfd" }}
                                         className="w-[200px] bg-surface text-primary rounded-2xl shadow-soft border border-border hover:bg-accent-indigo-light transition"
                                         >
@@ -525,6 +500,7 @@ return (
                 */}
                 {section === "weather" && <Weather_cv />}
                 {section === "cal" && <Calendar_g />}
+                {section === "oot" && <Outfit_of_day />}
                 </div>
             </div>
             </div>

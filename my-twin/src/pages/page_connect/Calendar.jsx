@@ -36,7 +36,8 @@ export default function Calendar_g(){
             const fetchEvents = async () => {
                     try {
                             const response = await CalendarAPI.fetchEvents();
-                            setEvents(response.data.events || []);
+                            setEvents(Array.isArray(response) ? response : []);
+                            toast.success("Calendar events loaded successfully!");
                     } catch (error) {
                             console.error("Error fetching events:", error);
                             toast.error("Failed to load calendar events");
@@ -61,7 +62,7 @@ export default function Calendar_g(){
                                                 }))}
                                                 startAccessor="start"
                                                 endAccessor="end"
-                                                style={{ height: 350,width: 200, margin: "10px 0" }}
+                                                style={{ height: 300,width: 200, margin: "10px 0" }}
                                                 selectable
                                                 onSelectSlot={(slot) => {
                                                 console.log("Selected slot:", slot);
@@ -70,12 +71,37 @@ export default function Calendar_g(){
                                                 }}
                                                 onSelectEvent={(event) => {
                                                 alert(`Selected event: ${event.title}`);
+                                                toast.info(`Event details: ${event.title} from ${event.start.toLocaleString()} to ${event.end.toLocaleString()}`);
                                                 }}
                                         />
 
                                         <Divider sx={{ my: 2 }} />
                                         </CardContent>
                                 </Card>
+                                <section className="h-auto max-h-[400px] rounded-md p-5 m-6 bg-slate-850 text-white text-lg gap-4">
+                                    <ul className="block flex-col md:flex-row gap-4">
+                                        {events.length > 0 ? (
+                                            events.map((event) => (
+                                            <li key={event.id} className="text-underlined border border-slate-800 rounded-md p-2">
+                                                {event.summary || "No Title"} - Due:{" "}
+                                                {event.end
+                                                ? new Date(event.end).toLocaleString([], {
+                                                    year: "numeric",
+                                                    month: "2-digit",
+                                                    day: "2-digit",
+                                                    hour: "2-digit",
+                                                    minute: "2-digit",
+                                                    })
+                                                    : "N/A"}
+                                                    </li>
+                                                    ))
+                                                    ) : (
+                                                    <li className="font-bold rounded-md border border-slate-800 p-5 bg-slate-900">
+                                                        no events
+                                                    </li>
+                                                )}
+                                    </ul>
+                                    </section>
             </section>
         </div>
         );
