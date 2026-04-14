@@ -4,6 +4,7 @@ import Home from './pages/home'
 import Error404 from './pages/Error'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import Settings from './pages/Settings'
 import Weather_cv from './pages/page_connect/Weather_cv'
 import './App.css'
 import './index.css'
@@ -19,6 +20,7 @@ function App() {
             <Route path="/home" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<Error404 />} />
           </Route>
         </Routes>

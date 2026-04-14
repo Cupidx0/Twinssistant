@@ -6,11 +6,13 @@ import {Link, replace} from "react-router-dom";
 /* Updated upstream*/
 import Weather_cv from "./page_connect/Weather_cv";
 import Calendar_g from "./page_connect/Calendar";
+import Study from "./page_connect/Study";
 import Outfit_of_day from "./page_connect/Outfit_of_day";
 import {Anchor,Delete,SmartToy,Inventory,MusicNote,
         Settings,CalendarMonth,Inventory2,Cloud,
         Upload,Work,Code,ArrowUpwardTwoTone} from "@mui/icons-material";  
 import {ChatAPI} from "../Utils/Assistant";
+import { WeatherAPI } from "../Utils/Assistant";
 import {useAuth} from "./AuthContext";
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay, set } from "date-fns";
@@ -26,7 +28,7 @@ function Home () {
     const [tasks, setTasks] = useState([]);
     const {user} = useAuth();
     const[usertime, setUsertime] = useState("");
-    const[holidate, setHolidate] = useState("");
+    const[holidate, setHolidate] = useState(null);
     const[todoTaskInput, setTodoTaskInput] = useState("");
     const [pastDue, setPastDue] = useState([]);
     const[dueDateInput, setDueDateInput] = useState("");
@@ -248,7 +250,34 @@ const userDetails = user ? `${mail}` : "Not logged in";
                         setUsertime("Good evening");
                 }
         };
-        const checkMonth =()=>{
+        checkTime();}, []);
+        const fetchSeason = async ()=>{
+                try{
+                        const season = "a single word representing the current season/holiday (e.g., Christmas, Halloween, Summer, etc.) not a sentence, just the season name and if there isn't one,make sure to check the date to verify if the day is actually a holiday; use none if not a holiday or season.";
+                        WeatherAPI.fetchSeason(season).then((season) => {
+                                if (season.dreply === "none") {
+                                        setHolidate("");
+                                } else {
+                                        setHolidate(`Happy ${season.dreply}!`);
+                                }
+                        });
+                }catch(error){
+                        console.error("Error fetching season:", error);
+                        toast.error("Failed to fetch season");
+                }
+        };
+        const happyNewMonthandYear =()=>{
+                const date = new Date();
+                if(date.getDate() <= 7){
+                        toast("Happy new month!");
+                        setHolidate("Happy new month!");
+                        if(date.getMonth() === 0){
+                                toast("Happy new year!");
+                        }
+                }
+        };
+    useEffect(() => {
+       /* const checkMonth =()=>{
                 const month = new Date().getMonth();
                 if(month >=2 && month <=4){
                         toast("It's spring!");
@@ -263,22 +292,17 @@ const userDetails = user ? `${mail}` : "Not logged in";
                         toast("It's winter!");
                         setHolidate("Happy winter!");
                 }
-        };
-        const happyNewMonthandYear =()=>{
-                const date = new Date();
-                if(date.getDate() <= 7){
-                        toast("Happy new month!");
-                        setHolidate("Happy new month!");
-                        if(date.getMonth() === 0){
-                                toast("Happy new year!");
-                        }
-                }
-        };
-        setHolidate("");
-        checkTime();
-        checkMonth();
-        happyNewMonthandYear();
-   }, [usertime,holidate]);
+        };*/
+        //checkMonth();
+        if (new Date().getDate() <= 2) {
+                happyNewMonthandYear();
+        }else{
+                fetchSeason();
+        }
+        //const interval = setInterval(fetchFit, 1800000);
+        //return ()=> clearInterval(interval);
+        //setHolidate("");
+   }, []);
 return (
     <main className=" w-screen rounded-md border border-white bg-slate-950 text-white h-screen overflow-none">
             <div className="h-[100px] w-full flex items-center justify-between font-bold text-xl p-5 text-left bg-black gap-4 rounded-md border border-black !overflow-auto">
@@ -300,13 +324,13 @@ return (
                     <ul className="block flex-col md:flex-row gap-5 text-lg font-bold ">
                              <li onClick={()=>setSection("weather")}><Cloud/></li>
                             <li className="mb-4"><Link to="/closet" className="text-white font-bold"><Inventory2/></Link></li>
-                            <li className="mb-4"><Link to="/study" className="text-white font-bold"><Code/>Study</Link></li>
+                            <li className="mb-4" onClick={()=>setSection("studier")}><Code/>Study</li>
                             <li><Link to="" className="text-white font-bold"><MusicNote/>Music</Link></li>
                             <li onClick={()=>setSection("cal")} className="text-white font-bold"><CalendarMonth/></li>
                             <li onClick={()=>setSection("oot")} className="text-white font-bold" label="Outfit of the Day"><Inventory2/>Outfit of the Day</li>
                             <li>
                                 {/*change to settings later on*/}
-                                <Link to="/login" className="text-white font-bold"><Settings/>/login</Link>
+                                <Link to="/settings" className="text-white font-bold"><Settings/>Settings</Link>
                             </li>
                     </ul>
             </div>
@@ -501,6 +525,7 @@ return (
                 {section === "weather" && <Weather_cv />}
                 {section === "cal" && <Calendar_g />}
                 {section === "oot" && <Outfit_of_day />}
+                {section === "studier" && <Study />}
                 </div>
             </div>
             </div>

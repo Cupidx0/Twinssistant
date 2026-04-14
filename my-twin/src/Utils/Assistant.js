@@ -29,6 +29,9 @@ api.interceptors.request.use(
         if (user.user_id) {
           config.headers['X-User-ID'] = user.user_id;
         }
+        if (VITE.env.REACT_APP_DISABLE_API_KEY !== 'true' && user.api_key) {
+          return Promise.reject("API Disabled");
+        }
       }
     } catch (error) {
       console.warn('Error retrieving user data:', error);
@@ -80,6 +83,14 @@ export const WeatherAPI = {
         
                 }
         },
+  fetchSeason: async (season)=>{
+    try{
+        const res = await api.post("/holiday_season",{season});
+        return res.data;
+    }catch(error){
+        throw error;
+    }
+  },
 };
 export const CalendarAPI = {
     addEvent: async (summary, dueDate, user) => {

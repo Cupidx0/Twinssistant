@@ -3,6 +3,7 @@ import {Card, CardContent, Typography,
   Button, TextField, Stack, Divider} from "@mui/material";
 import toast, { Toaster } from "react-hot-toast";
 import { ChatAPI } from "../../Utils/Assistant";
+import {useAuth} from "../AuthContext";
 import {Link, replace} from "react-router-dom";
 import {Anchor,Delete,SmartToy,Inventory,MusicNote,
         Settings,CalendarMonth,Inventory2,Cloud,
@@ -14,6 +15,7 @@ import { Dialog, DialogTitle, DialogContent, DialogActions} from "@mui/material"
 /* Stashed changes*/
 export default function Outfit_of_day() {
     const [outstart, setOutstart] = useState(null);
+    const { isLoggedIn } = useAuth();
     useEffect(()=>{
         fetchFit()
         const interval = setInterval(fetchFit, 1800000);
@@ -21,17 +23,21 @@ export default function Outfit_of_day() {
     }, []);
     const fetchFit = async () => {
         const fit = "generate a random outfit for me to wear based on the weather."
-        try{
-            const response = await ChatAPI.fetchFit(fit);
-            if(response.outgen){
-                setOutstart(response.outgen);
-                toast.success("Today's outfit suggestion is ready!");
-            } else {
-                toast.error("Failed to get outfit suggestion");
+        if (!isLoggedIn) {
+            setOutstart("Please log in to get your personalized outfit suggestion!");
+        }else{
+            try{
+                const response = await ChatAPI.fetchFit(fit);
+                if(response.outgen){
+                    setOutstart(response.outgen);
+                    toast.success("Today's outfit suggestion is ready!");
+                } else {
+                    toast.error("Failed to get outfit suggestion");
+                }
+            }catch(error){
+                console.error("Error fetching outfit suggestion:", error);
+                toast.error("Error fetching outfit suggestion");
             }
-        }catch(error){
-            console.error("Error fetching outfit suggestion:", error);
-            toast.error("Error fetching outfit suggestion");
         }
     };
     return (
