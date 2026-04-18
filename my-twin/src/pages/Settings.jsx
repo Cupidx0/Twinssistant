@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Button,
+  colors,
   Divider,
   FormControl,
   FormControlLabel,
@@ -239,6 +240,11 @@ function Settings() {
                 onChange={(e) =>
                   setSettings((prev) => ({ ...prev, theme: e.target.value }))
                 }
+                style={
+                {
+                  color:"white"
+                }
+              }
                 size="small"
                 className="bg-slate-950 text-white"
               >
@@ -259,6 +265,11 @@ function Settings() {
                     language: e.target.value,
                   }))
                 }
+                style={
+                {
+                  color:"white"
+                }
+              }
                 size="small"
                 className="bg-slate-950 text-white"
               >
@@ -267,7 +278,8 @@ function Settings() {
                 <MenuItem value="fr-FR">French</MenuItem>
               </Select>
             </FormControl>
-            <FormControl fullWidth className="text-white">
+            <FormControl fullWidth 
+            >
               <Typography variant="caption" className="text-slate-400 mb-1">
                 Timezone
               </Typography>
@@ -279,6 +291,11 @@ function Settings() {
                     timezone: e.target.value,
                   }))
                 }
+                style={
+                {
+                  color:"white"
+                }
+              }
                 size="small"
                 className="bg-slate-950 text-white"
               >

@@ -32,10 +32,12 @@ export default function Weather_cv() {
         }
     }, [isLoggedIn]);
   return (
-    <div className="flex flex-col gap-4">
-        <section className="block flex-col md:flex-row md:h-auto w-auto p-2 rounded-md border border-slate-800 !overflow-auto">
-            <ul className="block flex-col md:flex-row gap-4">
-                {weather ? <li className="font-bold rounded-md p-5 ">weather:{weather}</li> : <li>Loading weather...</li>}
+    <div className="flex flex-col gap-4 h-full bg-transparent">
+        <section className="block flex-col md:flex-row md:h-auto bg-transparent w-auto p-2 rounded-md gap-4 !overflow-auto">
+            <div className="overflow-hidden rounded-2xl mb-4 border border-slate-800 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.18),_transparent_28%),linear-gradient(135deg,_#0f172a_0%,_#111827_55%,_#020617_100%)] p-4 shadow-[0_24px_80px_rgba(2,6,23,0.45)] sm:p-6">
+                {weather ?<span><Cloud/>{weather}</span> : <span>Loading weather...</span>}
+            </div>
+            <ul className="block flex-col md:flex-row gap-4 bg-slate-900 shadow-[0_24px_80px_rgba(2,6,23,0.45)] rounded-md backdrop-blur-sm border border-slate-800/10 p-4 sm:p-5">
                 {
                     events.length > 0 ? (
                         events.map((event) => (
@@ -53,7 +55,7 @@ export default function Weather_cv() {
                                 </li>
                                 ))
                                 ) : (
-                                <li className="font-bold rounded-md border border-slate-800 p-5 bg-slate-900">
+                                <li className="font-bold rounded-md border border-slate-800 p-5 bg-blend-50/10 bg-gradient-to-r from-slate-950 to-gray-900 text-center">
                                     no summary
                                     <br/>summary should contain the following:
                                     <br/>coursera completed courses and left,
@@ -65,7 +67,7 @@ export default function Weather_cv() {
                             )}
             </ul>
         </section>
-        <section className="h-auto max-h-[400px] rounded-md p-5 m-6 bg-slate-850 text-white text-lg gap-4">
+        <section className="h-auto max-h-[400px] rounded-md p-5 m-6 bg-slate-900 shadow-[0_24px_80px_rgba(2,6,23,0.45)] text-white text-lg gap-4">
             <Button variant="contained"
                     color="primary"
                     size="small"

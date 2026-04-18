@@ -66,7 +66,6 @@ export default function Calendar_g(){
                                                 selectable
                                                 onSelectSlot={(slot) => {
                                                 console.log("Selected slot:", slot);
-                                                setDueDateInput(slot.end.toISOString());
                                                 toast.success("Slot selected! Fill in the summary to add event.");
                                                 }}
                                                 onSelectEvent={(event) => {

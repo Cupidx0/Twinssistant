@@ -10,7 +10,7 @@ import Study from "./page_connect/Study";
 import Outfit_of_day from "./page_connect/Outfit_of_day";
 import {Anchor,Delete,SmartToy,Inventory,MusicNote,
         Settings,CalendarMonth,Inventory2,Cloud,
-        Upload,Work,Code,ArrowUpwardTwoTone} from "@mui/icons-material";  
+        Upload,Work,Code,ArrowUpwardTwoTone,CircleRounded} from "@mui/icons-material";  
 import {ChatAPI} from "../Utils/Assistant";
 import { WeatherAPI } from "../Utils/Assistant";
 import {useAuth} from "./AuthContext";
@@ -37,6 +37,7 @@ function Home () {
     const [question, setQuestion] = useState("");
     const [openConfirm, setOpenConfirm] = useState(false);
     const [events, setEvents] = useState([]);
+    const[online, setOnline] = useState(navigator.onLine);
     //const [weather, setWeather] = useState("");
     const [section, setSection] = useState("weather");
     const [outstart, setOutstart] = useState("");
@@ -233,6 +234,7 @@ function Home () {
 };
 const mail = user ? user.email.replace("@gmail.com","") : "";
 const userDetails = user ? `${mail}` : "Not logged in";
+const onlineStatus = user ? "Online" : "Offline";
    useEffect(() => {
         const interval = setInterval(() => {
             setDateAndTime(new Date().toLocaleString());
@@ -304,23 +306,22 @@ const userDetails = user ? `${mail}` : "Not logged in";
         //setHolidate("");
    }, []);
 return (
-    <main className=" w-screen rounded-md border border-white bg-slate-950 text-white h-screen overflow-none">
-            <div className="h-[100px] w-full flex items-center justify-between font-bold text-xl p-5 text-left bg-black gap-4 rounded-md border border-black !overflow-auto">
+    <main className="bg-[#09090b] backdrop-blur-md  w-screen rounded-md border border-white/10 text-white h-screen overflow-none">
+            <div className="h-[100px] w-full flex items-center justify-between font-bold text-xl p-5 text-left  gap-4 rounded-md border border-black !overflow-auto">
                     <div className="flex items-center gap-2">
                       <Anchor
                       fontColor="primary"
                       style={{ fontSize: '40px' }}
                        className="text-blue-200" />
-                      <h2 className="m-0">Dashboard</h2>
+                      <span className="text-slate-400 text-sm items-center bg-zinc-900 rounded-xl border border-slate-900 p-2 font-serif">{dateAndTime}</span>
                     </div>
-                    <div className="flex flex-col items-end">
-                            <span className="text-blue-200 text-lg font-bold">{dateAndTime}</span>
-                            <span className="text-blue-200 text-lg font-bold">{usertime},{userDetails}!</span>
-                            {holidate && <span className="text-green-200 text-lg font-bold">{holidate}</span>}
+                    <div className=" items-end gap-2">
+                            <span className="text-blue-200 text-lg font-bold">{userDetails}!</span>
+                            {/*{holidate && <span className="text-green-200 text-lg font-bold">{holidate}</span>}*/}
                     </div>
             </div>
             <div className="flex flex-col md:flex-row h-[700px] w-full">
-            <div className="h-auto rounded-md border border-white">
+            <div className="h-auto rounded-md border border-slate-900 m-3 bg-[220 22% 8%] text-white">
                     <ul className="block flex-col md:flex-row gap-5 text-lg font-bold ">
                              <li onClick={()=>setSection("weather")}><Cloud/></li>
                             <li className="mb-4"><Link to="/closet" className="text-white font-bold"><Inventory2/></Link></li>
@@ -334,17 +335,27 @@ return (
                             </li>
                     </ul>
             </div>
-            <div className="flex flex-col md:flex-row h-full w-full rounded-md !overflow-auto">
-                 <section className=" h-auto max-w-[1000px] p-2 rounded-md bg-gradient-to-br from-slate-900 via-black to-slate-800 border border-slate-900 !overflow-auto">
-                            <h3 className="text-white text-lg font-bold m-3"><SmartToy/>AI Chat Assistant</h3>
-                            <div className="rounded-md border border-slate-800 p-2 mb-4 backdrop-blur-sm text-white text-lg">
-                                    <h4 className="text-blue-400 text-left font-bold"><SmartToy/>AI response</h4>
+            <div className="bg-[#18181b] flex flex-col md:flex-row h-full w-full rounded-md !overflow-auto">
+                 <section className=" h-auto w-[80%] p-2 rounded-md text-800 border border-slate-900 !overflow-auto">
+                        <section className="h-auto rounded-md p-2 bg-transparent content-start border border-slate-800 font-serif text-left text-white text-lg">
+                                <span className="text-green-500"><CircleRounded style={
+                                        {
+                                                height:"10px",
+                                                color: online ? "linear-gradient(135deg, #46e556 0%, #7d7d7da9 100%)" : "#ff0000",
+                                                backgroundBlendMode:"difference",
+                                                backdropFilter:"blur(10px)"
+                                        }
+                                }/> {onlineStatus}</span>
+                            <h3 className="text-white text-lg font-bold m-0">{usertime},{userDetails}</h3>
+                            <p>How can i help you today?</p>
+                        </section>
+                            <div className="rounded-md border border-slate-800 p-2 mb-4 h-[300px] backdrop-blur-sm text-white text-lg">
                                     {AiReply ? AiReply :"no reply"}
                                     <h4 className="text-gray-500 text-right font-bold">
                                         <div className="text-blue-300 text-left font-bold m-3">You asked:</div>
                                         <p>{localStorage.getItem("userQuestion")}</p>
                                         <Linkify><p className="text-left">{localStorage.getItem("AiReply")}</p></Linkify>
-                                        <p className="text-white">{question ? question : "ask me anything!"}</p>
+                                        <p className="flex flex-col rounded-md bg-zinc-800 p-2 mb-4 max-h-[200px] text-white border border-slate-600 overflow-auto">{question ? question : "ask me anything!"}</p>
                                     </h4>
                             </div>
                             <Dialog open={openConfirm} onClose={handleCancelClear}>
@@ -358,7 +369,7 @@ return (
                                 </DialogActions>
                             </Dialog>
                             <div className="relative flex flex-row w-full max-w-full items-center">
-                                <input className="rounded-xl border border-white p-3 mb-4 w-screen bg-slate-900 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                <input className="rounded-xl border border-white p-3 mb-4  w-full overflow-auto bg-zinc-900 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                                         id="user-question"
                                         value={question}
                                         onChange={(e) => setQuestion(e.target.value)}
@@ -368,7 +379,9 @@ return (
                                                 color="primary"
                                                 size="small"
                                                 onClick={() => handleuserQuestionChange(question)}
-                                                style={{ margin: '2px', backgroundColor: '#c1de19', backdropFilter:"blur(10px)",border:"1px solid #daf701", color:"#000000" }}
+                                                style={{ height:"41px",
+                                                        marginBottom: '0px',
+                                                        margin: '2px', backgroundColor: 'teal', backdropFilter:"blur(10px)",border:"0.5px teal", color:"#000000" }}
                                                 component="span"
                                                 className="absolute right-[70px] top-1 w-[20px] transform -translate-y-4 rounded-md"><ArrowUpwardTwoTone /></Button>
                                                 <li className="font-bold rounded-md border border-blue-500 w-[fit-content] absolute right-[20px] transform -translate-y-4  cursor-pointer list-none">
@@ -383,7 +396,7 @@ return (
                                     color="primary"
                                     size="small"
                                     onClick={() => handleuserQuestionChange("Tailor my CV")}
-                                    style={{ margin: '5px',padding: '10px', backgroundColor: '#c0de1922', backdropFilter:"blur(10px)",border:"1px solid #daf701", color:"#bff900" }}
+                                    style={{ margin: '2px',padding: '2px', backgroundColor: '#34343322', backdropFilter:"blur(10px)",border:"1px solid #363736", color:"white" }}
                                     component="span"
                                     className="bg-emerald-500 text-white p-2 rounded-md m-2">Tailor my CV</Button>
                                     <Button variant="contained"
@@ -391,21 +404,22 @@ return (
                                     color="primary"
                                     size="small"
                                     onClick={()=> handleuserQuestionChange("Suggest an outfit")}
-                                    style={{ margin: '5px',padding: '10px', backgroundColor: '#46e55622', backdropFilter:"blur(10px)",border:"1px solid #46e556", color:"#46e556" }}
+                                    style={{ margin: '2px',padding: '2px', backgroundColor: '#34343322', backdropFilter:"blur(10px)",border:"1px solid #363736", color:"white" }}
                                     className="bg-blue-600 text-white p-2 rounded-md m-2">Suggest an outfit</Button>
                                     <Button variant="contained"
                                     component="span"
                                     color="primary"
                                     size="small"
                                     onClick={() => handleuserQuestionChange("Plan my day")}
-                                    style={{ margin: '5px',padding: '10px', backgroundColor: '#46e55622', backdropFilter:"blur(10px)",border:"1px solid #46e556", color:"#46e556" }}
+                                    style={{ margin: '2px',padding: '2px', backgroundColor: '#34343322', backdropFilter:"blur(10px)",border:"1px solid #363736", color:"white" }}
                                     className="bg-blue-500 text-white p-2 rounded-md m-2">Plan my day</Button>
                                     <Button
                                         size="small"
                                         variant="contained"
                                         color="primary"
-                                        onClick={() => handleuserQuestionChange(localStorage.getItem("AiTasks") ? `${localStorage.getItem("AiTasks")}` : "No tasks added yet")}
-                                        style={{ margin: '5px',padding: '10px', backgroundColor: '#7d7d7da9', backdropFilter:"blur(10px)",border:"1px solid #09090900", color:"#fffdfd" }}
+                                        placeholder="Add a task..."     
+                                        onClick={() => handleuserQuestionChange(localStorage.getItem("AiTasks") ? `${localStorage.getItem("AiTasks")}` :null)}
+                                        style={{ margin: '2px',padding: '2px', backgroundColor: '#34343322', backdropFilter:"blur(10px)",border:"1px solid #363736", color:"white" }}
                                         className="w-[200px] bg-surface text-primary rounded-2xl shadow-soft border border-border hover:bg-accent-indigo-light transition"
                                         >
                                         {localStorage.getItem("AiTasks") ? localStorage.getItem("AiTasks") : "No tasks added yet"}
@@ -415,12 +429,13 @@ return (
                                         id="task-input"
                                         value={AiTasks}
                                         onChange={(e) => setAiTasks(e.target.value)}
+                                        style={{ margin: '2px',padding: '2px', backgroundColor: '#34343322', backdropFilter:"blur(10px)",border:"1px solid #363736", color:"white" }}
                                         type="text"
                                         placeholder="New task..."
                                         />
                             </section>
                     </section>
-                    <div className=" md:flex-col md: h-[600px] max-h-[h-full] w-[400px] text-white rounded-md border border-black !overflow-auto">
+                    <div className="bg-[#27272a] md:flex-col md: h-full max-h-full w-[400px] text-white rounded-md m-2 !overflow-auto">
                         {/*
                     <section className="md:flex-col md:h-[400px] w-[300px] p-2 m-2 gap-2 rounded-md border border-slate-900 !overflow-auto">
                                 <h3 className="text-xl font-bold">To - Do List</h3>
