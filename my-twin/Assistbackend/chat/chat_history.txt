@@ -1431,3 +1431,120 @@ User: wesrdftghjklkjhygtfdesewaqsedfghjknjhbgftredwsedfghjkk,mjnhgftdrewsdrrtfgh
 Assistant: It seems like your previous message was a bit jumbled. If you have a specific question or topic you'd like to discuss, please let me know! Whether it's about coding, planning your day, or something else, I'm here to help. What would you like to focus on today?
 User: Suggest an outfit
 Assistant: It seems like you might be looking for something specific. If you're interested in outfit suggestions or have another topic in mind, just let me know! I'm here to help with whatever you need. What would you like to discuss today?
+User: check my calendar for when my next birthday is
+Assistant: I currently don't have your birthday information. If you provide me with your birth date, I can calculate when your next birthday will be. Alternatively, if you’d like to check your calendar for another reason, just let me know!
+User: check my calendar
+Assistant: Here's what your calendar looks like for the next few days:
+
+### Upcoming Events:
+1. Time to learn!
+   - Date: April 18, 2026
+   - Time: 12:00 PM - 12:20 PM (BST)
+
+2. Time to learn!
+   - Date: April 19, 2026
+   - Time: 12:00 PM - 12:20 PM (BST)
+
+3. Time to learn!
+   - Date: April 20, 2026
+   - Time: 12:00 PM - 12:20 PM (BST)
+
+4. Time to learn!
+   - Date: April 21, 2026
+   - Time: 12:00 PM - 12:20 PM (BST)
+
+5. Time
+User: check my calendar for when my next birthday is
+Assistant: I currently don't have your birth date in the information provided. If you could let me know when your birthday is, I can help you find out when it next falls on the calendar. Alternatively, if you have any other requests or need assistance with your calendar, feel free to ask!
+User: check my calendar for when my next birthday is
+Assistant: I currently don't have your birth date information. If you let me know when your birthday is, I can help you find out when it next falls on the calendar. Alternatively, if there's anything else you need assistance with, feel free to ask!
+User: Suggest an outfit
+Assistant: To suggest an outfit for your day, I need to know a bit more about the weather and the occasion. Since you have a "Time to learn!" event tomorrow at 12 PM BST, here are some outfit ideas based on typical indoor learning environments and assuming it might be spring weather in the UK:
+
+### Casual Learning Outfit:
+1. Top: A comfortable, breathable t-shirt or a light sweater.
+2. Bottoms: Joggers or casual jeans for a relaxed fit.
+3. Footwear: Sneakers or slip-on shoes for easy movement.
+4. Accessories: A light jacket or cardigan in case it gets chilly, and perhaps a watch to keep track of time.
+
+### Smart Casual Outfit (if you want to look a bit more polished):
+1. Top: A collared shirt or a smart casual blouse.
+2. Bottoms
+User: Suggest an outfit
+Assistant: Since you have a "Time to learn!" event tomorrow at 12 PM BST, here's a practical outfit suggestion for your learning session:
+
+### Casual Learning Outfit
+1. Top: A comfortable, breathable t-shirt or a light sweater (consider materials like cotton or bamboo for breathability).
+2. Bottoms: Joggers or casual jeans for a relaxed fit that allows for easy movement.
+3. Footwear: Sneakers or slip-on shoes for comfort, especially if you'll be sitting for a while.
+4. Accessories: A light jacket or cardigan in case the room is chilly, and maybe a watch to keep track of time.
+
+### Smart Casual Option (if you want to look a bit more polished)
+1. Top: A collared shirt or a smart casual blouse.
+2. Bottoms: Chinos or tailored trousers.
+3. 
+User: Suggest an outfit
+Assistant: To suggest an outfit for your "Time to learn!" event tomorrow at 12 PM BST, let’s consider a comfortable yet presentable look suitable for a learning environment. Here are two outfit ideas:
+
+### Casual Learning Outfit:
+1. Top: A breathable t-shirt or a light sweater. A solid color or subtle pattern works well.
+2. Bottoms: Joggers or casual jeans for a relaxed fit.
+3. Footwear: Comfortable sneakers or slip-on shoes for ease.
+4. Accessories: A light cardigan or jacket in case it gets chilly, and perhaps a watch or smartwatch to keep track of your time.
+
+### Smart Casual Outfit:
+1. Top: A collared shirt or a smart casual blouse. You could opt for a light fabric if it's warm.
+2. Bottoms: Chinos or tailored jeans for a more polished look.
+3. Foot
+User: check my calendar for when my next birthday is
+Assistant: I don't have your birthday information from the context provided. However, if you let me know your birth date, I can help you calculate when your next birthday is! Would you like to share that?
+User: check for anything that has happy birthday in my calendar
+Assistant: It looks like there are no events in your calendar that mention "happy birthday." If you'd like, I can help you add a birthday reminder or any other event. Would you like to do that?
+User: check for anything that has happy birthday in my calendar
+Assistant: It looks like there are no events in your calendar that mention "happy birthday." If you want, I can help you add a birthday reminder or any other event. Would you like to set up a reminder for your next birthday or any specific event related to birthdays?
+User: check for anything that has happy birthday in my calendar
+Assistant: It appears that there are no events in your calendar that include "happy birthday." If you have any specific dates or birthdays you'd like to track or set reminders for, I can help you add those. Would you like to create a birthday reminder for someone, or is there anything else you need?
+User: check for anything that has happy birthday in my calendar
+Assistant: It looks like there are no events in your calendar that mention "happy birthday." If you'd like to add a birthday reminder or set up an event for an upcoming birthday, just let me know the details, and I can help you with that! Would you like to create a reminder for your next birthday or for someone else's?
+User: check for anything that has happy birthday in my calendar
+Assistant: It looks like there are no events in your calendar that mention "happy birthday." If you have specific birthdays you want to keep track of or set reminders for, let me know, and I can help you add those events! Would you like to create a reminder for your next birthday or for someone else's?
+User: check for anything that has happy birthday in my calendar
+Assistant: It looks like there are no events in your calendar that mention "happy birthday." If you have specific birthdays or events you want to keep track of, let me know, and I can help you add those! Would you like to create a reminder for your next birthday or for someone else's?
+User: Plan my day
+Assistant: Let's plan your day! Here’s a suggested schedule based on your calendar events and the current time:
+
+### Today's Schedule (April 19, 2026)
+- 11:05 AM - 12:00 PM: Free time. You could use this to grab a snack, relax, or prepare for your learning session.
+- 12:00 PM - 12:20 PM: Time to learn! (Event)
+- 12:20 PM - 1:00 PM: Free time or review what you learned during the session.
+- 1:00 PM onwards: You can plan further activities, such as lunch or any personal projects.
+
+Would you like to add any other events or tasks to your day?
+User: Plan my day
+Assistant: ### Today's Schedule (April 19, 2026)
+
+- 11:05 AM - 12:00 PM: Free time. Use this to relax, grab a snack, or prepare for your session.
+- 12:00 PM - 12:20 PM: Time to learn! (Event)
+- 12:20 PM - 1:00 PM: Free time or review what you learned during your session.
+- 1:00 PM onwards: Consider planning lunch or any personal projects you want to focus on.
+
+Would you like to add any specific tasks or events to your schedule for today?
+User: Suggest an outfit
+Assistant: ### Outfit Suggestion for Today (April 19, 2026)
+
+Given that you have a learning session scheduled for noon and it’s spring, here’s a comfortable and stylish outfit idea suitable for both learning and casual outings:
+
+Outfit:
+1. Top: A light, breathable cotton or linen button-up shirt (consider a pastel color for a fresh spring look).
+2. Bottoms: Comfortable chinos or tailored joggers in a neutral shade (like beige or navy).
+3. Footwear: Casual sneakers or loafers for easy movement.
+4. Outerwear: A lightweight cardigan or denim jacket in case it gets a bit chilly.
+5. Accessories: A simple wristwatch and maybe a crossbody bag or backpack to carry your materials for the learning session.
+
+Weather Consideration: Check the local forecast for any rain or cooler temperatures, and feel free to
+User: whats the time
+Assistant: Currently, the time is 11:09 AM on April 19, 2026. You have a learning session scheduled to start at 12:00 PM. Would you like to add any specific tasks or events to your schedule for today?
+User: it isnt 11:09 tho
+Assistant: Currently, the time is 19:47:39 on April 19, 2026. It looks like I previously mentioned an incorrect time. If you have any activities or tasks you'd like to plan for the rest of the day, feel free to let me know!
+User: it isnt 11:09 tho
+Assistant: I apologize for the confusion earlier! The current time is actually 19:58:36 on April 19, 2026. If you have any tasks or events you’d like to plan for tonight or if there’s anything else I can assist you with, just let me know!

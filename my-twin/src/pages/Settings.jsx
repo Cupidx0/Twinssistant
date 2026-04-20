@@ -140,14 +140,14 @@ function Settings() {
   };
 
   return (
-    <main className="w-screen min-h-screen bg-slate-950 text-white p-6">
+    <main className="w-screen min-h-screen bg-background text-foreground p-6">
       <div className="max-w-5xl mx-auto flex flex-col gap-6">
         <header className="flex items-center justify-between gap-4">
           <div>
-            <Typography variant="h4" className="text-white font-bold">
+            <Typography variant="h4" className="text-foreground font-bold">
               Settings
             </Typography>
-            <Typography variant="body2" className="text-slate-400">
+            <Typography variant="body2" className="text-muted-foreground">
               Manage your account, preferences, and privacy controls.
             </Typography>
           </div>
@@ -162,11 +162,11 @@ function Settings() {
           </div>
         </header>
 
-        <section className="rounded-md border border-slate-800 bg-slate-900 p-5">
-          <Typography variant="h6" className="text-white font-bold mb-2">
+        <section className="rounded-md border border-border/50 bg-card p-5">
+          <Typography variant="h6" className="text-card-foreground font-bold mb-2">
             Account
           </Typography>
-          <Divider className="bg-slate-800 mb-4" />
+          <Divider className="bg-border/50 mb-4" />
 
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
@@ -176,10 +176,10 @@ function Settings() {
                 onChange={(e) => setDisplayName(e.target.value)}
                 inputProps={{ style: { color: "white" } }}
                 InputLabelProps={{ style: { color: "#94a3b8" } }}
-                className="bg-slate-950"
+                className="bg-input"
                 disabled={!isLoggedIn}
               />
-              <div className="text-sm text-slate-400">
+              <div className="text-sm text-muted-foreground">
                 {isLoggedIn && user?.email
                   ? `Signed in as ${user.email}`
                   : "You are not signed in"}
@@ -225,14 +225,14 @@ function Settings() {
           </div>
         </section>
 
-        <section className="rounded-md border border-slate-800 bg-slate-900 p-5">
-          <Typography variant="h6" className="text-white font-bold mb-2">
+        <section className="rounded-md border border-border/50 bg-card p-5">
+          <Typography variant="h6" className="text-card-foreground font-bold mb-2">
             Preferences
           </Typography>
-          <Divider className="bg-slate-800 mb-4" />
+          <Divider className="bg-border/50 mb-4" />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <FormControl fullWidth>
-              <Typography variant="caption" className="text-slate-400 mb-1">
+              <Typography variant="caption" className="text-muted-foreground mb-1">
                 Theme
               </Typography>
               <Select
@@ -246,7 +246,7 @@ function Settings() {
                 }
               }
                 size="small"
-                className="bg-slate-950 text-white"
+                className="bg-input text-foreground"
               >
                 <MenuItem value="system">System</MenuItem>
                 <MenuItem value="dark">Dark</MenuItem>
@@ -254,7 +254,7 @@ function Settings() {
               </Select>
             </FormControl>
             <FormControl fullWidth>
-              <Typography variant="caption" className="text-slate-400 mb-1">
+              <Typography variant="caption" className="text-muted-foreground mb-1">
                 Language
               </Typography>
               <Select
@@ -265,13 +265,9 @@ function Settings() {
                     language: e.target.value,
                   }))
                 }
-                style={
-                {
-                  color:"white"
-                }
-              }
+                style={{ color:"white" }}
                 size="small"
-                className="bg-slate-950 text-white"
+                className="bg-input text-foreground"
               >
                 <MenuItem value="en-GB">English (UK)</MenuItem>
                 <MenuItem value="en-US">English (US)</MenuItem>
@@ -280,7 +276,7 @@ function Settings() {
             </FormControl>
             <FormControl fullWidth 
             >
-              <Typography variant="caption" className="text-slate-400 mb-1">
+              <Typography variant="caption" className="text-muted-foreground mb-1">
                 Timezone
               </Typography>
               <Select
@@ -291,18 +287,14 @@ function Settings() {
                     timezone: e.target.value,
                   }))
                 }
-                style={
-                {
-                  color:"white"
-                }
-              }
+                style={{ color:"white" }}
                 size="small"
-                className="bg-slate-950 text-white"
+                className="bg-input text-foreground"
               >
-                <MenuItem value="auto" className="text-white">Auto</MenuItem>
-                <MenuItem value="Europe/London" className="text-white">Europe/London</MenuItem>
-                <MenuItem value="America/New_York" className="text-white">America/New York</MenuItem>
-                <MenuItem value="Asia/Tokyo" className="text-white">Asia/Tokyo</MenuItem>
+                <MenuItem value="auto" className="text-foreground">Auto</MenuItem>
+                <MenuItem value="Europe/London" className="text-foreground">Europe/London</MenuItem>
+                <MenuItem value="America/New_York" className="text-foreground">America/New York</MenuItem>
+                <MenuItem value="Asia/Tokyo" className="text-foreground">Asia/Tokyo</MenuItem>
               </Select>
             </FormControl>
           </div>
@@ -324,11 +316,11 @@ function Settings() {
           </div>
         </section>
 
-        <section className="rounded-md border border-slate-800 bg-slate-900 p-5">
-          <Typography variant="h6" className="text-white font-bold mb-2">
+        <section className="rounded-md border border-border/50 bg-card p-5">
+          <Typography variant="h6" className="text-card-foreground font-bold mb-2">
             Notifications
           </Typography>
-          <Divider className="bg-slate-800 mb-4" />
+          <Divider className="bg-border/50 mb-4" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <FormControlLabel
               control={
@@ -385,11 +377,11 @@ function Settings() {
           </div>
         </section>
 
-        <section className="rounded-md border border-slate-800 bg-slate-900 p-5">
-          <Typography variant="h6" className="text-white font-bold mb-2">
+        <section className="rounded-md border border-border/50 bg-card p-5">
+          <Typography variant="h6" className="text-card-foreground font-bold mb-2">
             Privacy and Security
           </Typography>
-          <Divider className="bg-slate-800 mb-4" />
+          <Divider className="bg-border/50 mb-4" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <FormControlLabel
               control={
@@ -431,11 +423,11 @@ function Settings() {
           </div>
         </section>
 
-        <section className="rounded-md border border-slate-800 bg-slate-900 p-5">
-          <Typography variant="h6" className="text-white font-bold mb-2">
+        <section className="rounded-md border border-border/50 bg-card p-5">
+          <Typography variant="h6" className="text-card-foreground font-bold mb-2">
             Personalization
           </Typography>
-          <Divider className="bg-slate-800 mb-4" />
+          <Divider className="bg-border/50 mb-4" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <FormControlLabel
               control={
@@ -485,11 +477,11 @@ function Settings() {
           </div>
         </section>
 
-        <section className="rounded-md border border-slate-800 bg-slate-900 p-5">
-          <Typography variant="h6" className="text-white font-bold mb-2">
+        <section className="rounded-md border border-border/50 bg-card p-5">
+          <Typography variant="h6" className="text-card-foreground font-bold mb-2">
             Data and Storage
           </Typography>
-          <Divider className="bg-slate-800 mb-4" />
+          <Divider className="bg-border/50 mb-4" />
           <div className="flex flex-wrap gap-2">
             <Button variant="outlined" color="inherit" onClick={handleClearLocalData}>
               Clear local data
@@ -504,17 +496,17 @@ function Settings() {
           </div>
         </section>
 
-        <section className="rounded-md border border-slate-800 bg-slate-900 p-5">
-          <Typography variant="h6" className="text-white font-bold mb-2">
+        <section className="rounded-md border border-border/50 bg-card p-5">
+          <Typography variant="h6" className="text-card-foreground font-bold mb-2">
             About
           </Typography>
-          <Divider className="bg-slate-800 mb-4" />
-          <div className="flex flex-col gap-1 text-slate-400">
+          <Divider className="bg-border/50 mb-4" />
+          <div className="flex flex-col gap-1 text-muted-foreground">
             <div>App version: 0.0.0</div>
             <div>Build: local</div>
             <div>
               Need help?{" "}
-              <Link className="text-blue-400" to="/home">
+              <Link className="text-primary" to="/home">
                 Contact support
               </Link>
             </div>

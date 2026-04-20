@@ -45,7 +45,7 @@ export default function Calendar_g(){
             };
         return(
         <div className="flex flex-col gap-4">
-            <section className="block flex-col md:flex-row md:h-auto w-auto p-2 rounded-md border border-slate-800 !overflow-auto">
+            <section className="block flex-col md:flex-row md:h-auto w-auto p-2 rounded-md border border-border/50 bg-card !overflow-auto">
                 <Card sx={{ p: 4, borderRadius: "16px", boxShadow: 3,height:"auto", maxHeight:450, width: 300, maxWidth: "600px", overflow: "hidden" }}>
                                         <CardContent >
                                         <Typography variant="h6" gutterBottom>
@@ -77,11 +77,11 @@ export default function Calendar_g(){
                                         <Divider sx={{ my: 2 }} />
                                         </CardContent>
                                 </Card>
-                                <section className="h-auto max-h-[400px] rounded-md p-5 m-6 bg-slate-850 text-white text-lg gap-4">
+                                <section className="h-auto max-h-[400px] rounded-md p-5 m-6 bg-secondary text-card-foreground text-lg gap-4">
                                     <ul className="block flex-col md:flex-row gap-4">
                                         {events.length > 0 ? (
                                             events.map((event) => (
-                                            <li key={event.id} className="text-underlined border border-slate-800 rounded-md p-2">
+                                            <li key={event.id} className="text-underlined border border-border/50 rounded-md p-2">
                                                 {event.summary || "No Title"} - Due:{" "}
                                                 {event.end
                                                 ? new Date(event.end).toLocaleString([], {
@@ -95,7 +95,7 @@ export default function Calendar_g(){
                                                     </li>
                                                     ))
                                                     ) : (
-                                                    <li className="font-bold rounded-md border border-slate-800 p-5 bg-slate-900">
+                                                    <li className="font-bold rounded-md border border-border/50 p-5 bg-card">
                                                         no events
                                                     </li>
                                                 )}

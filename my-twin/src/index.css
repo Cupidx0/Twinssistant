@@ -1,72 +1,166 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
 :root {
+  --background: 220 20% 9%;
+  --foreground: 210 20% 94%;
+
+  --card: 220 18% 12%;
+  --card-foreground: 210 20% 94%;
+  --popover: 220 20% 11%;
+  --muted: 220 15% 15%;
+  --muted-foreground: 215 12% 65%;
+  --secondary: 220 15% 17%;
+  --input: 220 15% 17%;
+  --border: 220 12% 16%;
+
+  --primary: 165 45% 55%;
+  --primary-foreground: 220 25% 10%;
+  --primary-glow: 165 50% 65%;
+  --accent: 210 40% 60%;
+  --ring: 165 45% 55%;
+
+  --success: 150 40% 55%;
+  --warning: 35 70% 60%;
+  --destructive: 0 60% 55%;
+
+  --sidebar-background: 220 22% 8%;
+  --sidebar-foreground: 215 15% 78%;
+  --sidebar-accent: 220 15% 13%;
+  --sidebar-border: 220 12% 13%;
+
+  --gradient-primary: linear-gradient(135deg, hsl(165 45% 55%), hsl(190 55% 62%));
+  --gradient-aurora:
+    radial-gradient(circle at 20% 15%, hsl(165 45% 55% / 0.22), transparent 28%),
+    radial-gradient(circle at 80% 10%, hsl(210 40% 60% / 0.18), transparent 24%),
+    radial-gradient(circle at 55% 85%, hsl(165 50% 65% / 0.12), transparent 30%);
+  --gradient-card: linear-gradient(180deg, hsl(0 0% 100% / 0.05), transparent 45%);
+  --gradient-text: linear-gradient(135deg, hsl(210 20% 94%), hsl(165 45% 55%));
+
+  --shadow-glow:
+    0 0 0 1px hsl(165 45% 55% / 0.14),
+    0 16px 40px hsl(165 45% 55% / 0.18);
+  --shadow-soft:
+    0 10px 30px hsl(220 30% 3% / 0.24),
+    0 1px 0 hsl(0 0% 100% / 0.03) inset;
+  --shadow-elevated:
+    0 18px 50px hsl(220 30% 3% / 0.34),
+    0 1px 0 hsl(0 0% 100% / 0.04) inset;
+
+  color-scheme: dark;
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #000000;
-
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-input: hsl(var(--input));
+  --color-border: hsl(var(--border));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary-glow: hsl(var(--primary-glow));
+  --color-accent: hsl(var(--accent));
+  --color-ring: hsl(var(--ring));
+  --color-success: hsl(var(--success));
+  --color-warning: hsl(var(--warning));
+  --color-destructive: hsl(var(--destructive));
+  --color-sidebar-background: hsl(var(--sidebar-background));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+
+  /* Compatibility aliases for existing semantic-ish class names in the app. */
+  --color-surface: hsl(var(--card));
+  --color-accent-indigo: hsl(var(--accent));
+  --color-accent-indigo-light: hsl(var(--accent) / 0.18);
+
+  --shadow-glow: var(--shadow-glow);
+  --shadow-soft: var(--shadow-soft);
+  --shadow-elevated: var(--shadow-elevated);
+
+  --font-sans: system-ui, Avenir, Helvetica, Arial, sans-serif;
 }
 
-body {
-  margin: 0;
-  /*display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-  overflow-x: hidden;*/
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #212231;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+@layer base {
+  * {
+    @apply border-border;
   }
-  a:hover {
-    color: #747bff;
+
+  html {
+    background: hsl(var(--background));
   }
+
+  body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+    background:
+      var(--gradient-aurora),
+      hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+
+  a {
+    color: inherit;
+    text-decoration: inherit;
+  }
+
   button {
-    background-color: #f9f9f9;
+    font: inherit;
+  }
+}
+
+@layer utilities {
+  .glass {
+    background: hsl(var(--card) / 0.7);
+    border: 1px solid hsl(var(--border) / 0.55);
+    box-shadow: var(--shadow-soft);
+    backdrop-filter: blur(14px);
+  }
+
+  .glass-strong {
+    background: hsl(var(--card) / 0.82);
+    border: 1px solid hsl(var(--border) / 0.7);
+    box-shadow: var(--shadow-elevated);
+    backdrop-filter: blur(18px);
+  }
+
+  .text-gradient {
+    background-image: var(--gradient-text);
+    background-clip: text;
+    color: transparent;
+  }
+
+  .text-gradient-primary {
+    background-image: var(--gradient-primary);
+    background-clip: text;
+    color: transparent;
+  }
+
+  .bg-gradient-primary {
+    background-image: var(--gradient-primary);
+  }
+
+  .bg-gradient-card {
+    background-image: var(--gradient-card);
+  }
+
+  .bg-gradient-aurora {
+    background-image: var(--gradient-aurora);
+  }
+
+  .placeholder-secondary::placeholder {
+    color: hsl(var(--muted-foreground));
   }
 }

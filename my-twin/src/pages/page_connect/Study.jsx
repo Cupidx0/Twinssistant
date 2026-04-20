@@ -117,7 +117,7 @@ const resources = [
 
 function ProgressBar({ value, color }) {
   return (
-    <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-800">
+    <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
       <div
         className={`h-full rounded-full bg-gradient-to-r ${color}`}
         style={{ width: `${value}%` }}
@@ -128,18 +128,18 @@ function ProgressBar({ value, color }) {
 
 export default function Study() {
   return (
-    <div className=" w-full min-w-0 gap-4 text-white sm:gap-5">
-      <section className="overflow-hidden rounded-2xl border border-slate-800 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.18),_transparent_28%),linear-gradient(135deg,_#0f172a_0%,_#111827_55%,_#020617_100%)] p-4 shadow-[0_24px_80px_rgba(2,6,23,0.45)] sm:p-6">
-        <div className=" min-w-0 flex-col gap-5 xl:items-end xl:justify-between">
+    <div className="flex w-full min-w-0 flex-col gap-4 text-foreground sm:gap-5">
+      <section className="glass-strong overflow-hidden rounded-2xl border border-border bg-gradient-aurora p-4 sm:p-6">
+        <div className="flex min-w-0 flex-col gap-5 xl:items-end xl:justify-between">
           <div className="max-w-[480px]">
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-border bg-secondary px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-primary">
               <School sx={{ fontSize: 16 }} />
               Study Hub
             </div>
-            <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
+            <h1 className="text-3xl font-black tracking-tight text-gradient sm:text-4xl">
               Keep courses, deadlines, and momentum in one place.
             </h1>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-slate-300 sm:text-base">
+            <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
               A focused academic dashboard for tracking active modules,
               assignment pressure, revision rhythm, and progress across your
               study week.
@@ -148,18 +148,15 @@ export default function Study() {
 
           <div className="grid w-full min-w-[200px] grid-cols-1 gap-3 sm:grid-cols-2 xl:max-w-[520px]">
             {studyStats.map(({ label, value, note, icon: Icon, tone }) => (
-              <article
-                key={label}
-                className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-3 sm:p-4 backdrop-blur-sm"
-              >
+              <article key={label} className="glass min-w-0 rounded-2xl border border-border p-3 sm:p-4">
                 <div className={`mb-3 ${tone}`}>
                   <Icon />
                 </div>
-                <div className="text-2xl font-bold text-white">{value}</div>
-                <div className="mt-1 text-sm font-semibold text-slate-200">
+                <div className="text-2xl font-bold text-card-foreground">{value}</div>
+                <div className="mt-1 text-sm font-semibold text-card-foreground">
                   {label}
                 </div>
-                <div className="mt-1 text-xs leading-5 text-slate-400">
+                <div className="mt-1 text-xs leading-5 text-muted-foreground">
                   {note}
                 </div>
               </article>
@@ -170,15 +167,15 @@ export default function Study() {
 
       <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,0.95fr)] xl:gap-4">
         <div className="grid min-w-0 gap-4 xl:gap-5">
-          <article className="min-w-0 rounded-2xl border border-slate-800 bg-slate-900/80 p-2 sm:p-5">
+          <article className="glass min-w-0 rounded-2xl border border-border p-2 sm:p-5">
             <div className="mb-5 flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-xl font-bold text-white">Current Courses</h2>
-                <p className="text-sm text-slate-400">
+                <h2 className="text-xl font-bold text-card-foreground">Current Courses</h2>
+                <p className="text-sm text-muted-foreground">
                   Track learning progress across active modules.
                 </p>
               </div>
-              <div className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-300">
+              <div className="rounded-full border border-border bg-secondary px-3 py-1 text-xs text-muted-foreground">
                 3 active
               </div>
             </div>
@@ -187,20 +184,20 @@ export default function Study() {
               {courses.map((course) => (
                 <div
                   key={course.title}
-                  className="min-w-0 rounded-2xl border border-slate-800 bg-slate-950/70 p-4"
+                  className="min-w-0 rounded-2xl border border-border bg-card p-4"
                 >
                   <div className="mb-3 flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                      <div className="truncate text-base font-semibold text-white sm:text-lg">
+                      <div className="truncate text-base font-semibold text-card-foreground sm:text-lg">
                         {course.title}
                       </div>
-                      <div className="truncate text-sm text-slate-400">
+                      <div className="truncate text-sm text-muted-foreground">
                         {course.provider}
                       </div>
                     </div>
-                    <div className="shrink-0 text-right text-sm text-slate-300">
+                    <div className="shrink-0 text-right text-sm text-muted-foreground">
                       <div className="font-semibold">{course.progress}%</div>
-                      <div className="text-xs text-slate-500">
+                      <div className="text-xs text-muted-foreground">
                         {course.lessonsLeft} lessons left
                       </div>
                     </div>
@@ -211,15 +208,15 @@ export default function Study() {
             </div>
           </article>
 
-          <article className="min-w-0 rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-5">
+          <article className="glass min-w-0 rounded-2xl border border-border p-4 sm:p-5">
             <div className="mb-5 flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-xl font-bold text-white">Assignments</h2>
-                <p className="text-sm text-slate-400">
+                <h2 className="text-xl font-bold text-card-foreground">Assignments</h2>
+                <p className="text-sm text-muted-foreground">
                   Prioritize what needs attention next.
                 </p>
               </div>
-              <div className="rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-200">
+              <div className="rounded-full border border-warning/30 bg-warning/10 px-3 py-1 text-xs font-semibold text-warning">
                 1 due today
               </div>
             </div>
@@ -228,18 +225,18 @@ export default function Study() {
               {assignments.map((assignment) => (
                 <div
                   key={assignment.title}
-                  className="flex min-w-0 flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-950/70 p-2 lg:flex-row lg:items-center lg:justify-between"
+                  className="flex min-w-0 flex-col gap-3 rounded-2xl border border-border bg-card p-2 lg:flex-row lg:items-center lg:justify-between"
                 >
                   <div className="min-w-0">
-                    <div className="text-base font-semibold text-white">
+                    <div className="text-base font-semibold text-card-foreground">
                       {assignment.title}
                     </div>
-                    <div className="text-sm text-slate-400">
+                    <div className="text-sm text-muted-foreground">
                       {assignment.course}
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-3 lg:justify-end">
-                    <div className="text-sm text-slate-300 lg:text-right">
+                    <div className="text-sm text-muted-foreground lg:text-right">
                       <div>{assignment.due}</div>
                     </div>
                     <span
@@ -255,24 +252,24 @@ export default function Study() {
         </div>
 
         <div className="grid min-w-0 gap-4 xl:gap-3">
-          <article className="min-w-0 rounded-2xl border border-slate-800 bg-slate-900/80 p-3 sm:p-5">
+          <article className="glass min-w-0 rounded-2xl border border-border p-3 sm:p-5">
             <div className="mb-4 flex items-center gap-2">
-              <PlayCircleFilled className="text-cyan-300" />
-              <h2 className="text-xl font-bold text-white">Today&apos;s Plan</h2>
+              <PlayCircleFilled className="text-primary" />
+              <h2 className="text-xl font-bold text-card-foreground">Today&apos;s Plan</h2>
             </div>
             <div className="grid gap-3">
               {studyPlan.map((item) => (
                 <div
                   key={item.time}
-                  className="min-w-0 rounded-2xl border border-slate-800 bg-slate-950/70 p-4"
+                  className="min-w-0 rounded-2xl border border-border bg-card p-4"
                 >
-                  <div className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
+                  <div className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
                     {item.time}
                   </div>
-                  <div className="mt-2 text-base font-semibold text-white">
+                  <div className="mt-2 text-base font-semibold text-card-foreground">
                     {item.title}
                   </div>
-                  <div className="mt-1 text-sm leading-6 text-slate-400">
+                  <div className="mt-1 text-sm leading-6 text-muted-foreground">
                     {item.detail}
                   </div>
                 </div>
@@ -280,47 +277,47 @@ export default function Study() {
             </div>
           </article>
 
-          <article className="min-w-0 rounded-2xl border border-slate-800 bg-slate-900/80 p-2 sm:p-5">
+          <article className="glass min-w-0 rounded-2xl border border-border p-2 sm:p-5">
             <div className="mb-4 flex items-center gap-2">
-              <MenuBook className="text-emerald-300" />
-              <h2 className="text-xl font-bold text-white">Study Resources</h2>
+              <MenuBook className="text-success" />
+              <h2 className="text-xl font-bold text-card-foreground">Study Resources</h2>
             </div>
             <div className="grid gap-3">
               {resources.map((resource) => (
                 <div
                   key={resource}
-                  className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-3 text-sm text-slate-300"
+                  className="flex min-w-0 items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground"
                 >
-                  <CheckCircle className="text-emerald-300" sx={{ fontSize: 18 }} />
+                  <CheckCircle className="text-success" sx={{ fontSize: 18 }} />
                   <span className="min-w-0">{resource}</span>
                 </div>
               ))}
             </div>
           </article>
 
-          <article className="min-w-0 rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-5">
+          <article className="glass min-w-0 rounded-2xl border border-border p-4 sm:p-5">
             <div className="mb-4 flex items-center gap-2">
-              <AutoStories className="text-amber-300" />
-              <h2 className="text-xl font-bold text-white">Weekly Momentum</h2>
+              <AutoStories className="text-warning" />
+              <h2 className="text-xl font-bold text-card-foreground">Weekly Momentum</h2>
             </div>
-            <div className="min-w-0 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+            <div className="min-w-0 rounded-2xl border border-border bg-card p-4">
               <div className="mb-2 flex items-center justify-between text-sm">
-                <span className="text-slate-400">Goal completion</span>
-                <span className="font-semibold text-white">74%</span>
+                <span className="text-muted-foreground">Goal completion</span>
+                <span className="font-semibold text-card-foreground">74%</span>
               </div>
               <ProgressBar value={74} color="from-amber-400 to-orange-500" />
               <div className="mt-4 grid grid-cols-1 gap-3 text-center sm:grid-cols-3">
-                <div className="rounded-xl bg-slate-900 px-3 py-3">
-                  <div className="text-lg font-bold text-white">5</div>
-                  <div className="text-xs text-slate-400">Study streak</div>
+                <div className="rounded-xl bg-secondary px-3 py-3">
+                  <div className="text-lg font-bold text-card-foreground">5</div>
+                  <div className="text-xs text-muted-foreground">Study streak</div>
                 </div>
-                <div className="rounded-xl bg-slate-900 px-3 py-3">
-                  <div className="text-lg font-bold text-white">9</div>
-                  <div className="text-xs text-slate-400">Topics revised</div>
+                <div className="rounded-xl bg-secondary px-3 py-3">
+                  <div className="text-lg font-bold text-card-foreground">9</div>
+                  <div className="text-xs text-muted-foreground">Topics revised</div>
                 </div>
-                <div className="rounded-xl bg-slate-900 px-3 py-3">
-                  <div className="text-lg font-bold text-white">2</div>
-                  <div className="text-xs text-slate-400">Quizzes left</div>
+                <div className="rounded-xl bg-secondary px-3 py-3">
+                  <div className="text-lg font-bold text-card-foreground">2</div>
+                  <div className="text-xs text-muted-foreground">Quizzes left</div>
                 </div>
               </div>
             </div>

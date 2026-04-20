@@ -10,7 +10,7 @@ import Study from "./page_connect/Study";
 import Outfit_of_day from "./page_connect/Outfit_of_day";
 import {Anchor,Delete,SmartToy,Inventory,MusicNote,
         Settings,CalendarMonth,Inventory2,Cloud,
-        Upload,Work,Code,ArrowUpwardTwoTone,CircleRounded} from "@mui/icons-material";  
+        AttachFile,Work,Code,ArrowUpwardTwoTone,CircleRounded} from "@mui/icons-material";  
 import {ChatAPI} from "../Utils/Assistant";
 import { WeatherAPI } from "../Utils/Assistant";
 import {useAuth} from "./AuthContext";
@@ -23,6 +23,16 @@ import Linkify from 'react-linkify';
 import enGB from "date-fns/locale/en-GB";
 import { Dialog, DialogTitle, DialogContent, DialogActions} from "@mui/material";
 /* Stashed changes*/
+const readStoredValue = (key, fallback = "") => {
+    try {
+        const value = localStorage.getItem(key);
+        return value ?? fallback;
+    } catch (error) {
+        console.warn(`Failed to read ${key} from localStorage`, error);
+        return fallback;
+    }
+};
+
 function Home () {
     const [dateAndTime, setDateAndTime] = useState(new Date().toLocaleString("en-GB",{fullDate:'long', hour:'2-digit', minute:'2-digit', second:'2-digit'}));
     const [tasks, setTasks] = useState([]);
@@ -32,14 +42,14 @@ function Home () {
     const[todoTaskInput, setTodoTaskInput] = useState("");
     const [pastDue, setPastDue] = useState([]);
     const[dueDateInput, setDueDateInput] = useState("");
-    const [AiTasks, setAiTasks] = useState([]);
-    const[AiReply, setAiReply] = useState("");
-    const [question, setQuestion] = useState("");
+    const [AiTasks, setAiTasks] = useState(() => readStoredValue("AiTasks", ""));
+    const[AiReply, setAiReply] = useState(() => readStoredValue("AiReply", ""));
+    const [question, setQuestion] = useState(() => readStoredValue("userQuestion", ""));
     const [openConfirm, setOpenConfirm] = useState(false);
     const [events, setEvents] = useState([]);
     const[online, setOnline] = useState(navigator.onLine);
     //const [weather, setWeather] = useState("");
-    const [section, setSection] = useState("weather");
+    const [section, setSection] = useState(() => readStoredValue("home:section", "weather"));
     const [outstart, setOutstart] = useState("");
     const [end, setEnd] = useState("");
     //const [dueDate, setDueDate] = useState("");
@@ -177,6 +187,10 @@ function Home () {
             taskInput.removeEventListener("change", handleAiTasks);
         };
     }, [AiTasks]);
+    /*useEffect(() => {
+        localStorage.setItem("home:section", section);
+    }, [section]);*/
+
     const handleuserQuestionChange = async (overrideQuestion) => {
         const nextQuestion = (overrideQuestion ?? question).trim();
         if(nextQuestion === ""){
@@ -187,8 +201,11 @@ function Home () {
                 toast.success("Question sent to assistant!");
                 try{
                         setQuestion(nextQuestion);
+                        localStorage.setItem("userQuestion", nextQuestion);
                         const response = await ChatAPI.fetchAssistantResponse(nextQuestion);
-                        setAiReply(response.reply || "No response from assistant.");
+                        const nextReply = response.reply || "No response from assistant.";
+                        setAiReply(nextReply);
+                        localStorage.setItem("AiReply", nextReply);
                 }catch(error){
                         console.error("Error fetching assistant response:", error);
                         toast.error("Failed to get response from assistant.");
@@ -306,39 +323,38 @@ const onlineStatus = user ? "Online" : "Offline";
         //setHolidate("");
    }, []);
 return (
-    <main className="bg-[#09090b] backdrop-blur-md  w-screen rounded-md border border-white/10 text-white h-screen overflow-none">
-            <div className="h-[100px] w-full flex items-center justify-between font-bold text-xl p-5 text-left  gap-4 rounded-md border border-black !overflow-auto">
+    <main className="bg-background text-foreground backdrop-blur-md w-screen rounded-md border border-border h-screen overflow-none">
+            <div className="glass h-[100px] w-full flex items-center justify-between font-bold text-xl p-5 text-left gap-4 rounded-md !overflow-auto">
                     <div className="flex items-center gap-2">
                       <Anchor
-                      fontColor="primary"
                       style={{ fontSize: '40px' }}
-                       className="text-blue-200" />
-                      <span className="text-slate-400 text-sm items-center bg-zinc-900 rounded-xl border border-slate-900 p-2 font-serif">{dateAndTime}</span>
+                       className="text-primary" />
+                      <span className="text-muted-foreground text-sm items-center bg-card rounded-xl border border-border p-2 font-serif">{dateAndTime}</span>
                     </div>
                     <div className=" items-end gap-2">
-                            <span className="text-blue-200 text-lg font-bold">{userDetails}!</span>
+                            <span className="text-primary text-lg font-bold">{userDetails}!</span>
                             {/*{holidate && <span className="text-green-200 text-lg font-bold">{holidate}</span>}*/}
                     </div>
             </div>
             <div className="flex flex-col md:flex-row h-[700px] w-full">
-            <div className="h-auto rounded-md border border-slate-900 m-3 bg-[220 22% 8%] text-white">
+            <div className="h-auto rounded-md border border-sidebar-border m-3 bg-sidebar-background text-sidebar-foreground">
                     <ul className="block flex-col md:flex-row gap-5 text-lg font-bold ">
                              <li onClick={()=>setSection("weather")}><Cloud/></li>
-                            <li className="mb-4"><Link to="/closet" className="text-white font-bold"><Inventory2/></Link></li>
+                            <li className="mb-4"><Link to="/closet" className="font-bold text-sidebar-foreground"><Inventory2/></Link></li>
                             <li className="mb-4" onClick={()=>setSection("studier")}><Code/>Study</li>
-                            <li><Link to="" className="text-white font-bold"><MusicNote/>Music</Link></li>
-                            <li onClick={()=>setSection("cal")} className="text-white font-bold"><CalendarMonth/></li>
-                            <li onClick={()=>setSection("oot")} className="text-white font-bold" label="Outfit of the Day"><Inventory2/>Outfit of the Day</li>
+                            <li><Link to="" className="font-bold text-sidebar-foreground"><MusicNote/>Music</Link></li>
+                            <li onClick={()=>setSection("cal")} className="font-bold text-sidebar-foreground"><CalendarMonth/></li>
+                            <li onClick={()=>setSection("oot")} className="font-bold text-sidebar-foreground" label="Outfit of the Day"><Inventory2/>Outfit of the Day</li>
                             <li>
                                 {/*change to settings later on*/}
-                                <Link to="/settings" className="text-white font-bold"><Settings/>Settings</Link>
+                                <Link to="/settings" className="font-bold text-sidebar-foreground"><Settings/>Settings</Link>
                             </li>
                     </ul>
             </div>
-            <div className="bg-[#18181b] flex flex-col md:flex-row h-full w-full rounded-md !overflow-auto">
-                 <section className=" h-auto w-[80%] p-2 rounded-md text-800 border border-slate-900 !overflow-auto">
-                        <section className="h-auto rounded-md p-2 bg-transparent content-start border border-slate-800 font-serif text-left text-white text-lg">
-                                <span className="text-green-500"><CircleRounded style={
+            <div className="bg-card flex flex-col md:flex-row h-full w-full rounded-md !overflow-auto">
+                 <section className=" h-auto w-[80%] p-2 rounded-md text-foreground border border-border !overflow-auto">
+                        <section className="glass h-auto rounded-md p-2 bg-transparent content-start font-serif text-left text-card-foreground text-lg">
+                                <span className="text-success"><CircleRounded style={
                                         {
                                                 height:"10px",
                                                 color: online ? "linear-gradient(135deg, #46e556 0%, #7d7d7da9 100%)" : "#ff0000",
@@ -346,16 +362,16 @@ return (
                                                 backdropFilter:"blur(10px)"
                                         }
                                 }/> {onlineStatus}</span>
-                            <h3 className="text-white text-lg font-bold m-0">{usertime},{userDetails}</h3>
+                            <h3 className="text-card-foreground text-lg font-bold m-0">{usertime},{userDetails}</h3>
                             <p>How can i help you today?</p>
                         </section>
-                            <div className="rounded-md border border-slate-800 p-2 mb-4 h-[300px] backdrop-blur-sm text-white text-lg">
+                            <div className="glass rounded-md p-2 mb-4 h-[300px] text-card-foreground text-lg">
                                     {AiReply ? AiReply :"no reply"}
-                                    <h4 className="text-gray-500 text-right font-bold">
-                                        <div className="text-blue-300 text-left font-bold m-3">You asked:</div>
+                                    <h4 className="text-muted-foreground text-right font-bold">
+                                        <div className="text-primary text-left font-bold m-3">You asked:</div>
                                         <p>{localStorage.getItem("userQuestion")}</p>
-                                        <Linkify><p className="text-left">{localStorage.getItem("AiReply")}</p></Linkify>
-                                        <p className="flex flex-col rounded-md bg-zinc-800 p-2 mb-4 max-h-[200px] text-white border border-slate-600 overflow-auto">{question ? question : "ask me anything!"}</p>
+                                        {/*<Linkify><p className="text-left">{localStorage.getItem("AiReply")}</p></Linkify>*/}
+                                        <p className="flex flex-col rounded-md bg-secondary p-2 mb-4 max-h-[200px] text-card-foreground border border-border overflow-auto">{question ? question : "ask me anything!"}</p>
                                     </h4>
                             </div>
                             <Dialog open={openConfirm} onClose={handleCancelClear}>
@@ -368,74 +384,78 @@ return (
                                         <Button onClick={handleConfirmClear} color="error" variant="contained">Yes, Clear</Button>
                                 </DialogActions>
                             </Dialog>
-                            <div className="relative flex flex-row w-full max-w-full items-center">
-                                <input className="rounded-xl border border-white p-3 mb-4  w-full overflow-auto bg-zinc-900 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            <div className="glass mb-4 flex w-full max-w-full items-center gap-2 rounded-2xl p-2">
+                                        <div className="rounded-xl bg-card text-primary shadow-soft transition hover:bg-secondary">
+                                                <input type="file" className="hidden" id="file-upload" />
+                                                <label
+                                                  className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm font-semibold"
+                                                  htmlFor="file-upload"
+                                                >
+                                                  <AttachFile fontSize="small" />
+                                                  <span className="hidden sm:inline"></span>
+                                                </label>
+                                        </div>
+                                <input className="min-w-0 flex-1 border-0 bg-transparent px-3 py-2 text-foreground outline-none focus:outline-none focus:ring-0"
                                         id="user-question"
                                         value={question}
                                         onChange={(e) => setQuestion(e.target.value)}
                                         type="text" placeholder="Ask me anything..."
                                         />
+                                        <div className="flex shrink-0 items-center content-between gap-2">
                                         <Button variant="contained"
                                                 color="primary"
                                                 size="small"
                                                 onClick={() => handleuserQuestionChange(question)}
-                                                style={{ height:"41px",
-                                                        marginBottom: '0px',
-                                                        margin: '2px', backgroundColor: 'teal', backdropFilter:"blur(10px)",border:"0.5px teal", color:"#000000" }}
+                                                style={{ minHeight:"36px", margin: 0 }}
                                                 component="span"
-                                                className="absolute right-[70px] top-1 w-[20px] transform -translate-y-4 rounded-md"><ArrowUpwardTwoTone /></Button>
-                                                <li className="font-bold rounded-md border border-blue-500 w-[fit-content] absolute right-[20px] transform -translate-y-4  cursor-pointer list-none">
-                                                        <input type="file" className="hidden" id="file-upload" />
-                                                        <label className="cursor-pointer" htmlFor="file-upload">
-                                                        <Upload />
-                                                        </label>
-                                                </li>
+                                                className="flex min-w-10 items-center justify-center rounded-xl border border-border/40 bg-primary px-3 text-primary-foreground shadow-soft"><ArrowUpwardTwoTone /></Button>
+                                        </div>
                                 </div>
                             <section className=" gap-4 mb-4">
                                     <Button variant="contained"
                                     color="primary"
                                     size="small"
                                     onClick={() => handleuserQuestionChange("Tailor my CV")}
-                                    style={{ margin: '2px',padding: '2px', backgroundColor: '#34343322', backdropFilter:"blur(10px)",border:"1px solid #363736", color:"white" }}
+                                    style={{ margin: '2px',padding: '2px' }}
                                     component="span"
-                                    className="bg-emerald-500 text-white p-2 rounded-md m-2">Tailor my CV</Button>
+                                    className="bg-success text-primary-foreground p-2 rounded-md m-2 border border-border/50">Tailor my CV</Button>
                                     <Button variant="contained"
                                     component="span"
                                     color="primary"
                                     size="small"
                                     onClick={()=> handleuserQuestionChange("Suggest an outfit")}
-                                    style={{ margin: '2px',padding: '2px', backgroundColor: '#34343322', backdropFilter:"blur(10px)",border:"1px solid #363736", color:"white" }}
-                                    className="bg-blue-600 text-white p-2 rounded-md m-2">Suggest an outfit</Button>
+                                    style={{ margin: '2px',padding: '2px' }}
+                                    className="bg-accent text-primary-foreground p-2 rounded-md m-2 border border-border/50">Suggest an outfit</Button>
                                     <Button variant="contained"
                                     component="span"
                                     color="primary"
                                     size="small"
                                     onClick={() => handleuserQuestionChange("Plan my day")}
-                                    style={{ margin: '2px',padding: '2px', backgroundColor: '#34343322', backdropFilter:"blur(10px)",border:"1px solid #363736", color:"white" }}
-                                    className="bg-blue-500 text-white p-2 rounded-md m-2">Plan my day</Button>
+                                    style={{ margin: '2px',padding: '2px' }}
+                                    className="bg-primary text-primary-foreground p-2 rounded-md m-2 border border-border/50">Plan my day</Button>
                                     <Button
                                         size="small"
                                         variant="contained"
                                         color="primary"
                                         placeholder="Add a task..."     
                                         onClick={() => handleuserQuestionChange(localStorage.getItem("AiTasks") ? `${localStorage.getItem("AiTasks")}` :null)}
-                                        style={{ margin: '2px',padding: '2px', backgroundColor: '#34343322', backdropFilter:"blur(10px)",border:"1px solid #363736", color:"white" }}
-                                        className="w-[200px] bg-surface text-primary rounded-2xl shadow-soft border border-border hover:bg-accent-indigo-light transition"
+                                        style={{ margin: '2px',padding: '2px' }}
+                                        className="w-[200px] bg-surface text-primary rounded-2xl shadow-soft border border-border/50 hover:bg-accent-indigo-light transition"
                                         >
                                         {localStorage.getItem("AiTasks") ? localStorage.getItem("AiTasks") : "No tasks added yet"}
                                 </Button>
                                 <input
-                                        className="w-[150px] rounded-md border border-border bg-background text-primary placeholder-secondary p-2 mb-0 focus:outline-none focus:ring-2 focus:ring-accent-indigo"
+                                        className="w-[150px] rounded-md border border-border/50 bg-background text-primary placeholder-secondary p-2 mb-0 focus:outline-none focus:ring-2 focus:ring-accent-indigo"
                                         id="task-input"
                                         value={AiTasks}
                                         onChange={(e) => setAiTasks(e.target.value)}
-                                        style={{ margin: '2px',padding: '2px', backgroundColor: '#34343322', backdropFilter:"blur(10px)",border:"1px solid #363736", color:"white" }}
+                                        style={{ margin: '2px',padding: '2px' }}
                                         type="text"
                                         placeholder="New task..."
                                         />
                             </section>
                     </section>
-                    <div className="bg-[#27272a] md:flex-col md: h-full max-h-full w-[400px] text-white rounded-md m-2 !overflow-auto">
+                    <div className="bg-card md:flex-col md: h-full max-h-full w-[400px] text-card-foreground rounded-md m-2 !overflow-auto">
                         {/*
                     <section className="md:flex-col md:h-[400px] w-[300px] p-2 m-2 gap-2 rounded-md border border-slate-900 !overflow-auto">
                                 <h3 className="text-xl font-bold">To - Do List</h3>

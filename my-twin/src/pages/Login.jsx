@@ -47,7 +47,7 @@ function Login () {
             flexDirection="column" 
             alignItems="center" 
             justifyContent="center" 
-            className="bg-black text-white p-4 w-screen box-border border border-white"
+            className="bg-background text-foreground p-4 w-screen box-border border border-border/50"
             minHeight="100vh"
             gap={2}
             >
@@ -60,17 +60,17 @@ function Login () {
                 onChange={(e)=>setEmail(e.target.value)}
                 inputProps={{ style: { color: 'white' } }}
                 InputLabelProps={{ style: { color: 'white' } }}
-                className="m-2 bg-gray-800" />
+                className="m-2 bg-input" />
                 <TextField label="Password" type="password" variant="filled"
                 value={Password}
                 onChange={(e)=>setPassword(e.target.value)}
                 inputProps={{ style: { color: 'white'} }}
                 InputLabelProps={{ style: { color: 'white' } }}
-                className="m-2 bg-gray-800 border border-white text-white" />
+                className="m-2 bg-input border border-border/50 text-foreground" />
                 <Button variant="contained"
                 type='submit' color="primary" className="m-2">Login</Button>
                 <Typography variant="body2">
-                    Don't have an account? <Link to="/register" className="text-blue-500">Register here</Link>
+                    Don't have an account? <Link to="/register" className="text-primary">Register here</Link>
                 </Typography>
             </form>
             </Box>

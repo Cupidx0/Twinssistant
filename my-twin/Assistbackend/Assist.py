@@ -10,6 +10,8 @@ import requests
 import cv2
 from dateutil import parser
 import dateparser
+import pdfplumber
+from docx import Document
 from tavily import TavilyClient
 from datetime import datetime, timedelta
 from google.auth.transport.requests import Request
@@ -39,7 +41,7 @@ db = firestore.client()
 
 # Flask app
 app = Flask(__name__)
-CORS(app, supports_credentials=True, origins=["http://localhost:5174"])
+CORS(app, supports_credentials=True, origins=["http://localhost:5173"])
 
 @app.route('/')
 def home():
@@ -499,6 +501,41 @@ def calendar_manage():
         content = msg.get("content") if isinstance(msg, dict) else getattr(msg, "content", None)
         return jsonify({"reply": content or "Sorry, I could not process that."})
 
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+def extract_text_from_pdf(file_path):
+    try:
+        with pdfplumber.open(file_path) as pdf:
+            text = "\n".join(page.extract_text() for page in pdf.pages if page.extract_text())
+        return text
+    except Exception as e:
+        return f"Error extracting PDF: {str(e)}"
+def extract_text_from_docx(file_path):
+    try:
+        doc = Document(file_path)
+        text = "\n".join(paragraph.text for paragraph in doc.paragraphs)
+        return text
+    except Exception as e:
+        return f"Error extracting DOCX: {str(e)}"
+@app.route('/convert', methods=['POST'])
+def convert_file_to_text():
+    try:
+       # data = get_request_json()
+        file = request.files.get("file")
+        filename = secure_filename(file.filename)
+        file.save(filename)
+
+        if filename.endswith('.pdf'):
+            text = extract_text_from_pdf(filename)
+        elif filename.endswith(('.docx', '.doc')):
+            text = extract_text_from_docx(filename)
+        else:
+            return jsonify({"error": "Unsupported file type"}), 400
+
+        os.remove(filename)
+        with open("extracted_text.txt", "w", encoding="utf-8") as f:
+            f.write(text)
+        return jsonify({"text":'successfully extracted text from file'})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 @app.route('/weather', methods=['POST'])

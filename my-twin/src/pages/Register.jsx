@@ -58,7 +58,7 @@ function Register() {
                 flexDirection="column"
                 alignItems="center"
                 justifyContent="center"
-                className="bg-black text-white p-4 w-screen box-border border border-white"
+                className="bg-background text-foreground p-4 w-screen box-border border border-border/50"
                 minHeight="100vh"
                 gap={2}
             >
@@ -71,31 +71,31 @@ function Register() {
                     variant="outlined"
                     inputProps={{ style: { color: 'white' } }}
                     InputLabelProps={{ style: { color: 'white' } }}
-                    className="m-2 bg-gray-800" />
+                    className="m-2 bg-input" />
                     <TextField label="Email" type="email"
                     value={email}
                     onChange={(e)=>setEmail(e.target.value)}
                     variant="filled"
                     inputProps={{ style: { color: 'white' } }}
                     InputLabelProps={{ style: { color: 'white' } }}
-                    className="m-2 bg-gray-800 border border-white text-white" />
+                    className="m-2 bg-input border border-border/50 text-foreground" />
                     <TextField label="Password" type="password" variant="filled"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     inputProps={{ style: { color: 'white' } }}
                     InputLabelProps={{ style: { color: 'white' } }}
-                    className="m-2 bg-gray-800 border border-white text-white" />
+                    className="m-2 bg-input border border-border/50 text-foreground" />
                     <TextField label="Confirm Password" type="password" variant="filled"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     inputProps={{ style: { color: 'white' } }}
                     InputLabelProps={{ style: { color: 'white' } }}
-                    className="m-2 bg-gray-800 border border-white text-white" />
+                    className="m-2 bg-input border border-border/50 text-foreground" />
                     <Button variant="contained" color="primary" className="m-2"
                     type='submit'
                     >Register</Button>
                     <Typography variant="body2">
-                        Already have an account? <Link to="/login" className="text-blue-500">Login here</Link>
+                        Already have an account? <Link to="/login" className="text-primary">Login here</Link>
                     </Typography>
                 </form>
             {error && <Typography color="error">{error}</Typography>}

@@ -2,7 +2,7 @@ import React,{use, useEffect,useState} from "react";
 import {Card, CardContent, Typography,
   Button, TextField, Stack, Divider} from "@mui/material";
 import toast, { Toaster } from "react-hot-toast";
-import { WeatherAPI } from "../../Utils/Assistant";
+import { WeatherAPI,ConvertTextAPI} from "../../Utils/Assistant";
 import { useAuth } from "../AuthContext";
 import {Link, replace} from "react-router-dom";
 /* Updated upstream*/
@@ -29,19 +29,41 @@ export default function Weather_cv() {
                 console.error("Error fetching weather:", error);
                 toast.error("Error fetching weather");
             });
+            //cv file upload listener
         }
-    }, [isLoggedIn]);
+    }, [isLoggedIn]); 
+    const handleFileChange = (e) => {
+        const file = e.target.files[0];
+
+        if (!file) return;
+
+        setCvFile(file);
+
+        ConvertTextAPI.convertFileToText(file)
+            .then((response) => {
+                if (response.text) {
+                    toast.success("CV text extracted successfully!");
+                    console.log("Extracted CV Text:", response.text);
+                } else {
+                    toast.error("Failed to extract text from CV");
+                }
+            })
+            .catch((error) => {
+                console.error("Error converting file to text:", error);
+                toast.error("Error converting file to text");
+            });
+    };
   return (
-    <div className="flex flex-col gap-4 h-full bg-transparent">
+    <div className="flex h-full flex-col gap-4 bg-transparent">
         <section className="block flex-col md:flex-row md:h-auto bg-transparent w-auto p-2 rounded-md gap-4 !overflow-auto">
-            <div className="overflow-hidden rounded-2xl mb-4 border border-slate-800 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.18),_transparent_28%),linear-gradient(135deg,_#0f172a_0%,_#111827_55%,_#020617_100%)] p-4 shadow-[0_24px_80px_rgba(2,6,23,0.45)] sm:p-6">
-                {weather ?<span><Cloud/>{weather}</span> : <span>Loading weather...</span>}
+            <div className="glass-strong mb-4 overflow-hidden rounded-2xl border border-border bg-gradient-aurora p-4 sm:p-6">
+                {weather ?<span className="flex items-center gap-2 text-card-foreground"><Cloud className="text-primary"/>{weather}</span> : <span className="text-muted-foreground">Loading weather...</span>}
             </div>
-            <ul className="block flex-col md:flex-row gap-4 bg-slate-900 shadow-[0_24px_80px_rgba(2,6,23,0.45)] rounded-md backdrop-blur-sm border border-slate-800/10 p-4 sm:p-5">
+            <ul className="glass block flex-col gap-4 rounded-md border border-border p-4 sm:p-5 md:flex-row">
                 {
                     events.length > 0 ? (
                         events.map((event) => (
-                        <li key={event.id} className="text-underlined">
+                        <li key={event.id} className="text-card-foreground">
                             {event.summary ? event.summary : "No Title"} - Due:{" "}
                             {event.end
                             ? new Date(event.end).toLocaleString([], {
@@ -55,9 +77,9 @@ export default function Weather_cv() {
                                 </li>
                                 ))
                                 ) : (
-                                <li className="font-bold rounded-md border border-slate-800 p-5 bg-blend-50/10 bg-gradient-to-r from-slate-950 to-gray-900 text-center">
+                                <li className="rounded-md border border-border bg-card p-5 text-center font-bold text-card-foreground">
                                     no summary
-                                    <br/>summary should contain the following:
+                                    <br/><span className="font-normal text-muted-foreground">summary should contain the following:</span>
                                     <br/>coursera completed courses and left,
                                     <br/>projects done,
                                     <br/>calendar events,
@@ -67,17 +89,27 @@ export default function Weather_cv() {
                             )}
             </ul>
         </section>
-        <section className="h-auto max-h-[400px] rounded-md p-5 m-6 bg-slate-900 shadow-[0_24px_80px_rgba(2,6,23,0.45)] text-white text-lg gap-4">
-            <Button variant="contained"
+        <section className="glass h-auto max-h-[400px] rounded-md p-5 m-6 text-lg text-card-foreground gap-4">
+            <Button
+                    variant="contained"
                     color="primary"
                     size="small"
-                    onClick=''
-                    style={{ margin: '5px',padding: '10px', backgroundColor: '#46e55622', backdropFilter:"blur(10px)",border:"1px solid #46e556", color:"#46e556" }}
-                    className="bg-blue-500 text-white p-4 rounded-md m-2">
-                    <input type="file" className="hidden" id="cv-upload" />
-                    <label htmlFor="cv-upload" className="cursor-pointer"></label>
-                    {cvFile ? <span className="text-blue-500"><Link to="/cv"><Work/>View CV</Link></span> : <span>Upload your CV <ArrowUpwardTwoTone/></span>}</Button>
-        </section>
-    </div>
+                    style={{ margin: '5px', padding: '10px' }}
+                    className="m-2 rounded-md border border-border bg-primary p-4 text-primary-foreground shadow-soft"
+                    >
+                    <label htmlFor="cv-upload" className="cursor-pointer flex items-center gap-2">
+                        <Upload className="text-primary"/>
+                        {cvFile ? cvFile.name : "Upload CV"}
+                    </label>
+
+                    <input 
+                        type="file" 
+                        className="hidden" 
+                        id="cv-upload"
+                        onChange={handleFileChange}
+                    />
+                </Button>
+            </section>
+        </div>
   );
 }
