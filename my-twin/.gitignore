@@ -25,3 +25,8 @@ dist-ssr
 .env
 *.env.*.local
 *.env.local
+Assistbackend/tw.json
+Assistbackend/token.json
+*Assistbackend/tw.json
+*Assistbackend/token.json
+
