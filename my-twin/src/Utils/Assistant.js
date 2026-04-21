@@ -61,8 +61,8 @@ export const ChatAPI = {
 export const ConvertTextAPI = {
   convertFileToText: async (file) => {
     const formData = new FormData();
-    formData.append("file",file);
-    const response = await axios.post("/convert", formData,{
+    formData.append("file", file);
+    const response = await api.post("/convertText", formData, {
       headers: {
         "Content-Type": "multipart/form-data",
       },

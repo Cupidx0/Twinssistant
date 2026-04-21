@@ -517,7 +517,7 @@ def extract_text_from_docx(file_path):
         return text
     except Exception as e:
         return f"Error extracting DOCX: {str(e)}"
-@app.route('/convert', methods=['POST'])
+@app.route('/convertText', methods=['POST'])
 def convert_file_to_text():
     try:
        # data = get_request_json()
