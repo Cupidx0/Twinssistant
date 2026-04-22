@@ -10,3 +10,8 @@ Assistbackend/tw.json
 Assistbackend/token.json
 *Assistbackend/tw.json
 *Assistbackend/token.json
+
+my-twin/.env
+my-twin/Assistbackend/credentials.json
+my-twin/Assistbackend/token.json
+my-twin/Assistbackend/tw.json
