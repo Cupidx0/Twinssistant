@@ -519,6 +519,8 @@ def extract_text_from_docx(file_path):
         return f"Error extracting DOCX: {str(e)}"
 @app.route('/convertText', methods=['POST'])
 def convert_file_to_text():
+    path = os.path.join(os.getcwd(), "Cv_docs")
+    os.makedirs(path, exist_ok=True)
     try:
        # data = get_request_json()
         file = request.files.get("file")
@@ -533,7 +535,8 @@ def convert_file_to_text():
             return jsonify({"error": "Unsupported file type"}), 400
 
         os.remove(filename)
-        with open("extracted_text.txt", "w", encoding="utf-8") as f:
+        new_filename = filename.rsplit('.', 1)[0]
+        with open(f"{path}/{new_filename}.txt", "w", encoding="utf-8") as f:
             f.write(text)
         return jsonify({"text":'successfully extracted text from file'})
     except Exception as e:
@@ -699,7 +702,7 @@ def chat():
             reply = reply.replace("*", "")
          # Save chat to local file
         with open("chat/chat_history.txt", "a") as f:
-            f.write(f"User: {message}\nAssistant: {reply}\n")
+            f.write(f"User: {message}\nAssistant: {reply}\nTimestamp: {datetime.now().isoformat()}\n\n")
         return jsonify({"reply": reply})
 
     except Exception as e:

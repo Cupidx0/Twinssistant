@@ -1,0 +1,239 @@
+
+Unit 13: Website Design and Development
+
+DoBu Martial Arts
+
+Assignment 1 of 1  |  Academic Year 2025/2026
+Pearson BTEC Level 4/5 HNC/HND Computing for England
+
+Part 1: Evaluation Report into Website Technologies
+This report evaluates the server technologies, hosting solutions, development frameworks, and management services best suited to the DoBu Martial Arts website project. As a Junior Web Developer at WebSpace, the task is to recommend and justify a technology stack that meets the client's requirements for a scalable, secure, and accessible multipage website for a martial arts gym based in West Sussex.
+
+1. The Domain Name System: Purpose and Types
+When someone types a web address into their browser, something needs to translate that human-readable name into the numerical IP address of the server that hosts the site. That is exactly what the Domain Name System does. Without DNS, users would need to memorise strings of numbers just to visit a website, which would make the internet practically unusable for most people (Duckett, 2011).
+DNS is organised as a hierarchy. At the very top sits the root zone, followed by the Top-Level Domain layer, which includes extensions such as .com, .co.uk, and .org. Beneath that sits the Second-Level Domain, which is where a name like 'dobumartialarts' would live, and below that are optional subdomains such as 'www' or 'members'. Registering a .co.uk domain would be the right choice for DoBu because it signals a British business to visitors and carries modest SEO benefits for UK-based search results.
+Types of DNS Records
+Several DNS record types are relevant to managing the DoBu website:
+A Record: Maps a domain name directly to an IPv4 address, telling the internet where the web server is located. This is the most fundamental record type.
+AAAA Record: The IPv6 equivalent of the A record. As IPv4 addresses become increasingly scarce, AAAA records are growing in importance and should be configured alongside A records.
+CNAME Record: A Canonical Name record that aliases one domain to another. Useful for pointing www.dobumartialarts.co.uk to the bare domain, or forwarding to a CDN hostname.
+MX Record: Mail Exchange records direct incoming email to the correct mail servers. These are essential if DoBu sets up professional email addresses such as info@dobumartialarts.co.uk.
+TXT Record: Stores arbitrary text data, most commonly used for domain ownership verification, SPF policies to prevent email spoofing, and DMARC records for email security.
+NS Record: Name Server records specify which DNS servers are authoritative for the domain and hold the definitive answers to queries about it.
+TTL (Time to Live): A value attached to each DNS record that tells resolvers how long to cache it before checking again. A lower TTL means changes propagate across the internet more quickly.
+How Domain Names Are Organised and Managed
+Domain names are registered through accredited registrars such as 123-reg, Namecheap, or GoDaddy. Once registered, the owner can update DNS records through the registrar's control panel, or delegate DNS management to a third-party provider. For DoBu, pointing the nameservers to Cloudflare would be a sensible choice. Cloudflare offers free DNS management alongside DDoS protection, HTTP/3 support, automatic HTTPS enforcement, and a global content delivery network, all of which directly improve both the security and performance of the site (Cloudflare, 2023).
+
+2. Hardware, Software, and Communication Protocols
+Communication Protocols
+Protocols are the agreed rules that govern how data is transmitted across the internet. The most relevant protocols for the DoBu website are:
+HTTP: The foundational protocol for web communication. It works as a stateless request-response cycle between a client browser and a server. The problem with HTTP is that it transmits everything in plain text, which makes it completely unsuitable for a site that will handle member account details.
+HTTPS: The secure version of HTTP, which wraps all communication in TLS encryption. For DoBu, HTTPS is non-negotiable. Members will be creating accounts and potentially making payments, so encrypting that data in transit is both a security requirement and a legal obligation under GDPR. There is also an SEO benefit, since Google treats HTTPS as a positive ranking signal (Google, 2022). A free SSL/TLS certificate from Let's Encrypt via Certbot handles this without adding to the project budget.
+FTP and SFTP: File Transfer Protocol is used by developers to move files between a local machine and a remote server. SFTP must always be used instead of plain FTP because it encrypts the connection. The WebSpace team would use SFTP when deploying files to the server during the build and later during updates.
+TCP/IP: The underlying protocol suite that all internet traffic relies on. Every request made to DoBu's website travels over TCP/IP, regardless of which higher-level protocol is used on top.
+Server Hardware Options
+The choice of hosting environment determines the cost, performance, and long-term scalability of the website. There are four main options to consider:
+Shared Hosting: Multiple websites share the same physical server, meaning CPU and RAM are not guaranteed and performance can degrade when other sites on the same machine are busy. It is cheap, but unsuitable for a site with a membership portal and active forum.
+Virtual Private Server (VPS): A physical server is divided into isolated virtual environments, each with dedicated resource allocations. A VPS gives significantly better performance and control than shared hosting while remaining cost-effective. Providers like DigitalOcean and Linode offer well-regarded VPS products.
+Dedicated Server: An entire physical server allocated to one client, offering maximum performance and control. The cost premium is hard to justify for a business at DoBu's current scale, though it could be considered if the membership base grows substantially.
+Cloud Hosting: Infrastructure distributed across multiple physical servers managed by providers like AWS or Google Cloud. The key advantage is elasticity, meaning resources can scale up during busy periods such as promotional campaigns and scale back down when demand drops. This is a sensible long-term option for a growing gym.
+A VPS on DigitalOcean running Ubuntu Server 22.04 LTS is recommended for DoBu's launch, starting with a 2 vCPU and 4GB RAM configuration. This strikes the right balance between cost, performance, and control, and can be scaled vertically as membership grows.
+Operating Systems
+Linux-based operating systems dominate web server deployments, and for good reason. Distributions like Ubuntu Server, CentOS, and Debian are free, stable, highly secure, and supported by large communities of developers. They are also the natural home of popular web stacks like LAMP (Linux, Apache, MySQL, PHP) and LEMP (Linux, Nginx, MySQL, PHP).
+Windows Server is the main alternative, and it makes sense where Microsoft-specific technologies like ASP.NET or IIS are needed. For DoBu there is no reason to incur the additional licensing cost of Windows Server when Linux covers every requirement at no extra cost.
+Web Server Software
+The web server software receives incoming HTTP requests and decides how to respond. The four main options are:
+Apache HTTP Server: The most widely deployed web server globally, with a long track record, a large module ecosystem, and strong compatibility with PHP applications. Apache is highly configurable via .htaccess files. Its main limitation is that under very high concurrent loads, its process-based architecture uses more memory than event-driven alternatives (Apache Software Foundation, 2023).
+Nginx: Designed specifically to address Apache's concurrency limitations, Nginx uses an event-driven, non-blocking architecture that handles thousands of simultaneous connections efficiently with low memory usage. It also excels at serving static files and is widely used as a reverse proxy in front of application servers. Nginx has surpassed Apache in usage among high-traffic sites (Netcraft, 2023).
+Apache Tomcat: A Java Servlet container for Java-based web applications. Not relevant to this project unless Java was chosen as the back-end language, which is not the case here.
+IIS (Internet Information Services): Microsoft's web server, bundled with Windows Server. Only relevant in a Microsoft or ASP.NET environment, which does not apply to DoBu.
+Nginx is the recommendation for DoBu. Its event-driven architecture suits a site handling concurrent member logins, forum activity, and media content, and it integrates cleanly with Node.js as a reverse proxy layer.
+
+3. Impact of Web Development Technologies and Frameworks
+The technologies used to build a website directly shape what is possible, how quickly it can be built, and how well it performs. The brief identifies several specific frameworks that are worth examining in the context of the DoBu project.
+HTML5
+HTML5 introduced semantic elements such as header, nav, article, section, and footer that give web pages a clear and meaningful structure. This matters for accessibility because screen readers rely on these elements to help users navigate a page, and it matters for SEO because search engine crawlers use the content hierarchy to assess relevance. HTML5 also added native support for audio and video without relying on plugins, which would be useful for embedding martial arts demonstration clips on DoBu's site. The Geolocation API opens the door to a 'Find Us' feature that helps prospective members locate the gym (MDN Web Docs, 2023).
+JSON
+JSON, which stands for JavaScript Object Notation, is the standard format for exchanging data between a front-end and a back-end in modern web applications. It is lightweight, easy for humans to read, and natively understood by JavaScript. In practical terms, when the React front-end requests a member's booking history from the Node.js API, the response comes back as a JSON object. Almost every interaction between the two sides of the DoBu application would rely on JSON to carry data back and forth (MDN Web Docs, 2023).
+jQuery
+jQuery simplified JavaScript development considerably when it was introduced, providing a concise and cross-browser-compatible way to manipulate the DOM, handle events, and make AJAX requests. It still ships as a dependency in many widely used tools, including Bootstrap and various WordPress plugins (Duckett, 2014). For a new project built in 2025, however, modern JavaScript has absorbed most of what made jQuery valuable, and relying heavily on jQuery would introduce an unnecessary dependency. It is worth understanding but would not be the primary JavaScript tool on this build.
+React
+React, developed and maintained by Meta, is a component-based JavaScript library for building user interfaces. Each component manages its own state and re-renders only when that state changes, which makes updates fast and avoids unnecessary redraws of the whole page. For DoBu's member dashboard, this is particularly useful. The same component structure could power the membership status panel, the class booking feed, and the forum notifications independently, each updating in response to its own data without affecting the others. React's widespread adoption also means an abundance of community support, documentation, and compatible libraries (Meta Open Source, 2023).
+Angular
+Angular is a full-featured MVC framework developed by Google, designed to support large, complex single-page applications. It comes with built-in routing, dependency injection, state management, and a strict project structure. The benefit of that structure is consistency and maintainability at scale, but for a project at DoBu's current size, the additional complexity and the larger bundle size it produces are difficult to justify. React is a more proportionate choice for this build, with the understanding that Angular could become relevant if the platform grows into a much larger digital product (Salas-Zarate et al., 2015).
+Node.js
+Node.js allows JavaScript to run on the server, using the same language across both the front-end and back-end. It uses an event-driven, non-blocking architecture, meaning it can handle many concurrent requests without waiting for each one to complete before starting the next. This makes it well-suited to the real-time aspects of DoBu's requirements, such as live forum updates and member session management. When paired with Express.js as a web framework, Node.js provides a clean foundation for building REST APIs. Research by Lei, Ma and Tan (2014) found that Node.js outperforms both PHP and Python on concurrent request handling, which directly supports its use in a membership-based application.
+
+4. Search Engines, Performance, and SEO
+How Search Engines Influence a Website
+For a local business like DoBu Martial Arts, ranking well in Google search results is one of the most direct routes to attracting new members. Google's ranking algorithm considers hundreds of signals, including page speed, mobile compatibility, HTTPS status, content quality, and the number and quality of sites linking to the page (Google, 2022). A site that performs poorly on these dimensions can effectively be invisible online, regardless of how good the gym itself is.
+Google's Core Web Vitals, which became direct ranking factors in 2021, make the relationship between technical performance and search visibility especially concrete. The three metrics are Largest Contentful Paint (how quickly the main content loads), First Input Delay (how fast the page responds to user interaction), and Cumulative Layout Shift (how stable the layout is while loading). Research by Visser and Weideman (2011) confirms a strong connection between usability factors of this kind and search engine position, demonstrating that good development practice and good SEO are not separate concerns but directly connected.
+For local search terms such as 'martial arts gym Crawley' or 'self-defence course West Sussex', Google's local algorithm also considers proximity, completeness of the Google Business Profile, and on-site local signals. This means SEO efforts need to address both technical site optimisation and local presence management.
+Improving Index Value Through SEO
+Keyword Research and On-Page Optimisation: Each page of the site should target a specific primary keyword with a local modifier, for example 'beginners judo Crawley'. Wilson et al. (2006) showed that placing target keywords in title tags, H1 headings, and body copy meaningfully improves how search engines assess a page's relevance. Title tags should stay under 60 characters and meta descriptions under 160.
+Technical SEO: An XML sitemap submitted to Google Search Console helps Googlebot discover and index all pages. Canonical tags prevent duplicate content issues. Schema markup added for business information, class schedules, and events can enable rich results in Google listings.
+Mobile-First Indexing: Google primarily uses the mobile version of a site for indexing and ranking. The DoBu site must be fully responsive and pass Google's Mobile-Friendly Test.
+Page Speed: Images should be converted to WebP format and compressed. CSS and JavaScript files should be minified. Lazy loading should be applied to off-screen images. Cloudflare's CDN reduces latency by serving cached assets from the nearest edge server.
+Local SEO: DoBu should be listed on Google Business Profile with accurate and consistent name, address, and phone number data. The website footer and contact page must display the same information. Embedding a Google Map on the contact page adds a further local relevance signal. Genuine member reviews on Google Business Profile are among the strongest local ranking factors.
+Content Strategy: A blog covering topics like 'What to Expect at Your First Karate Class' would attract organic search traffic, build topical authority, and generate backlinks from relevant sources. According to Google's own guidance, high-quality content that genuinely addresses user questions is one of the most effective long-term SEO strategies (Google, 2022).
+Link Building: Listings in local business directories, West Sussex community websites, and national martial arts associations would build a profile of inbound links that strengthen the domain's authority in search engines.
+
+5. Front-End and Back-End Technologies
+The Presentation Layer
+The presentation layer is everything the user sees and interacts with directly in their browser. It is constructed from three technologies working together. HTML provides the structure and content. CSS handles the visual presentation, layout, and responsiveness. JavaScript adds interactivity and handles communication with the server. For DoBu, this layer would render the class timetable, instructor profiles, membership pricing, and the member dashboard. Building it with React allows the development team to create self-contained, reusable components such as a ClassCard or MembershipTierBadge that can appear on multiple pages and update dynamically when the underlying data changes.
+The Application Layer
+The application layer sits on the server and handles the business logic that users never see directly. For DoBu this includes processing membership registrations, authenticating logins, querying the database for class schedules, and managing forum threads and posts. The recommended approach is Node.js with Express.js, which provides a clean and efficient REST API that the React front-end communicates with via standard HTTP requests. The database would be MySQL 8.0, which is the right fit for DoBu's structured data. Member records, class bookings, and membership tiers all have well-defined relationships that benefit from a relational data model.
+User authentication would use JSON Web Tokens, with short-lived access tokens and longer-lived refresh tokens stored in HttpOnly cookies. Passwords would be stored as bcrypt hashes with a cost factor of at least 12, meaning they are computationally expensive to crack even if the database is ever compromised.
+How the Two Layers Work Together
+When a logged-in member visits their dashboard, the React front-end sends an authenticated GET request to the Node.js API. The server verifies the token, queries MySQL for that member's data, and returns it as a JSON response. React then renders the appropriate components with that data. Nginx sits in front of all of this, handling inbound HTTPS requests, serving static assets directly from cache, and forwarding dynamic API calls to Node.js. This separation of concerns means the front-end and back-end can each be updated independently, and the same API could serve a future DoBu mobile app without any changes to the server.
+
+6. Tools and Techniques for Custom Website Development
+The quality of a website project depends not just on the technologies chosen but on the tools and workflows used throughout the development process.
+Visual Studio Code: The industry-standard code editor, with intelligent code completion, built-in Git integration, and extensions for linting, formatting, and live browser preview. ESLint and Prettier ensure consistent code quality across the team.
+Git and Version Control: Hosted on GitHub or GitLab, Git enables the team to track every change, work on separate features in parallel branches, and roll back to any previous state if something goes wrong. A GitFlow branching strategy prevents developers from conflicting with each other's work.
+npm: Node Package Manager handles all JavaScript dependencies, ensuring the development environment and production server use the same library versions throughout.
+Tailwind CSS: A utility-first CSS framework that gives fine-grained control over visual design without the constraints of pre-built component templates. This is important for maintaining DoBu's distinct brand identity.
+Figma: The industry-leading tool for wireframing, interface design, and interactive prototyping. It allows design to be reviewed and approved by the client before development begins, reducing the cost of late-stage changes.
+Chrome DevTools: A browser-based toolkit covering HTML and CSS inspection, JavaScript debugging, network monitoring, and performance profiling. It is essential throughout development and testing (Google Chrome Developers, n.d.).
+Vite: A build tool that compiles JSX, bundles JavaScript modules, and produces optimised production outputs. It is significantly faster than Webpack for React projects and is now the recommended choice for new builds.
+Jest and Cypress: Jest handles unit testing of individual JavaScript functions and components. Cypress runs end-to-end browser tests that simulate real user journeys through the full application.
+
+7. Online Website Builders vs Custom-Built Sites
+It is worth evaluating the custom-built approach against the alternative of using a platform like Wix or Squarespace, since this comparison directly supports the case for the chosen approach.
+
+A website builder could not deliver what DoBu has asked for. The membership portal and forum are beyond the capabilities of mainstream platforms, and the custom-built route gives the client full ownership, better performance, and the flexibility to evolve the site as the business grows.
+
+8. Justification of the Chosen Technology Stack (D1)
+Based on the analysis above, the following technology choices are recommended for the DoBu Martial Arts website, each justified on its specific merits.
+Domain and DNS: A .co.uk domain registered via 123-reg, with DNS managed through Cloudflare. The .co.uk extension is appropriate for a UK-based local business. Cloudflare adds DDoS protection, edge caching, and HTTP/3 support at no extra cost.
+Hosting: A DigitalOcean VPS running Ubuntu Server 22.04 LTS, starting with a 2 vCPU and 4GB RAM configuration. This provides dedicated resources, full server control, and a clear upgrade path if traffic grows.
+Web Server: Nginx. Its event-driven architecture handles concurrent connections efficiently and integrates cleanly with Node.js as a reverse proxy.
+Back-End: Node.js with Express.js. Using JavaScript across the full stack reduces context switching for the team. Node's non-blocking I/O is well-suited to the real-time features of the membership portal and forum. Performance at scale is well documented (Lei et al., 2014).
+Database: MySQL 8.0. The relational model is the right fit for DoBu's structured data. Member records, class bookings, and pricing tiers all have defined relationships that MySQL manages well.
+Front-End: React. Component-based architecture and the virtual DOM make it the right tool for building the dynamic, data-driven parts of the site efficiently.
+CSS: Tailwind CSS. The utility-first approach enables a fully custom visual design rather than the constrained output of a component library.
+Security: HTTPS via Let's Encrypt, bcrypt password hashing, JWT authentication, CSRF tokens, rate limiting on authentication endpoints, and GDPR-compliant data handling.
+SEO: Nginx configuration for optimal page speed, XML sitemap, schema markup, Google Business Profile listing, and Cloudflare CDN for Core Web Vitals improvement.
+
+References
+Apache Software Foundation (2023) Apache HTTP Server Project [online]. Available at: https://httpd.apache.org/ [Accessed: April 2026].
+Bootstrap (n.d.) Build fast, responsive sites with Bootstrap [online]. Available at: https://getbootstrap.com/ [Accessed: April 2026].
+Cloudflare (2023) What is DNS? [online]. Available at: https://www.cloudflare.com/learning/dns/what-is-dns/ [Accessed: April 2026].
+Duckett, J. (2011) HTML and CSS: Design and Build Websites. 1st edn. Wiley.
+Duckett, J. (2014) JavaScript and jQuery: Interactive Front-End Development. 1st edn. Wiley.
+Duckett, J. (2022) PHP and MySQL: Server-side Web Development. 1st edn. Wiley.
+Google (2022) Search Engine Optimization (SEO) Starter Guide [online]. Available at: https://developers.google.com/search/docs/beginner/seo-starter-guide [Accessed: April 2026].
+Google Chrome Developers (n.d.) Chrome DevTools [online]. Available at: https://developer.chrome.com/docs/devtools/ [Accessed: April 2026].
+Lei, K., Ma, Y. and Tan, Z. (2014) Performance Comparison and Evaluation of Web Development Technologies in PHP, Python, and Node.js. 2014 IEEE 17th International Conference on Computational Science and Engineering, pp. 661-668.
+MDN Web Docs (2023) HTML: HyperText Markup Language [online]. Available at: https://developer.mozilla.org/en-US/docs/Web/HTML [Accessed: April 2026].
+Meta Open Source (2023) React [online]. Available at: https://react.dev/ [Accessed: April 2026].
+Netcraft (2023) Web Server Survey [online]. Available at: https://news.netcraft.com [Accessed: April 2026].
+Salas-Zarate, M. et al. (2015) Analyzing best practices on Web development frameworks: The lift approach. Science of Computer Programming, 102, pp. 1-19.
+Visser, E.B. and Weideman, M. (2011) An empirical study on website usability elements and how they affect search engine optimisation. SA Journal of Information Management, 13(1), Art. #428.
+Wilson, R. et al. (2006) Search engine optimisation: A primer on keyword strategies. Journal of Direct, Data and Digital Marketing Practice.
+
+Part 2: Website Design Documents
+This section presents the complete design documentation for the DoBu Martial Arts website. It includes functional and non-functional requirements, user acceptance criteria, medium-fidelity wireframes, interface design specifications, technical architecture and database design, hosting details, security measures, and accessibility guidelines.
+
+1. Client and User Requirements
+1.1 Functional Requirements
+Functional requirements define what the system must do. Each has been prioritised using the MoSCoW method.
+
+1.2 Non-Functional Requirements
+
+1.3 User Acceptance Criteria
+Each criterion uses the Given/When/Then format so the conditions for sign-off are unambiguous.
+UAC-01 (Navigation): Given a user on any page, when they use the navigation bar, then all links reach the correct destination without errors on both desktop and mobile.
+UAC-02 (Timetable): Given a user on the Classes page, when the page loads, then the full timetable is visible with correct class names, times, and days matching the client brief.
+UAC-03 (Registration): Given a new visitor on the Sign Up page, when they complete and submit the form with valid data, then their account is created and a confirmation message appears.
+UAC-04 (Login): Given a registered member with valid credentials, when they submit the login form, then they are redirected to a dashboard showing their membership tier and status.
+UAC-05 (Forum): Given a logged-in member on the Community page, when the page loads, then they can view existing threads and post a new message.
+UAC-06 (Contact Form): Given a user who submits the contact form with valid data, then a success message appears and the submission is stored for staff review.
+UAC-07 (Responsive Design): Given a user on a 320px-wide mobile viewport, then all pages display correctly with no horizontal scrolling or overlapping elements.
+UAC-08 (Accessibility): Given a keyboard and screen reader user, then all images have alt text, all inputs have labels, and keyboard navigation works throughout.
+UAC-09 (Performance): Given the deployed site tested with Google Lighthouse, then all key pages score 80 or above for performance.
+UAC-10 (Pricing): Given a user on the Membership page, then all tiers, courses, and service prices are accurate and clearly described per the client brief.
+
+2. Wireframes
+The following medium-fidelity wireframes show the structural layout, content hierarchy, and component placement for each primary page. They define what goes where and how users navigate between sections, without yet committing to final visual styling. Red annotations indicate key layout decisions and interactive elements.
+2.1 Home Page
+
+Figure 1 - Home Page Wireframe
+2.2 Classes and Timetable Page
+
+Figure 2 - Classes and Timetable Page Wireframe
+2.3 Membership and Pricing Page
+
+Figure 3 - Membership and Pricing Page Wireframe
+2.4 Instructors Page
+
+Figure 4 - Instructors Page Wireframe
+2.5 Member Registration and Login
+
+Figure 5 - Member Registration and Login Page Wireframe
+2.6 Community Forum
+
+Figure 6 - Community Forum Page Wireframe
+2.7 Contact Page
+
+Figure 7 - Contact Page Wireframe
+
+3. Interface Design
+Where wireframes define structure, the interface design specification defines the visual language of the DoBu website. This covers the colour palette, typography choices, and core UI component styles that will be applied consistently across all pages to create a coherent and professional brand identity.
+
+Figure 8 - Interface Design Specification (Colour Palette, Typography, UI Components)
+Design Rationale
+The primary dark navy colour (#1F3864) conveys authority, discipline, and professionalism, which aligns well with a serious martial arts facility. The primary blue (#2E74B5) provides a lively and accessible accent that works for interactive elements such as buttons and links. These two colours together create a strong visual hierarchy without needing a complex palette.
+Arial was chosen as the sole typeface because it is universally available across all operating systems and browsers without requiring a web font download, which supports fast page load times. The typographic scale (28px for H1 down to 12px for captions) creates clear visual hierarchy and ensures readability at every level.
+Button styles are clearly differentiated: the primary button (dark navy fill) is used for the most important actions on a page, the CTA button (blue fill) draws attention to conversion-focused actions like membership sign-up, and the secondary button (white with navy border) is used for lower-priority actions. This prevents the layout from competing with itself for the user's attention.
+
+4. Technical Design
+4.1 System Architecture
+The diagram below shows how the various technology components of the DoBu website fit together, from the user's browser through to the database and external services.
+
+Figure 9 - System Architecture Diagram
+Client requests originate from a browser or, in future, a mobile app. They are received by Cloudflare, which handles DNS resolution, DDoS mitigation, HTTPS termination, and CDN caching of static assets. Requests that need to reach the origin server pass through to Nginx, which serves cached static files directly and forwards dynamic API requests to the Node.js application server. Node.js processes the business logic, queries the MySQL database, and returns a JSON response. The React front-end, served as static files by Nginx, renders the data into the UI the user sees. DigitalOcean Spaces stores media uploads and receives automated daily database backups.
+4.2 Database Design (ER Diagram)
+The entity relationship diagram below shows the data model for the DoBu application, including all entities, their attributes, primary and foreign keys, and the relationships between them.
+
+Figure 10 - Entity Relationship Diagram
+The Members table sits at the centre of the model. Each member holds a foreign key reference to the Memberships table, which stores the available tier options and their pricing. Members can make Bookings against Classes, with the Bookings table acting as the many-to-many junction between the two. The Classes table links to both the Disciplines table (defining the martial art type) and the Instructors table. The community forum is represented by two tables: Forum_Threads, which belongs to a member, and Forum_Posts, which belongs to both a thread and a member.
+All primary keys use auto-incrementing integers. Foreign key constraints are enforced to maintain referential integrity. The status field in the Bookings table uses an ENUM type with values of confirmed, cancelled, and attended. Soft deletion (an is_active flag rather than a DELETE statement) is used on the Members table to preserve historical booking and forum data if an account is deactivated.
+
+5. Additional Design Considerations
+5.1 Networking and Hosting
+The site will be hosted on a DigitalOcean VPS running Ubuntu Server 22.04 LTS, starting with a 2 vCPU and 4GB RAM Droplet. Nginx acts as both the web server and reverse proxy. Cloudflare manages DNS and provides CDN caching, DDoS protection, and automatic HTTPS. MySQL 8.0 runs on the same VPS with daily automated backups to DigitalOcean Spaces. A staging environment mirroring production is maintained for testing before deployment.
+5.2 Security
+HTTPS: A Let's Encrypt certificate installed via Certbot, with auto-renewal configured. All HTTP traffic is permanently redirected to HTTPS.
+Passwords: Stored as bcrypt hashes with a cost factor of 12. Plain-text storage is not permitted under any circumstances.
+Authentication: JWT access tokens with a 15-minute expiry and 7-day refresh tokens stored in HttpOnly cookies.
+Input Validation: Server-side validation via Express-validator on all endpoints. Parameterised MySQL queries prevent SQL injection. User-generated content is sanitised before DOM rendering to prevent XSS.
+CSRF Protection: CSRF tokens generated and verified for all state-changing form submissions.
+Rate Limiting: Express-rate-limit applied to login and registration endpoints to prevent brute-force attacks.
+Security Headers: Content-Security-Policy, X-Frame-Options, X-Content-Type-Options, and Referrer-Policy headers sent by Nginx on all responses.
+GDPR: Cookie consent banner on first visit. Privacy Policy page documenting data collection, retention, usage, and the user's right to request deletion.
+5.3 Accessibility and Inclusivity
+The site will be built to WCAG 2.1 Level AA standards across all four POUR principles.
+Perceivable: All images carry meaningful alt text. Decorative images use empty alt attributes. Text and background colour combinations meet the 4.5:1 minimum contrast ratio. Video content includes captions.
+Operable: The full site is keyboard-navigable with a visible focus indicator on all interactive elements. Skip navigation links allow keyboard users to jump past the nav bar to the main content.
+Understandable: Every form input has an associated label element. Error messages clearly identify which field failed and explain what is required. The HTML lang attribute is set to 'en' on every page.
+Robust: Semantic HTML5 elements are used throughout. ARIA attributes are applied to dynamic components such as modal overlays, accordion triggers, and forum live regions. The site will be tested with NVDA and VoiceOver, and audited using the axe accessibility tool.
+Body font size is a minimum of 16px. All touch targets are at least 44px by 44px as required by WCAG 2.5.5. Plain English is used throughout to ensure content is accessible to users of varying literacy levels.
+
+Bibliography
+Apache Software Foundation (2023) Apache HTTP Server Project [online]. Available at: https://httpd.apache.org/ [Accessed: April 2026].
+Bootstrap (n.d.) Build fast, responsive sites with Bootstrap [online]. Available at: https://getbootstrap.com/ [Accessed: April 2026].
+Cloudflare (2023) What is DNS? [online]. Available at: https://www.cloudflare.com/learning/dns/what-is-dns/ [Accessed: April 2026].
+Duckett, J. (2011) HTML and CSS: Design and Build Websites. 1st edn. Wiley.
+Duckett, J. (2014) JavaScript and jQuery: Interactive Front-End Development. 1st edn. Wiley.
+Duckett, J. (2022) PHP and MySQL: Server-side Web Development. 1st edn. Wiley.
+Google (2022) Search Engine Optimization (SEO) Starter Guide [online]. Available at: https://developers.google.com/search/docs/beginner/seo-starter-guide [Accessed: April 2026].
+Google Chrome Developers (n.d.) Chrome DevTools [online]. Available at: https://developer.chrome.com/docs/devtools/ [Accessed: April 2026].
+Lei, K., Ma, Y. and Tan, Z. (2014) Performance Comparison and Evaluation of Web Development Technologies in PHP, Python, and Node.js. 2014 IEEE 17th International Conference on Computational Science and Engineering, pp. 661-668.
+MDN Web Docs (2023) HTML: HyperText Markup Language [online]. Available at: https://developer.mozilla.org/en-US/docs/Web/HTML [Accessed: April 2026].
+Meta Open Source (2023) React [online]. Available at: https://react.dev/ [Accessed: April 2026].
+Netcraft (2023) Web Server Survey [online]. Available at: https://news.netcraft.com [Accessed: April 2026].
+Salas-Zarate, M. et al. (2015) Analyzing best practices on Web development frameworks: The lift approach. Science of Computer Programming, 102, pp. 1-19.
+Visser, E.B. and Weideman, M. (2011) An empirical study on website usability elements and how they affect search engine optimisation. SA Journal of Information Management, 13(1), Art. #428.
+W3C (2018) Web Content Accessibility Guidelines (WCAG) 2.1 [online]. Available at: https://www.w3.org/TR/WCAG21/ [Accessed: April 2026].
+Wilson, R. et al. (2006) Search engine optimisation: A primer on keyword strategies. Journal of Direct, Data and Digital Marketing Practice.
