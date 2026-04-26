@@ -47,6 +47,12 @@ export default function Weather_cv() {
                 } else {
                     toast.error("Failed to extract text from CV");
                 }
+                if (response.cv) {
+                    toast.success("CV file saved successfully!");
+                    console.log("Saved CV Path:", response.cv);
+                } else {
+                    toast.error("Failed to save CV file");
+                }
             })
             .catch((error) => {
                 console.error("Error converting file to text:", error);

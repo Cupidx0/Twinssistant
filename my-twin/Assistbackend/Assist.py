@@ -538,7 +538,26 @@ def convert_file_to_text():
         new_filename = filename.rsplit('.', 1)[0]
         with open(f"{path}/{new_filename}.txt", "w", encoding="utf-8") as f:
             f.write(text)
-        return jsonify({"text":'successfully extracted text from file'})
+        return jsonify({"text":'successfully extracted text from file',
+                        "cv":f"{path}/{new_filename}.txt"
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+def review_cv():
+    cv = os.path.join(os.getcwd(), "Cv_docs")
+    compare =["name","experience","skills","education","projects","contact"]
+    try:
+        with open(cv, "r", encoding="utf-8") as f:
+            text = f.read()
+        feedback = []
+        for item in compare:
+            if item in text.lower():
+                items = item +1
+                feedback.append(items)
+        if feedback < 3:
+            gpt_get = "Your CV is missing key sections. Consider adding: " + ", ".join(set(compare) - set(feedback))
+            return jsonify({"feedback": gpt_get})
+        return jsonify({"feedback": "Your CV looks good! It contains the essential sections."})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 @app.route('/weather', methods=['POST'])
@@ -612,7 +631,9 @@ def chat():
         message = data.get("question", "").strip()
         if not message:
             return jsonify({"error": "Please provide a question."}), 400
-
+        cv_check = review_cv()
+        if cv_check:
+            review = cv_check.get("feedback")
         # Weather check
         if "weather" in message.lower():
             url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
@@ -649,7 +670,6 @@ def chat():
                     )
             except Exception as e:
                 web_context = f"(Tavily search failed: {e})"
-
         prompt = (
             f"Web context: {web_context}\n"
             f"User request: {message}\n"
@@ -683,6 +703,7 @@ def chat():
             "- Suggest helpful links or resources if relevant (but keep it simple).\n"
             "- Remember: the user is a developer learning Python, React, and DSA for apprenticeships.\n"
             "- Always end with a follow-up question to keep the conversation going.\n"
+            f"if user ask you to review their CV, use this {review} to provide feedback on their CV and suggest improvements."
         )
         # assistant name
         assistantname = data.get("assistantname", "").strip()
