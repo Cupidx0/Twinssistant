@@ -10,10 +10,13 @@ import Study from "./page_connect/Study";
 import Outfit_of_day from "./page_connect/Outfit_of_day";
 import {Anchor,Delete,SmartToy,Inventory,MusicNote,
         Settings,CalendarMonth,Inventory2,Cloud,
-        AttachFile,Work,Code,ArrowUpwardTwoTone,CircleRounded} from "@mui/icons-material";  
+        AttachFile,Work,Code,ArrowUpwardTwoTone,CircleRounded,
+        MicExternalOn,
+        SquareOutlined} from "@mui/icons-material";  
 import {ChatAPI} from "../Utils/Assistant";
 import { WeatherAPI } from "../Utils/Assistant";
 import {useAuth} from "./AuthContext";
+import {useSpeechRecognition} from "react-speech-recognition"
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay, set } from "date-fns";
 import "react-big-calendar/lib/css/react-big-calendar.css";
@@ -38,6 +41,7 @@ function Home () {
     const [tasks, setTasks] = useState([]);
     const {user} = useAuth();
     const[usertime, setUsertime] = useState("");
+    const[recording, setRecording] = useState(false);
     const[holidate, setHolidate] = useState(null);
     const[todoTaskInput, setTodoTaskInput] = useState("");
     const [pastDue, setPastDue] = useState([]);
@@ -249,6 +253,15 @@ function Home () {
         toast.success("All tasks removed!");
 
 };
+const handleRecordVoice = () => {
+        if (!recording) {
+                SpeechRecognition.startListening({ continuous: true });
+                setRecording(true);
+        } else {
+                SpeechRecognition.stopListening();
+                setRecording(false);
+        }
+};
 const mail = user ? user.email.replace("@gmail.com","") : "";
 const userDetails = user ? `${mail}` : "Not logged in";
 const onlineStatus = user ? "Online" : "Offline";
@@ -412,6 +425,7 @@ return (
                                         </div>
                                 </div>
                             <section className=" gap-4 mb-4">
+                                {recording ? <MicExternalOn fontSize="large" className="text-primary mb-2"/> : <SquareOutlined fontSize="large" className="text-muted-foreground mb-2"/>}
                                     <Button variant="contained"
                                     color="primary"
                                     size="small"

@@ -28,6 +28,11 @@ except ImportError:
     holidays_lib = None
 
 # Load env variables
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CV_DIR = os.path.join(BASE_DIR, "Cv_docs")
+CHAT_DIR = os.path.join(BASE_DIR, "chat")
+CHAT_HISTORY_FILE = os.path.join(CHAT_DIR, "chat_history.txt")
+
 load_dotenv()
 api_key = os.getenv("OPENWEATHER_API_KEY")
 city = "horley"
@@ -35,7 +40,7 @@ tavilyclient = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
 openai.api_key = os.getenv("OPENAI_API_KEY")
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 # Initialize Firebase properly
-cred = credentials.Certificate("tw.json")  # 👈 your Firebase service account JSON
+cred = credentials.Certificate(os.path.join(BASE_DIR, "tw.json"))  # 👈 your Firebase service account JSON
 firebase_app = initialize_app(cred)
 db = firestore.client()
 
@@ -67,12 +72,13 @@ def get_creds():
     Raises error if not found, instructing to run login_calendar.py first.
     """
     from google.oauth2.credentials import Credentials
-    if not os.path.exists("token.json"):
+    token_path = os.path.join(BASE_DIR, "token.json")
+    if not os.path.exists(token_path):
         raise FileNotFoundError("token.json not found. Run login_calendar.py first.")
-    creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+    creds = Credentials.from_authorized_user_file(token_path, SCOPES)
     if creds and not creds.valid and creds.expired and creds.refresh_token:
         creds.refresh(Request())
-        with open("token.json", "w") as token:
+        with open(token_path, "w") as token:
             token.write(creds.to_json())
     return creds
 
@@ -519,7 +525,7 @@ def extract_text_from_docx(file_path):
         return f"Error extracting DOCX: {str(e)}"
 @app.route('/convertText', methods=['POST'])
 def convert_file_to_text():
-    path = os.path.join(os.getcwd(), "Cv_docs")
+    path = CV_DIR
     os.makedirs(path, exist_ok=True)
     try:
        # data = get_request_json()
@@ -544,22 +550,35 @@ def convert_file_to_text():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 def review_cv():
-    cv = os.path.join(os.getcwd(), "Cv_docs")
-    compare =["name","experience","skills","education","projects","contact"]
+    compare = ["name", "experience", "skills", "education", "projects", "contact"]
     try:
-        with open(cv, "r", encoding="utf-8") as f:
-            text = f.read()
-        feedback = []
-        for item in compare:
-            if item in text.lower():
-                items = item +1
-                feedback.append(items)
-        if feedback < 3:
-            gpt_get = "Your CV is missing key sections. Consider adding: " + ", ".join(set(compare) - set(feedback))
-            return jsonify({"feedback": gpt_get})
-        return jsonify({"feedback": "Your CV looks good! It contains the essential sections."})
+        if not os.path.isdir(CV_DIR):
+            return {"feedback": "No CV has been uploaded yet."}
+
+        cv_files = sorted(
+            os.path.join(CV_DIR, name)
+            for name in os.listdir(CV_DIR)
+            if name.lower().endswith(".txt")
+        )
+        if not cv_files:
+            return {"feedback": "No CV text file was found to review yet."}
+
+        with open(cv_files[-1], "r", encoding="utf-8") as f:
+            text = f.read().lower()
+
+        found_sections = [item for item in compare if item in text]
+        missing_sections = [item for item in compare if item not in found_sections]
+        if len(found_sections) < 3:
+            return {
+                "feedback": "Your CV is missing key sections. Consider adding: " + ", ".join(missing_sections)
+            }
+        if missing_sections:
+            return {
+                "feedback": "Your CV covers the basics. You could strengthen it by adding: " + ", ".join(missing_sections)
+            }
+        return {"feedback": "Your CV looks good. It contains the essential sections."}
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return {"error": str(e)}
 @app.route('/weather', methods=['POST'])
 def getWeather():
     try:
@@ -624,6 +643,29 @@ def holiday_season():
         return jsonify({"dreply": dreply})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+@app.route('/audio', methods=['POST'])
+def audio():
+    try:
+        data = request.get_json()
+        message = data.get("audio", "").strip()
+        with open(f"{message}.mp3", "wb") as f:
+            f.write(request.data)
+        if not message:
+            return jsonify({"error": "Please provide a message."}), 400
+        # Process audio input (placeholder for actual audio processing)
+        client = create_chat_completion(model="gpt-4o-transcribe", messages=[{"role": "user", "content": message}])
+        audio_file = open(f"{message}.mp3", "rb")
+
+        transcription = client.audio.transcriptions.create(
+            model="gpt-4o-transcribe", 
+            file=audio_file, 
+            response_format="text"
+        )
+
+        print(transcription.text)
+        return jsonify({"transcription": transcription.text})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 @app.route('/api/chat', methods=['POST'])
 def chat():
     try:
@@ -631,9 +673,14 @@ def chat():
         message = data.get("question", "").strip()
         if not message:
             return jsonify({"error": "Please provide a question."}), 400
-        cv_check = review_cv()
-        if cv_check:
-            review = cv_check.get("feedback")
+        review = ""
+        if any(word in message.lower() for word in ["cv", "resume", "curriculum vitae"]):
+            cv_check = review_cv()
+            if cv_check.get("error"):
+                return jsonify({"error": cv_check["error"]}), 500
+            review = cv_check.get("feedback", "")
+            if any(phrase in message.lower() for phrase in ["review my cv", "review my resume", "check my cv", "check my resume"]):
+                return jsonify({"reply": review})
         # Weather check
         if "weather" in message.lower():
             url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
@@ -722,7 +769,8 @@ def chat():
         if "*" in reply:
             reply = reply.replace("*", "")
          # Save chat to local file
-        with open("chat/chat_history.txt", "a") as f:
+        os.makedirs(CHAT_DIR, exist_ok=True)
+        with open(CHAT_HISTORY_FILE, "a", encoding="utf-8") as f:
             f.write(f"User: {message}\nAssistant: {reply}\nTimestamp: {datetime.now().isoformat()}\n\n")
         return jsonify({"reply": reply})
 
@@ -730,8 +778,8 @@ def chat():
         return jsonify({"error": str(e)}), 500
 @app.route("/load_history", methods=["GET"])
 def load_chat_history(n=10):
-    if os.path.exists("chat/chat_history.txt"):
-        with open("chat/chat_history.txt", "r", encoding="utf-8") as f:
+    if os.path.exists(CHAT_HISTORY_FILE):
+        with open(CHAT_HISTORY_FILE, "r", encoding="utf-8") as f:
             lines = f.readlines()
         convo = "".join(lines[-(n*2):])
         return convo 
@@ -742,13 +790,14 @@ def clear_chat():
         data = request.get_json()
         confirmation = data.get("confirmation", "").strip().lower()
         if confirmation == "yes":
-            with open("chat/chat_history.txt", "w", encoding="utf-8") as f:
+            os.makedirs(CHAT_DIR, exist_ok=True)
+            with open(CHAT_HISTORY_FILE, "w", encoding="utf-8") as f:
                 f.write("")
             return jsonify({"reply": "Chat history cleared."})
         return jsonify({"reply": "Chat history not cleared."})
     except Exception as e:
         return jsonify({"error": str(e)}), 500  
 if __name__ == '__main__':
-    if not os.path.exists("chat"):
-        os.makedirs("chat")
+    if not os.path.exists(CHAT_DIR):
+        os.makedirs(CHAT_DIR)
     app.run(debug=True)
