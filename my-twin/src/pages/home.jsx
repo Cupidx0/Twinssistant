@@ -16,7 +16,9 @@ import {Anchor,Delete,SmartToy,Inventory,MusicNote,
 import {ChatAPI} from "../Utils/Assistant";
 import { WeatherAPI } from "../Utils/Assistant";
 import {useAuth} from "./AuthContext";
-import {useSpeechRecognition} from "react-speech-recognition"
+import SpeechRecognition, {
+  useSpeechRecognition
+} from "react-speech-recognition";
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay, set } from "date-fns";
 import "react-big-calendar/lib/css/react-big-calendar.css";
@@ -56,6 +58,7 @@ function Home () {
     const [section, setSection] = useState(() => readStoredValue("home:section", "weather"));
     const [outstart, setOutstart] = useState("");
     const [end, setEnd] = useState("");
+    const [micError, setMicError] = useState("");
     //const [dueDate, setDueDate] = useState("");
     //const [CalendarEvents, setCalendarEvents] = useState([]);
 
@@ -253,15 +256,17 @@ function Home () {
         toast.success("All tasks removed!");
 
 };
-const handleRecordVoice = () => {
-        if (!recording) {
-                SpeechRecognition.startListening({ continuous: true });
-                setRecording(true);
-        } else {
-                SpeechRecognition.stopListening();
-                setRecording(false);
-        }
-};
+const {
+    transcript,
+    listening,
+    resetTranscript,
+    browserSupportsSpeechRecognition,
+    isMicrophoneAvailable
+} = useSpeechRecognition();
+if (!browserSupportsSpeechRecognition) {
+    return <p>Browser doesn't support speech recognition.</p>;
+}
+
 const mail = user ? user.email.replace("@gmail.com","") : "";
 const userDetails = user ? `${mail}` : "Not logged in";
 const onlineStatus = user ? "Online" : "Offline";
@@ -335,6 +340,49 @@ const onlineStatus = user ? "Online" : "Offline";
         //return ()=> clearInterval(interval);
         //setHolidate("");
    }, []);
+
+    useEffect(() => {
+        if (transcript) {
+            setQuestion(transcript);
+        }
+    }, [transcript]);
+
+    useEffect(() => {
+        setRecording(listening);
+        if (listening) {
+            setMicError("");
+        }
+    }, [listening]);
+
+    useEffect(() => {
+        if (isMicrophoneAvailable === false) {
+            setMicError("Microphone access is blocked. Allow mic permission in your browser settings.");
+        }
+    }, [isMicrophoneAvailable]);
+
+    const handleStartListening = async () => {
+        setMicError("");
+        try {
+            await SpeechRecognition.startListening({
+                continuous: true,
+                language: "en-GB",
+            });
+        } catch (error) {
+            console.error("Failed to start speech recognition:", error);
+            setMicError("Speech recognition could not start in this browser.");
+        }
+    };
+
+    const handleStopListening = () => {
+        SpeechRecognition.stopListening();
+    };
+
+    const handleResetTranscript = () => {
+        resetTranscript();
+        setQuestion("");
+        setMicError("");
+    };
+
 return (
     <main className="bg-background text-foreground backdrop-blur-md w-screen rounded-md border border-border h-screen overflow-none">
             <div className="glass h-[100px] w-full flex items-center justify-between font-bold text-xl p-5 text-left gap-4 rounded-md !overflow-auto">
@@ -425,7 +473,25 @@ return (
                                         </div>
                                 </div>
                             <section className=" gap-4 mb-4">
-                                {recording ? <MicExternalOn fontSize="large" className="text-primary mb-2"/> : <SquareOutlined fontSize="large" className="text-muted-foreground mb-2"/>}
+                                <p>{transcript || "none"}</p>
+                                <p>{recording ? "Listening..." : "Mic Off"}</p>
+                                {micError ? <p className="text-red-500">{micError}</p> : null}
+
+                                        <button
+                                                onClick={handleStartListening}
+                                        >
+                                                Start
+                                        </button>
+
+                                        <button
+                                                onClick={handleStopListening}
+                                        >
+                                                Stop
+                                        </button>
+
+                                        <button onClick={handleResetTranscript}>
+                                                Clear
+                                        </button>
                                     <Button variant="contained"
                                     color="primary"
                                     size="small"
