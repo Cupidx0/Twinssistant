@@ -375,6 +375,11 @@ const onlineStatus = user ? "Online" : "Offline";
 
     const handleStopListening = () => {
         SpeechRecognition.stopListening();
+                if (transcript) {
+                        handleuserQuestionChange(transcript);
+                }else{
+                        toast.error("No speech detected. Please try again.");
+                }
     };
 
     const handleResetTranscript = () => {
