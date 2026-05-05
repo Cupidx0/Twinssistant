@@ -12,7 +12,12 @@ import {Anchor,Delete,SmartToy,Inventory,MusicNote,
         Settings,CalendarMonth,Inventory2,Cloud,
         AttachFile,Work,Code,ArrowUpwardTwoTone,CircleRounded,
         MicExternalOn,
-        SquareOutlined} from "@mui/icons-material";  
+        SquareOutlined,
+        RecordVoiceOverSharp,
+        MicSharp,
+        Square,
+        MicOffTwoTone,
+        StopSharp} from "@mui/icons-material";  
 import {ChatAPI} from "../Utils/Assistant";
 import { WeatherAPI } from "../Utils/Assistant";
 import {useAuth} from "./AuthContext";
@@ -478,22 +483,19 @@ return (
                                         </div>
                                 </div>
                             <section className=" gap-4 mb-4">
-                                <p>{transcript || "none"}</p>
+                                {/*<p>{transcript || "none"}</p>*/}
                                 <p>{recording ? "Listening..." : "Mic Off"}</p>
                                 {micError ? <p className="text-red-500">{micError}</p> : null}
 
-                                        <button
+                                       { !recording? (<button
                                                 onClick={handleStartListening}
                                         >
-                                                Start
-                                        </button>
-
-                                        <button
+                                                <MicSharp/>
+                                        </button> ): (<button
                                                 onClick={handleStopListening}
                                         >
-                                                Stop
-                                        </button>
-
+                                                <StopSharp/>
+                                        </button>)}
                                         <button onClick={handleResetTranscript}>
                                                 Clear
                                         </button>
