@@ -17,7 +17,16 @@ import {Anchor,Delete,SmartToy,Inventory,MusicNote,
         MicSharp,
         Square,
         MicOffTwoTone,
-        StopSharp} from "@mui/icons-material";  
+        StopSharp,
+        MinimizeOutlined,
+        Close,
+        EjectOutlined,
+        LogoutOutlined,
+        TurnRight,
+        TurnLeft,
+        HideSource,
+        TurnSharpLeftTwoTone,
+        TurnSlightLeftTwoTone} from "@mui/icons-material";  
 import {ChatAPI} from "../Utils/Assistant";
 import { WeatherAPI } from "../Utils/Assistant";
 import {useAuth} from "./AuthContext";
@@ -392,7 +401,10 @@ const onlineStatus = user ? "Online" : "Offline";
         setQuestion("");
         setMicError("");
     };
-
+    const minimize = () => {
+        // Implement minimize functionality (e.g., hide the assistant, show a minimized icon, etc.)
+        toast("Minimize feature coming soon!");
+    };
 return (
     <main className="bg-background text-foreground backdrop-blur-md w-screen rounded-md border border-border h-screen overflow-none">
             <div className="glass h-[100px] w-full flex items-center justify-between font-bold text-xl p-5 text-left gap-4 rounded-md !overflow-auto">
@@ -421,6 +433,9 @@ return (
                                 <Link to="/settings" className="font-bold text-sidebar-foreground"><Settings/>Settings</Link>
                             </li>
                     </ul>
+                    <button onClick={minimize}>
+                        <TurnSlightLeftTwoTone/>
+                    </button>
             </div>
             <div className="bg-card flex flex-col md:flex-row h-full w-full rounded-md !overflow-auto">
                  <section className=" h-auto w-[80%] p-2 rounded-md text-foreground border border-border !overflow-auto">
@@ -436,7 +451,7 @@ return (
                             <h3 className="text-card-foreground text-lg font-bold m-0">{usertime},{userDetails}</h3>
                             <p>How can i help you today?</p>
                         </section>
-                            <div className="glass rounded-md p-2 mb-4 h-[300px] text-card-foreground text-lg">
+                            <div className="glass rounded-md p-2 mb-4 h-[300px] text-card-foreground text-lg overflow-auto border border-border">
                                     {AiReply ? AiReply :"no reply"}
                                     <h4 className="text-muted-foreground text-right font-bold">
                                         <div className="text-primary text-left font-bold m-3">You asked:</div>

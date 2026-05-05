@@ -371,3 +371,15 @@ Assistant: It seems like you're referencing some popular elements from Future's 
 Additionally, if there's anything else on your mind or another topic you'd like to explore, feel free to share!
 Timestamp: 2026-05-05T16:04:41.538058
 
+User: cv
+Assistant: It seems like you might be looking for help with your CV. To give you the best feedback, I’d recommend ensuring your CV includes the following key sections:
+
+1. Contact Information: Your name, phone number, email, and LinkedIn profile (if applicable).
+2. Experience: A list of your relevant work experience, including job titles, companies, dates of employment, and key responsibilities or achievements.
+3. Skills: Highlight specific technical skills (like Python, React) and soft skills relevant to the positions you're applying for.
+4. Education: Your degrees, institutions, and graduation dates.
+5. Projects: Any relevant projects you’ve worked on, particularly those that showcase your skills in programming or development.
+
+If you share your current CV, I can provide more specific feedback or suggestions for improvement. Would you like to discuss any particular section in detail
+Timestamp: 2026-05-05T17:21:34.737632
+

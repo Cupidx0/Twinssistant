@@ -550,9 +550,10 @@ def convert_file_to_text():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 def review_cv():
+    path = os.path.join(BASE_DIR, "Cv_docs")
     compare = ["name", "experience", "skills", "education", "projects", "contact"]
     try:
-        if not os.path.isdir(CV_DIR):
+        if not os.path.exists(path) or not os.listdir(path):
             return {"feedback": "No CV has been uploaded yet."}
 
         cv_files = sorted(
@@ -576,7 +577,7 @@ def review_cv():
             return {
                 "feedback": "Your CV covers the basics. You could strengthen it by adding: " + ", ".join(missing_sections)
             }
-        return {"feedback": "Your CV looks good. It contains the essential sections."}
+        return {"feedback": f"Your CV {cv_files[-1]} looks good. It contains the essential sections."}
     except Exception as e:
         return {"error": str(e)}
 @app.route('/weather', methods=['POST'])
