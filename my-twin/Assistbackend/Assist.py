@@ -2,6 +2,7 @@ from pickle import GET
 from flask import Flask, request, jsonify, session
 from flask_cors import CORS
 import openai
+import Anthropic
 import os
 import os.path
 from dotenv import load_dotenv
@@ -38,6 +39,7 @@ api_key = os.getenv("OPENWEATHER_API_KEY")
 city = "horley"
 tavilyclient = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
 openai.api_key = os.getenv("OPENAI_API_KEY")
+Anthropic.api_key = os.getenv("CLAUDE_API_KEY")
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 # Initialize Firebase properly
 cred = credentials.Certificate(os.path.join(BASE_DIR, "tw.json"))  # 👈 your Firebase service account JSON
@@ -116,7 +118,22 @@ def create_chat_completion(model, messages, functions=None, function_call=None, 
             )
         return client.chat.completions.create(model=model, messages=messages, **kwargs)
     raise RuntimeError("OpenAI client is not available.")
-
+def create_anthropic_completion(model, messages, functions=None, function_call=None, **kwargs):
+    if hasattr(Anthropic, "ChatCompletion"):
+        client = Anthropic.Client(api_key=os.getenv("CLAUDE_API_KEY"))
+        payload = {"model": model, "messages": messages, **kwargs}
+        if functions is not None:
+            payload["tools"] = [{"type": "function", "function": fn} for fn in functions]
+            payload["tool_choice"] = "auto" if function_call in (None, "auto") else {"type": "function", "function": {"name": function_call}}
+            return client.chat.completions.create(
+                model=model,
+                messages=messages,
+                tools=payload["tools"],
+                tool_choice=payload["tool_choice"],
+                **kwargs
+            )
+        return client.chat.completions.create(model=model, messages=messages, **kwargs)
+    raise RuntimeError("Anthropic client is not available.")
 def extract_message_content(response):
     try:
         return response["choices"][0]["message"]["content"]
