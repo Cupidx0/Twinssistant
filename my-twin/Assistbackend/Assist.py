@@ -774,15 +774,27 @@ def chat():
         assistantname = data.get("assistantname", "").strip()
         namer = f"{assistantname}" or "Ashen"
         # Otherwise ask OpenAI
-        response = create_chat_completion(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": f"You are a helpful assistant,and your name is {namer},Current date is {today}, Current time is {time}."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=180,
-            temperature=0.7
-        )
+        #choose model based on presence of function calls
+        if ["calendar", "event", "schedule"] in message.lower():
+            response = create_chat_completion(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": f"You are a helpful assistant,and your name is {namer},Current date is {today}, Current time is {time}."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=180,
+                temperature=0.7
+            )
+        else:
+            response = create_anthropic_completion(
+                model="claude-2",
+                messages=[
+                    {"role": "system", "content": f"You are a helpful assistant,and your name is {namer},Current date is {today}, Current time is {time}."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=180,
+                temperature=0.7
+            )
         reply = extract_message_content(response).strip()
         if "*" in reply:
             reply = reply.replace("*", "")
