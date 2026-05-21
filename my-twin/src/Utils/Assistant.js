@@ -58,6 +58,9 @@ export const ChatAPI = {
     return response.data;
   },
 };
+export const VoiceAPI = {
+  
+};
 export const ConvertTextAPI = {
   convertFileToText: async (file) => {
     const formData = new FormData();

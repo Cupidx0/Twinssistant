@@ -2,7 +2,7 @@ from pickle import GET
 from flask import Flask, request, jsonify, session
 from flask_cors import CORS
 import openai
-import Anthropic
+import anthropic
 import os
 import os.path
 from dotenv import load_dotenv
@@ -13,6 +13,10 @@ from dateutil import parser
 import dateparser
 import pdfplumber
 from docx import Document
+from yaml import emit
+from eleven import text_to_speech_ws_streaming
+import asyncio
+import base64
 from tavily import TavilyClient
 from datetime import datetime, timedelta
 from google.auth.transport.requests import Request
@@ -21,8 +25,10 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from werkzeug.utils import secure_filename
+from google import genai
+from google.genai import types
 import json
-
+from flask_socketio import SocketIO, emit
 try:
     import holidays as holidays_lib
 except ImportError:
@@ -39,7 +45,8 @@ api_key = os.getenv("OPENWEATHER_API_KEY")
 city = "horley"
 tavilyclient = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
 openai.api_key = os.getenv("OPENAI_API_KEY")
-Anthropic.api_key = os.getenv("CLAUDE_API_KEY")
+anthropic.api_key = os.getenv("CLAUDE_API_KEY")
+genai.api_key = os.getenv("GEMINI_API_KEY")
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 # Initialize Firebase properly
 cred = credentials.Certificate(os.path.join(BASE_DIR, "tw.json"))  # 👈 your Firebase service account JSON
@@ -49,6 +56,7 @@ db = firestore.client()
 # Flask app
 app = Flask(__name__)
 CORS(app, supports_credentials=True, origins=["http://localhost:5173"])
+socketio = SocketIO(app, cors_allowed_origins=["http://localhost:5173"])
 
 @app.route('/')
 def home():
@@ -119,26 +127,106 @@ def create_chat_completion(model, messages, functions=None, function_call=None, 
         return client.chat.completions.create(model=model, messages=messages, **kwargs)
     raise RuntimeError("OpenAI client is not available.")
 def create_anthropic_completion(model, messages, functions=None, function_call=None, **kwargs):
-    if hasattr(Anthropic, "ChatCompletion"):
-        client = Anthropic.Client(api_key=os.getenv("CLAUDE_API_KEY"))
-        payload = {"model": model, "messages": messages, **kwargs}
-        if functions is not None:
-            payload["tools"] = [{"type": "function", "function": fn} for fn in functions]
-            payload["tool_choice"] = "auto" if function_call in (None, "auto") else {"type": "function", "function": {"name": function_call}}
-            return client.chat.completions.create(
-                model=model,
-                messages=messages,
-                tools=payload["tools"],
-                tool_choice=payload["tool_choice"],
-                **kwargs
+    client = anthropic.Anthropic(api_key=os.getenv("CLAUDE_API_KEY"))
+    
+    payload = {
+        "model": model,
+        "max_tokens": kwargs.pop("max_tokens", 1024),
+        "messages": messages,
+        **kwargs
+    }
+
+    if functions is not None:
+        payload["tools"] = [{"type": "function", "function": fn} for fn in functions]
+        if function_call not in (None, "auto"):
+            payload["tool_choice"] = {"type": "tool", "name": function_call}
+
+    return client.messages.create(**payload)
+def create_gemini_completion(model, messages, functions=None, function_call=None, **kwargs):
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+
+    # Convert OpenAI-style messages → Gemini contents
+    contents = []
+    system_instruction = None
+
+    for msg in messages:
+        role = msg["role"]
+        content = msg["content"]
+
+        if role == "system":
+            system_instruction = content  # Gemini handles system prompts separately
+            continue
+
+        gemini_role = "model" if role == "assistant" else "user"
+        contents.append(types.Content(
+            role=gemini_role,
+            parts=[types.Part(text=content)]
+        ))
+
+    # Build config
+    config_kwargs = {**kwargs}
+    # Remap OpenAI-style keys to Gemini equivalents
+    if "max_tokens" in config_kwargs:
+        config_kwargs["max_output_tokens"] = config_kwargs.pop("max_tokens")
+    if "temperature" in config_kwargs:
+        config_kwargs["temperature"] = config_kwargs.pop("temperature")
+    if system_instruction:
+        config_kwargs["system_instruction"] = system_instruction
+
+    if functions is not None:
+        fn_declarations = [
+            types.FunctionDeclaration(
+                name=fn["name"],
+                description=fn.get("description", ""),
+                parameters=fn.get("parameters", {})
             )
-        return client.chat.completions.create(model=model, messages=messages, **kwargs)
-    raise RuntimeError("Anthropic client is not available.")
+            for fn in functions
+        ]
+        config_kwargs["tools"] = [types.Tool(function_declarations=fn_declarations)]
+
+        if function_call not in (None, "auto"):
+            config_kwargs["tool_config"] = types.ToolConfig(
+                function_calling_config=types.FunctionCallingConfig(
+                    mode="ANY",
+                    allowed_function_names=[function_call]
+                )
+            )
+
+    config = types.GenerateContentConfig(**config_kwargs)
+
+    return client.models.generate_content(
+        model=model,
+        contents=contents,
+        config=config
+    )
 def extract_message_content(response):
     try:
-        return response["choices"][0]["message"]["content"]
+        if hasattr(response, "candidates"):
+            candidate = response.candidates[0]
+            part = candidate.content.parts[0]
+
+            # Function call
+            if hasattr(part, "function_call") and part.function_call:
+                fn = part.function_call
+                return {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [{
+                        "name": fn.name,
+                        "arguments": dict(fn.args)
+                    }]
+                }
+
+            # Normal text
+            return part.text
+
+        # OpenAI-style dict (other providers)
+        if isinstance(response, dict):
+            return response["choices"][0]["message"]["content"]
+
     except TypeError:
-        return response.choices[0].message.content
+        raise ValueError(f"Unrecognised response type: {type(response)}")
+    return response.choices[0].message.content
 
 def extract_function_call(message):
     if isinstance(message, dict):
@@ -545,19 +633,23 @@ def convert_file_to_text():
     path = CV_DIR
     os.makedirs(path, exist_ok=True)
     try:
-       # data = get_request_json()
         file = request.files.get("file")
+        if file is None or not file.filename:
+            return jsonify({"error": "No file uploaded"}), 400
+
         filename = secure_filename(file.filename)
-        file.save(filename)
+        temp_path = os.path.join(path, filename)
+        file.save(temp_path)
 
         if filename.endswith('.pdf'):
-            text = extract_text_from_pdf(filename)
+            text = extract_text_from_pdf(temp_path)
         elif filename.endswith(('.docx', '.doc')):
-            text = extract_text_from_docx(filename)
+            text = extract_text_from_docx(temp_path)
         else:
+            os.remove(temp_path)
             return jsonify({"error": "Unsupported file type"}), 400
 
-        os.remove(filename)
+        os.remove(temp_path)
         new_filename = filename.rsplit('.', 1)[0]
         with open(f"{path}/{new_filename}.txt", "w", encoding="utf-8") as f:
             f.write(text)
@@ -597,6 +689,23 @@ def review_cv():
         return {"feedback": f"Your CV {cv_files[-1]} looks good. It contains the essential sections."}
     except Exception as e:
         return {"error": str(e)}
+def get_latest_cv_text():
+    try:
+        if not os.path.exists(CV_DIR):
+            return ""
+
+        cv_files = sorted(
+            os.path.join(CV_DIR, name)
+            for name in os.listdir(CV_DIR)
+            if name.lower().endswith(".txt")
+        )
+        if not cv_files:
+            return ""
+
+        with open(cv_files[-1], "r", encoding="utf-8") as f:
+            return f.read().strip()[:12000]
+    except Exception:
+        return ""
 @app.route('/weather', methods=['POST'])
 def getWeather():
     try:
@@ -684,6 +793,17 @@ def audio():
         return jsonify({"transcription": transcription.text})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+@socketio.on('voice_message')
+def handle_voice(data):
+    def chat(user_text):
+        # Placeholder for actual chat logic
+        return f"AI response to: {user_text}"
+
+    user_text = data.get('text', '')
+
+    ai_response = chat(user_text) # Process the message and get AI response
+
+    emit('ai_response', {'text': ai_response})  # Send AI response back to
 @app.route('/api/chat', methods=['POST'])
 def chat():
     try:
@@ -692,13 +812,16 @@ def chat():
         if not message:
             return jsonify({"error": "Please provide a question."}), 400
         review = ""
+        latest_cv_text = ""
         if any(word in message.lower() for word in ["cv", "resume", "curriculum vitae"]):
             cv_check = review_cv()
             if cv_check.get("error"):
                 return jsonify({"error": cv_check["error"]}), 500
             review = cv_check.get("feedback", "")
+            latest_cv_text = get_latest_cv_text()
             if any(phrase in message.lower() for phrase in ["review my cv", "review my resume", "check my cv", "check my resume"]):
-                return jsonify({"reply": review})
+                if not latest_cv_text:
+                    return jsonify({"reply": review})
         # Weather check
         if "weather" in message.lower():
             url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
@@ -738,6 +861,7 @@ def chat():
         prompt = (
             f"Web context: {web_context}\n"
             f"User request: {message}\n"
+            f"Uploaded CV text: {latest_cv_text if latest_cv_text else 'No uploaded CV text available.'}\n"
             "use web context if provided - it overrides your pre-trained knowledge.\n"
             "Do not mention your training data or knowledge cut-off,instead use search results for fresh info.\n"
             f"verify your information with web context before answering.\n"
@@ -768,21 +892,44 @@ def chat():
             "- Suggest helpful links or resources if relevant (but keep it simple).\n"
             "- Remember: the user is a developer learning Python, React, and DSA for apprenticeships.\n"
             "- Always end with a follow-up question to keep the conversation going.\n"
-            f"if user ask you to review their CV, use this {review} to provide feedback on their CV and suggest improvements."
+            f"if user asks about their CV or resume, use this quick CV check as supporting context: {review}\n"
+            "- If CV text is available, review the actual uploaded CV content and give concrete improvements.\n"
+            "- If CV text is not available, tell the user to upload a CV first.\n"
         )
         # assistant name
         assistantname = data.get("assistantname", "").strip()
         namer = f"{assistantname}" or "Ashen"
         # Otherwise ask OpenAI
+        #model analyse
         #choose model based on presence of function calls
-        if ["calendar", "event", "schedule"] in message.lower():
+        if any(k in message.lower() for k in ["calendar", "event", "schedule"]):
             response = create_chat_completion(
                 model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": f"You are a helpful assistant,and your name is {namer},Current date is {today}, Current time is {time}."},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=180,
+                max_tokens=2048,
+                temperature=0.7
+            )
+        elif any(k in message.lower() for k in ["cv", "resume", "curriculum vitae"]):
+            response = create_chat_completion(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": f"You are a helpful assistant,and your name is {namer},Current date is {today}, Current time is {time}."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=2048,
+                temperature=0.7
+            )
+        elif any(k in message.lower() for k in ["weather","outfit","logic","jokes"]):
+            response = create_gemini_completion(
+                model="gemini-3.1-flash-lite",
+                messages=[
+                    {"role": "system", "content": f"You are a helpful assistant,and your name is {namer},Current date is {today}, Current time is {time}."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=2048,
                 temperature=0.7
             )
         else:
@@ -792,7 +939,7 @@ def chat():
                     {"role": "system", "content": f"You are a helpful assistant,and your name is {namer},Current date is {today}, Current time is {time}."},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=180,
+                max_tokens=2048,
                 temperature=0.7
             )
         reply = extract_message_content(response).strip()
@@ -802,10 +949,23 @@ def chat():
         os.makedirs(CHAT_DIR, exist_ok=True)
         with open(CHAT_HISTORY_FILE, "a", encoding="utf-8") as f:
             f.write(f"User: {message}\nAssistant: {reply}\nTimestamp: {datetime.now().isoformat()}\n\n")
-        return jsonify({"reply": reply})
+            audio_bytes = asyncio.run(text_to_speech_ws_streaming(
+                voice_id="JBFqnCBsd6RMkjVDRZzb",
+                model_id="eleven_flash_v2_5",
+                text=reply,
+            ))
+            
+            # Send both text and audio back to frontend
+            audio_b64 = base64.b64encode(audio_bytes).decode()
+
+        # just return it, no emit
+        return jsonify({
+            "reply": reply,
+            "audio": audio_b64
+        }), 200
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e)},debug=True), 500
 @app.route("/load_history", methods=["GET"])
 def load_chat_history(n=10):
     if os.path.exists(CHAT_HISTORY_FILE):
@@ -831,3 +991,4 @@ if __name__ == '__main__':
     if not os.path.exists(CHAT_DIR):
         os.makedirs(CHAT_DIR)
     app.run(debug=True)
+    socketio.run(app, debug=True, port=5000)

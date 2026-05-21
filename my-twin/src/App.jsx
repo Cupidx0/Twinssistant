@@ -6,6 +6,7 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Settings from './pages/Settings'
 import Weather_cv from './pages/page_connect/Weather_cv'
+import AiSpeech from './pages/page_connect/ai_speech'
 import './App.css'
 import './index.css'
 import { BrowserRouter as Router,Routes,Route } from 'react-router-dom'
@@ -21,6 +22,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/speech" element={<AiSpeech />} />
             <Route path="*" element={<Error404 />} />
           </Route>
         </Routes>

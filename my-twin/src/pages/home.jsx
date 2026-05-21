@@ -225,6 +225,8 @@ function Home () {
                         localStorage.setItem("userQuestion", nextQuestion);
                         const response = await ChatAPI.fetchAssistantResponse(nextQuestion);
                         const nextReply = response.reply || "No response from assistant.";
+                        const audio_res = new Audio("data:audio/mpeg;base64," + response.audio)
+                        audio_res.play()
                         setAiReply(nextReply);
                         localStorage.setItem("AiReply", nextReply);
                 }catch(error){
@@ -280,7 +282,6 @@ const {
 if (!browserSupportsSpeechRecognition) {
     return <p>Browser doesn't support speech recognition.</p>;
 }
-
 const mail = user ? user.email.replace("@gmail.com","") : "";
 const userDetails = user ? `${mail}` : "Not logged in";
 const onlineStatus = user ? "Online" : "Offline";
@@ -452,7 +453,9 @@ return (
                             <p>How can i help you today?</p>
                         </section>
                             <div className="glass rounded-md p-2 mb-4 h-[300px] text-card-foreground text-lg overflow-auto border border-border">
+                                <span className=" text-left font-bold m-3 overflow-auto">
                                     {AiReply ? AiReply :"no reply"}
+                                </span>
                                     <h4 className="text-muted-foreground text-right font-bold">
                                         <div className="text-primary text-left font-bold m-3">You asked:</div>
                                         <p>{localStorage.getItem("userQuestion")}</p>
