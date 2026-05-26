@@ -18,7 +18,7 @@ from eleven import text_to_speech_ws_streaming
 import asyncio
 import base64
 from tavily import TavilyClient
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -29,11 +29,15 @@ from google import genai
 from google.genai import types
 import json
 from flask_socketio import SocketIO, emit
+#from gevent import monkey
+#import gevent.threadpool
+
 try:
     import holidays as holidays_lib
 except ImportError:
     holidays_lib = None
-
+#gevent monkey patching for async support in Flask with SocketIO
+#monkey.patch_all()
 # Load env variables
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CV_DIR = os.path.join(BASE_DIR, "Cv_docs")
@@ -56,8 +60,7 @@ db = firestore.client()
 # Flask app
 app = Flask(__name__)
 CORS(app, supports_credentials=True, origins=["http://localhost:5173"])
-socketio = SocketIO(app, cors_allowed_origins=["http://localhost:5173"])
-
+socketio = SocketIO(app, cors_allowed_origins="http://localhost:5173", async_mode='threading')
 @app.route('/')
 def home():
     return "Welcome to the Assistant API!"
@@ -793,17 +796,29 @@ def audio():
         return jsonify({"transcription": transcription.text})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+def get_ai_response(user_text):
+    try:
+        namer = "Tavily"
+        today = datetime.now().strftime("%Y-%m-%d")
+        time = datetime.now().strftime("%H:%M:%S")
+        response = create_gemini_completion(
+                    model="gemini-3.1-flash-lite",
+                    messages=[
+                        {"role": "system", "content": f"You are a helpful assistant,and your name is {namer},Current date is {today}, Current time is {time}."},
+                        {"role": "user", "content": user_text}
+                    ],
+                    max_tokens=2048,
+                    temperature=0.7
+                )
+        response_text = extract_message_content(response).strip()
+        return response_text
+    except Exception as e:
+        return f"Error generating response: {str(e)}"
 @socketio.on('voice_message')
 def handle_voice(data):
-    def chat(user_text):
-        # Placeholder for actual chat logic
-        return f"AI response to: {user_text}"
-
     user_text = data.get('text', '')
-
-    ai_response = chat(user_text) # Process the message and get AI response
-
-    emit('ai_response', {'text': ai_response})  # Send AI response back to
+    ai_response = get_ai_response(user_text)
+    emit('ai_response', {'text': ai_response})
 @app.route('/api/chat', methods=['POST'])
 def chat():
     try:
@@ -903,8 +918,8 @@ def chat():
         #model analyse
         #choose model based on presence of function calls
         if any(k in message.lower() for k in ["calendar", "event", "schedule"]):
-            response = create_chat_completion(
-                model="gpt-4o-mini",
+            response = create_anthropic_completion(
+                model="claude-2",
                 messages=[
                     {"role": "system", "content": f"You are a helpful assistant,and your name is {namer},Current date is {today}, Current time is {time}."},
                     {"role": "user", "content": prompt}
@@ -933,8 +948,8 @@ def chat():
                 temperature=0.7
             )
         else:
-            response = create_anthropic_completion(
-                model="claude-2",
+            response = create_chat_completion(
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": f"You are a helpful assistant,and your name is {namer},Current date is {today}, Current time is {time}."},
                     {"role": "user", "content": prompt}
@@ -950,9 +965,9 @@ def chat():
         with open(CHAT_HISTORY_FILE, "a", encoding="utf-8") as f:
             f.write(f"User: {message}\nAssistant: {reply}\nTimestamp: {datetime.now().isoformat()}\n\n")
             audio_bytes = asyncio.run(text_to_speech_ws_streaming(
-                voice_id="JBFqnCBsd6RMkjVDRZzb",
-                model_id="eleven_flash_v2_5",
-                text=reply,
+                    voice_id="JBFqnCBsd6RMkjVDRZzb",
+                    model_id="eleven_flash_v2_5",
+                    text=reply,
             ))
             
             # Send both text and audio back to frontend
@@ -990,5 +1005,5 @@ def clear_chat():
 if __name__ == '__main__':
     if not os.path.exists(CHAT_DIR):
         os.makedirs(CHAT_DIR)
-    app.run(debug=True)
-    socketio.run(app, debug=True, port=5000)
+    #app.run(debug=True)
+    socketio.run(app, debug=True, port=5000, use_reloader=False)

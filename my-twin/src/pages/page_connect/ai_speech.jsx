@@ -16,7 +16,7 @@ import {
   VolumeUp,
   WifiTethering,
 } from "@mui/icons-material";
-import { ChatAPI } from "../../Utils/Assistant";
+import { API_BASE_URL, ChatAPI } from "../../Utils/Assistant";
 import { io } from "socket.io-client"
 const WS_URL = import.meta.env.VITE_AI_SPEECH_WS_URL || "";
 const AUTO_SEND_DELAY_MS = 1400;
@@ -45,7 +45,7 @@ function AiSpeech() {
 
   const transcriptTimerRef = useRef(null);
   const conversationEndRef = useRef(null);
-
+  const socketRef = useRef(null)
   const [messages, setMessages] = useState([
     makeMessage(
       "assistant",
@@ -129,7 +129,7 @@ function AiSpeech() {
 
   useEffect(() => () => {
     clearTimeout(transcriptTimerRef.current);
-    wsRef.current?.close?.();
+    socketRef.current?.close?.();
   }, []);
 
   const appendMessage = (role, text, messageStatus = "final") => {
@@ -159,29 +159,27 @@ function AiSpeech() {
   };
 
   const speakReply = (text) => {
-    if (!text.trim()) {
-      return;
-    }
-    if (!("speechSynthesis" in window)) {
-      toast.error("Speech playback is not supported in this browser.");
-      return;
-    }
+      if (!text.trim()) return
 
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    const voice = voices.find((item) => item.name === selectedVoice);
-    if (voice) {
-      utterance.voice = voice;
-    }
-    utterance.rate = speechRate;
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => {
-      setIsSpeaking(false);
-      toast.error("Voice playback failed.");
-    };
-    window.speechSynthesis.speak(utterance);
-  };
+      window.speechSynthesis.cancel()
+      const utterance = new SpeechSynthesisUtterance(text)
+      
+      utterance.onstart = () => {
+          setIsSpeaking(true)
+          SpeechRecognition.stopListening() // make sure mic is off
+      }
+      utterance.onend = () => {
+          setIsSpeaking(false)
+          // resume listening after AI finishes
+          SpeechRecognition.startListening({ continuous: true, language: "en-GB" })
+      }
+      utterance.onerror = () => {
+          setIsSpeaking(false)
+          SpeechRecognition.startListening({ continuous: true, language: "en-GB" })
+      }
+
+      window.speechSynthesis.speak(utterance)
+  }
 
   const stopSpeaking = () => {
     window.speechSynthesis?.cancel?.();
@@ -195,62 +193,75 @@ function AiSpeech() {
     replacePendingAssistantMessage(text, "final");
 
     if (autoSpeak) {
-      speakReply(text);
+        // stop listening before speaking
+        SpeechRecognition.stopListening()
+        speakReply(text)
     }
   };
+  useEffect(() => {
+    if (!WS_URL) {
+      return undefined;
+    }
 
-  const socketRef = useRef(null)
+    openSocket();
+    return () => closeSocket();
+  }, []);
 
   const openSocket = () => {
-      socketRef.current = io("http://localhost:5000")
-      
-      socketRef.current.on("connect", () => setConnectionStatus("Connected"))
-      socketRef.current.on("disconnect", () => setConnectionStatus("Disconnected"))
-      socketRef.current.on("connect_error", () => setConnectionStatus("Error"))
-      
-      // listen for AI reply
-      socketRef.current.on("voice_reply", (data) => {
-          finalizeAssistantReply(data.text)
-      })
-  }
+    const socketUrl = WS_URL || API_BASE_URL;
+    closeSocket();
+    setConnectionStatus("Connecting");
+
+    socketRef.current = io(socketUrl, {
+      transports: ["websocket", "polling"],
+    });
+
+    socketRef.current.on("connect", () => setConnectionStatus("Connected"));
+    socketRef.current.on("disconnect", () =>
+      setConnectionStatus(WS_URL ? "Disconnected" : "HTTP Fallback"),
+    );
+    socketRef.current.on("connect_error", () =>
+      setConnectionStatus(WS_URL ? "Error" : "HTTP Fallback"),
+    );
+
+    socketRef.current.on("ai_response", (data) => {
+      finalizeAssistantReply(data?.text || "No response from assistant.");
+    });
+  };
 
   const closeSocket = () => {
-      socketRef.current?.disconnect()
-      setConnectionStatus("Disconnected")
-  }
+    socketRef.current?.disconnect();
+    socketRef.current = null;
+    setConnectionStatus(WS_URL ? "Disconnected" : "HTTP Fallback");
+  };
 
   const sendViaHttp = async (text) => {
     const response = await ChatAPI.fetchAssistantResponse(text);
     finalizeAssistantReply(response.reply || "No response from assistant.");
-    const audio_res = new Audio("data:audio/mpeg;base64," + response.audio);
-    audio_res.play();
-  };
-
-  const sendViaSocket = async (text) => {
-    const socket = socketRef.current;
-    if (!socket || socket.readyState !== WebSocket.OPEN) {
-      await sendViaHttp(text);
-      return;
-    }
-
-    socket.send(JSON.stringify({
-      type: "user_turn",
-      text,
-      source: "speech-ui",
-      expects: ["assistant_reply"],
-    }));
   };
 
   const sendTurn = async (text) => {
-      if (!text.trim() || isPendingReply) return
+    if (!text.trim() || isPendingReply) return;
 
-      appendMessage("user", text)
-      resetTranscript()
-      setDraftTranscript("")
-      setIsPendingReply(true)
+    appendMessage("user", text);
+    resetTranscript();
+    setDraftTranscript("");
+    setIsPendingReply(true);
 
-      socketRef.current.emit("voice_message", { text })
-  }
+    try {
+      const socket = socketRef.current;
+      if (socket?.connected) {
+        socket.emit("voice_message", { text });
+        return;
+      }
+
+      await sendViaHttp(text);
+    } catch (error) {
+      console.error("Failed to send assistant turn:", error);
+      finalizeAssistantReply("Sorry, I could not get a reply right now.");
+      toast.error("Assistant reply failed.");
+    }
+  };
 
   const handleStartListening = async () => {
     setMicError("");
@@ -290,7 +301,7 @@ function AiSpeech() {
     setMessages([
       makeMessage(
         "assistant",
-        "Live voice mode reset. Start again when you are ready.",
+        "Live voice mode is ready. Start the microphone and I will treat pauses like turn endings.",
       ),
     ]);
   };
