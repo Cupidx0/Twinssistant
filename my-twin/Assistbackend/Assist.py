@@ -24,6 +24,8 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from gtts import gTTS
+import io
 from werkzeug.utils import secure_filename
 from google import genai
 from google.genai import types
@@ -819,6 +821,11 @@ def handle_voice(data):
     user_text = data.get('text', '')
     ai_response = get_ai_response(user_text)
     emit('ai_response', {'text': ai_response})
+def text_to_speech_sync(text: str) -> bytes:
+    tts = gTTS(text=text, lang='en')
+    buf = io.BytesIO()
+    tts.write_to_fp(buf)
+    return buf.getvalue()
 @app.route('/api/chat', methods=['POST'])
 def chat():
     try:
@@ -874,42 +881,49 @@ def chat():
             except Exception as e:
                 web_context = f"(Tavily search failed: {e})"
         prompt = (
-            f"Web context: {web_context}\n"
-            f"User request: {message}\n"
-            f"Uploaded CV text: {latest_cv_text if latest_cv_text else 'No uploaded CV text available.'}\n"
-            "use web context if provided - it overrides your pre-trained knowledge.\n"
-            "Do not mention your training data or knowledge cut-off,instead use search results for fresh info.\n"
-            f"verify your information with web context before answering.\n"
-            f"use {calevent} to fetch events from calendar and add events with add_calendar_event.\n"
-            f"use past chat history from {history} for context if it relates to user request.\n"
-            "You are the user's personal AI Digital Twin assistant. "
-            "Be concise, practical, and supportive. "
-            "You handle:\n"
-            "- Weather → suggest outfits from closet (if available) or general weather-appropriate ideas.\n"
-            "- Career → help with CV/cover letters, interview prep, coding guidance.\n"
-            "- Learning → explain coding/DSA step by step, generate study plans.\n"
-            "- Productivity → plan tasks, manage time, suggest routines.\n"
-            "- Personal → be empathetic, motivational, and supportive.\n"
-            "- Fun → share jokes, trivia, light-hearted content.\n"
-            "- Calendar → manage Google Calendar events (add, fetch, delete).\n"
-            "- Scrape the internet for and provide links for the user if needed.\n"
-            "- Sing → provide lyrics or sing a few lines and also suggest a song.\n"
-            f"I am still a prototype created by {creatorname}, and i am still in development, so I may not be able to answer all questions perfectly,"
-            " but I will do my best to assist you.\n"
-            "\n"
-            "Rules:\n"
-            "- When giving code, format it cleanly and explain briefly.\n"
-            "- Use simple language, avoid jargon.\n"
-            "- Be friendly and approachable.\n"
-            "- Verify your information with web context before answering.\n"
-            "- Do not just use your pre-trained knowledge cut-off of 2023 to answer, always check the web context.\n"
-            f"- Use {web_context} for real-time info.\n"
-            "- Suggest helpful links or resources if relevant (but keep it simple).\n"
-            "- Remember: the user is a developer learning Python, React, and DSA for apprenticeships.\n"
-            "- Always end with a follow-up question to keep the conversation going.\n"
-            f"if user asks about their CV or resume, use this quick CV check as supporting context: {review}\n"
-            "- If CV text is available, review the actual uploaded CV content and give concrete improvements.\n"
-            "- If CV text is not available, tell the user to upload a CV first.\n"
+            f"""
+            You are {assistantname}, Godwin's personal AI assistant. You are sharp, intelligent, and adaptive — not just a coding assistant. Most conversations will be personal, practical, or conversational.
+
+            Today is {today}, current time is {time}.
+
+            Context available to you:
+            - Web search results: {web_context if web_context else 'None'}
+            - Calendar events: {calevent if calevent else 'None'}
+            - Conversation history: {history if history else 'None'}
+            - Uploaded CV: {latest_cv_text if latest_cv_text else 'Not uploaded'}
+            - CV review: {review if review else 'None'}
+
+            How to behave:
+            - Prioritise web context over your training knowledge for anything current
+            - If it's casual, respond like a smart friend — no unnecessary structure
+            - If it's technical, be precise and concise
+            - If it's emotional or personal, be empathetic and grounded
+            - For code, format it cleanly with a brief explanation
+            - For CV questions, use the uploaded CV text and give concrete specific feedback, ask him to upload if not available
+            - For calendar, use the events provided and confirm when adding or deleting
+            - In voice mode, respond in natural spoken sentences — no bullet points, no markdown
+            - Be direct. Don't over-explain. Don't pad responses
+            - Always respond in plain conversational language unless code or structure is specifically needed
+
+            What you can handle:
+            - Weather: suggest outfits based on conditions, from closet if available
+            - Career: CV feedback, cover letters, interview prep
+            - Learning: explain Python, React, DSA step by step, build study plans
+            - Productivity: plan tasks, manage time, suggest routines
+            - Personal: be empathetic and motivational when needed
+            - Fun: jokes, trivia, light content when the mood calls for it
+            - Web: search and provide relevant links when useful
+            - Music: suggest songs or provide lyrics if asked
+            - Calendar: fetch, add, delete Google Calendar events
+            - Mac: you have access to Godwin's calendar, files, and Mac
+
+            About Godwin:
+            - Developer learning Python, React, and DSA
+            - Targeting apprenticeships and junior roles
+            - Built you — so he knows how you work
+
+            You are built by {creatorname} and still evolving.
+            """
         )
         # assistant name
         assistantname = data.get("assistantname", "").strip()
@@ -964,13 +978,15 @@ def chat():
         os.makedirs(CHAT_DIR, exist_ok=True)
         with open(CHAT_HISTORY_FILE, "a", encoding="utf-8") as f:
             f.write(f"User: {message}\nAssistant: {reply}\nTimestamp: {datetime.now().isoformat()}\n\n")
-            audio_bytes = asyncio.run(text_to_speech_ws_streaming(
-                    voice_id="JBFqnCBsd6RMkjVDRZzb",
-                    model_id="eleven_flash_v2_5",
-                    text=reply,
-            ))
-            
-            # Send both text and audio back to frontend
+            try:
+                audio_bytes = asyncio.run(text_to_speech_ws_streaming(
+                        voice_id="JBFqnCBsd6RMkjVDRZzb",
+                        model_id="eleven_flash_v2_5",
+                        text=reply,
+                ))
+            except Exception as e:
+                audio_bytes = text_to_speech_sync(reply)
+                
             audio_b64 = base64.b64encode(audio_bytes).decode()
 
         # just return it, no emit
