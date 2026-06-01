@@ -882,7 +882,7 @@ def chat():
                 web_context = f"(Tavily search failed: {e})"
         prompt = (
             f"""
-            You are {assistantname}, Godwin's personal AI assistant. You are sharp, intelligent, and adaptive — not just a coding assistant. Most conversations will be personal, practical, or conversational.
+            You are Godwin's personal AI assistant. You are sharp, intelligent, and adaptive — not just a coding assistant. Most conversations will be personal, practical, or conversational.
 
             Today is {today}, current time is {time}.
 
