@@ -25,7 +25,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from gtts import gTTS
-from Routing import get_tavily_results, create_chat_completion, extract_function_call, extract_message_content, create_gemini_completion
+from Routing import get_tavily_results, create_chat_completion, extract_function_call, create_anthropic_completion, extract_message_content, create_gemini_completion
 import io
 from werkzeug.utils import secure_filename
 from google import genai
@@ -687,6 +687,23 @@ def text_to_speech_sync(text: str) -> bytes:
     buf = io.BytesIO()
     tts.write_to_fp(buf)
     return buf.getvalue()
+def smart_chat_history(history, recent=6, summarise_beyond=6):
+    if len(history) <= recent:
+        return history
+    
+    old = history[:-recent]
+    recent_msgs = history[-recent:]
+
+    def get_content(m):
+        if isinstance(m, dict):
+            return m.get("content", "")[:50]
+        elif isinstance(m, str):
+            return m[:50]
+        return ""
+
+    # Summarise old messages into one context line
+    summary = f"Earlier in conversation: {' | '.join([get_content(m) for m in old])}"
+    return summary + "\n" + "\n".join(recent_msgs)
 @app.route('/api/chat', methods=['POST'])
 def chat():
     try:
@@ -719,9 +736,11 @@ def chat():
         if not creatorname:
             return jsonify({"reply":"hello designated user"})
         history = load_chat_history()
+        history = smart_chat_history(history)
         if history.count("User:") > 20:  # 20 exchanges
             return jsonify({"reply": "Your chat history is too long. Do you want to clear it (Y/N)?"})
         #tavily response
+        fit_check = "if the user asks for outfit suggestion or fashion advice,check if the users sex,age,height,weight,skin tone is in the history if not ask the user for the details ."
         calevent = safe_get_calendar_events(data)
         # Tavily search trigger
         today = datetime.now().strftime("%Y-%m-%d")
@@ -753,9 +772,12 @@ def chat():
             - Conversation history: {history if history else 'None'}
             - Uploaded CV: {latest_cv_text if latest_cv_text else 'Not uploaded'}
             - CV review: {review if review else 'None'}
-
+            - Current message: {message}
+            Respond to this directly and specifically. Do not get distracted by context unless it
             How to behave:
             - Prioritise web context over your training knowledge for anything current
+            - Primary rule: Always respond directly to the current message first.
+                Use context only if it strengthens the response.
             - If it's casual, respond like a smart friend — no unnecessary structure
             - If it's technical, be precise and concise
             - If it's emotional or personal, be empathetic and grounded
@@ -768,6 +790,7 @@ def chat():
 
             What you can handle:
             - Weather: suggest outfits based on conditions, from closet if available
+            - Outfit: using {fit_check} suggest outfits based on conditions, from closet if available
             - Career: CV feedback, cover letters, interview prep
             - Learning: explain Python, React, DSA step by step, build study plans
             - Productivity: plan tasks, manage time, suggest routines
