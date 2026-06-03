@@ -488,6 +488,9 @@ return (
                                         id="user-question"
                                         value={question}
                                         onChange={(e) => setQuestion(e.target.value)}
+                                        onKeyDown={(e)=>{if(e.key === "Enter"){
+                                                handleuserQuestionChange(question);
+                                        }}}
                                         type="text" placeholder="Ask me anything..."
                                         />
                                         <div className="flex shrink-0 items-center content-between gap-2">

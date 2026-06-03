@@ -65,7 +65,7 @@ export const ConvertTextAPI = {
   convertFileToText: async (file) => {
     const formData = new FormData();
     formData.append("file", file);
-    const response = await api.post("/convertText", formData, {
+    const response = await api.post("/cv/upload", formData, {
       headers: {
         "Content-Type": "multipart/form-data",
       },

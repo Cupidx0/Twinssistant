@@ -34,7 +34,7 @@ import json
 from flask_socketio import SocketIO, emit
 #from gevent import monkey
 #import gevent.threadpool
-
+from cv_route import cv_bp
 try:
     import holidays as holidays_lib
 except ImportError:
@@ -46,7 +46,6 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CV_DIR = os.path.join(BASE_DIR, "Cv_docs")
 CHAT_DIR = os.path.join(BASE_DIR, "chat")
 CHAT_HISTORY_FILE = os.path.join(CHAT_DIR, "chat_history.txt")
-
 load_dotenv()
 api_key = os.getenv("OPENWEATHER_API_KEY")
 city = "horley"
@@ -480,98 +479,6 @@ def calendar_manage():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-def extract_text_from_pdf(file_path):
-    try:
-        with pdfplumber.open(file_path) as pdf:
-            text = "\n".join(page.extract_text() for page in pdf.pages if page.extract_text())
-        return text
-    except Exception as e:
-        return f"Error extracting PDF: {str(e)}"
-def extract_text_from_docx(file_path):
-    try:
-        doc = Document(file_path)
-        text = "\n".join(paragraph.text for paragraph in doc.paragraphs)
-        return text
-    except Exception as e:
-        return f"Error extracting DOCX: {str(e)}"
-@app.route('/convertText', methods=['POST'])
-def convert_file_to_text():
-    path = CV_DIR
-    os.makedirs(path, exist_ok=True)
-    try:
-        file = request.files.get("file")
-        if file is None or not file.filename:
-            return jsonify({"error": "No file uploaded"}), 400
-
-        filename = secure_filename(file.filename)
-        temp_path = os.path.join(path, filename)
-        file.save(temp_path)
-
-        if filename.endswith('.pdf'):
-            text = extract_text_from_pdf(temp_path)
-        elif filename.endswith(('.docx', '.doc')):
-            text = extract_text_from_docx(temp_path)
-        else:
-            os.remove(temp_path)
-            return jsonify({"error": "Unsupported file type"}), 400
-
-        os.remove(temp_path)
-        new_filename = filename.rsplit('.', 1)[0]
-        with open(f"{path}/{new_filename}.txt", "w", encoding="utf-8") as f:
-            f.write(text)
-        return jsonify({"text":'successfully extracted text from file',
-                        "cv":f"{path}/{new_filename}.txt"
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-def review_cv():
-    path = os.path.join(BASE_DIR, "Cv_docs")
-    compare = ["name", "experience", "skills", "education", "projects", "contact"]
-    try:
-        if not os.path.exists(path) or not os.listdir(path):
-            return {"feedback": "No CV has been uploaded yet."}
-
-        cv_files = sorted(
-            os.path.join(CV_DIR, name)
-            for name in os.listdir(CV_DIR)
-            if name.lower().endswith(".txt")
-        )
-        if not cv_files:
-            return {"feedback": "No CV text file was found to review yet."}
-
-        with open(cv_files[-1], "r", encoding="utf-8") as f:
-            text = f.read().lower()
-
-        found_sections = [item for item in compare if item in text]
-        missing_sections = [item for item in compare if item not in found_sections]
-        if len(found_sections) < 3:
-            return {
-                "feedback": "Your CV is missing key sections. Consider adding: " + ", ".join(missing_sections)
-            }
-        if missing_sections:
-            return {
-                "feedback": "Your CV covers the basics. You could strengthen it by adding: " + ", ".join(missing_sections)
-            }
-        return {"feedback": f"Your CV {cv_files[-1]} looks good. It contains the essential sections."}
-    except Exception as e:
-        return {"error": str(e)}
-def get_latest_cv_text():
-    try:
-        if not os.path.exists(CV_DIR):
-            return ""
-
-        cv_files = sorted(
-            os.path.join(CV_DIR, name)
-            for name in os.listdir(CV_DIR)
-            if name.lower().endswith(".txt")
-        )
-        if not cv_files:
-            return ""
-
-        with open(cv_files[-1], "r", encoding="utf-8") as f:
-            return f.read().strip()[:12000]
-    except Exception:
-        return ""
 @app.route('/weather', methods=['POST'])
 def getWeather():
     try:
@@ -704,6 +611,8 @@ def smart_chat_history(history, recent=6, summarise_beyond=6):
     # Summarise old messages into one context line
     summary = f"Earlier in conversation: {' | '.join([get_content(m) for m in old])}"
     return summary + "\n" + "\n".join(recent_msgs)
+app.register_blueprint(cv_bp)
+
 @app.route('/api/chat', methods=['POST'])
 def chat():
     try:
@@ -711,17 +620,17 @@ def chat():
         message = data.get("question", "").strip()
         if not message:
             return jsonify({"error": "Please provide a question."}), 400
-        review = ""
-        latest_cv_text = ""
-        if any(word in message.lower() for word in ["cv", "resume", "curriculum vitae"]):
-            cv_check = review_cv()
-            if cv_check.get("error"):
-                return jsonify({"error": cv_check["error"]}), 500
-            review = cv_check.get("feedback", "")
-            latest_cv_text = get_latest_cv_text()
-            if any(phrase in message.lower() for phrase in ["review my cv", "review my resume", "check my cv", "check my resume"]):
-                if not latest_cv_text:
-                    return jsonify({"reply": review})
+        #review = ""
+        #latest_cv_text = ""
+        #if any(word in message.lower() for word in ["cv", "resume", "curriculum vitae"]):
+        #    cv_check = review_cv()
+        #    if cv_check.get("error"):
+        #        return jsonify({"error": cv_check["error"]}), 500
+        #    review = cv_check.get("feedback", "")
+        #    latest_cv_text = get_latest_cv_text()
+       #     if any(phrase in message.lower() for phrase in ["review my cv", "review my resume", "check my cv", "check my resume"]):
+       #         if not latest_cv_text:
+        #            return jsonify({"reply": review})
         # Weather check
         if "weather" in message.lower():
             url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
@@ -770,8 +679,6 @@ def chat():
             - Web search results: {web_context if web_context else 'None'}
             - Calendar events: {calevent if calevent else 'None'}
             - Conversation history: {history if history else 'None'}
-            - Uploaded CV: {latest_cv_text if latest_cv_text else 'Not uploaded'}
-            - CV review: {review if review else 'None'}
             - Current message: {message}
             Respond to this directly and specifically. Do not get distracted by context unless it
             How to behave:
