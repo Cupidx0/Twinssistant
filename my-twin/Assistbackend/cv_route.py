@@ -55,7 +55,7 @@ def upload():
     with open(saved, "w") as f:
         f.write(text)
 
-    return jsonify({"message": "CV uploaded", "preview": text[:300]})
+    return jsonify({"text": "CV uploaded", "cv":f"{CV_DIR}/{filename.rsplit('.', 1)[0]}.txt","preview": text[:300]})
 
 
 @cv_bp.route('/cv/review', methods=['POST'])
@@ -111,3 +111,7 @@ def rewrite():
                     {cv_text[:3000]}"""}]
                         )
     return jsonify({"rewritten_cv": msg.content[0].text})
+def main():
+    app.run(debug=True)
+if __name__ == "__main__":
+    main()

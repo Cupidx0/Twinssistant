@@ -1,0 +1,30 @@
+1. Introduction
+This implementation plan outlines the design of a networked system for Sussex Publishers Ltd (SP Ltd), a publishing company transitioning to a hybrid working model. SP Ltd operates from a single three-floor building following the closure of their second office. The network must support on-site staff, remote workers, four isolated publishing teams, and secure manuscript management. This plan covers the network design, server selection, maintenance schedule, test plan and user feedback analysis.
+2. Network Design
+The network for SP Ltd has been designed using a star topology, where all devices on each floor connect to a central switch. This topology was selected because it is reliable, easy to manage, and ensures that if one device fails it does not affect the rest of the network. This is particularly important for SP Ltd as any network downtime could disrupt the manuscript publishing process.
+The network is divided across three floors, each with its own switch and set of devices. A single router (192.168.2.2) connects the entire building to the internet, with a hardware firewall (192.168.2.1) positioned between the internet and the internal network to filter malicious traffic and protect company data.
+Top Floor: Data Centre
+The top floor houses the two most critical servers. The Public Repository Server (PRS) at 192.168.2.3 receives encrypted manuscript submissions from external authors. The Secure Publishing Server (SPS) at 192.168.2.4 handles the distribution of finished manuscripts to external printers or paying customers. These servers are connected via a switch (192.168.2.5) and are isolated in the data centre to maximise security.
+Middle Floor: Server Room and Meeting Rooms
+The middle floor contains the main server room and five public meeting rooms. The server room houses the file server (192.168.2.7), VPN server (192.168.2.9), domain server (192.168.2.8) and email server (192.168.2.10). Two network administrator desktops (192.168.2.11 and 192.168.2.12) are also located on this floor for server administration. All devices connect via a central switch (192.168.2.6). The five meeting rooms each have wireless access points to provide Wi-Fi connectivity for staff using laptops during meetings.
+Ground Floor: Hot Desks
+The ground floor provides 20 open-plan hot desks for staff who choose to come into the office. Each desk has a wired network connection via a central switch (192.168.2.13), with IP addresses ranging from 192.168.2.14 to 192.168.2.33. Wireless access points are also installed to provide Wi-Fi coverage across the floor.
+VLANs
+To ensure the four publishing teams are isolated from each other, Virtual Local Area Networks (VLANs) have been implemented. Each team operates on its own VLAN, preventing editors from accessing other teams content. The VLAN scheme is as follows:
+Remote Working
+To support hybrid working, a VPN server (192.168.2.9) has been installed. Remote workers connect to the office network via an encrypted VPN tunnel, ensuring the company security model is preserved even when staff are working from home. Each employee has been issued a company laptop with a software firewall and VPN client installed.
+3. Server Selection and Justification
+SP Ltd requires six servers to support their operations effectively.
+All servers are hosted on-premises in the data centre on the top floor, providing SP Ltd with full control over their data. Cloud migration to Microsoft Azure or Google Cloud could be considered in future for scalability and cost reduction.
+4. Maintenance Schedule
+A maintenance schedule has been designed to ensure the SP Ltd network remains secure, reliable and up to date.
+5. Test Plan
+A comprehensive test plan has been designed to verify all aspects of the SP Ltd network meet the specified requirements. Actual results will be recorded during Activity 3 using Cisco Packet Tracer.
+6. User Feedback and Analysis
+Feedback
+Following the initial network design, feedback was gathered from classmates to assess the effectiveness of the solution.
+Classmate 1 noted that the star topology was a practical choice for SP Ltd and that the VLAN configuration effectively isolates the publishing teams. They suggested adding a backup switch on each floor to eliminate single points of failure.
+Classmate 2 confirmed that the access permission structure using the domain server meets the requirements described in the scenario, as publishing editors would only need access to their own content and shared team documentation. They suggested ensuring wireless coverage is strong enough in all five meeting rooms to avoid dead spots.
+Classmate 3 reviewed the remote working setup and confirmed that the VPN solution meets the hybrid working needs of SP Ltd. They suggested ensuring the VPN server has sufficient capacity to handle all remote workers connecting simultaneously during peak hours.
+Analysis of Feedback
+Based on the feedback received, two enhancements have been made to the design. First, redundant switches have been recommended for each floor to eliminate single points of failure and improve network resilience. Second, additional wireless access points have been recommended for the meeting rooms to ensure full wireless coverage with no dead spots, as required by the SP Ltd brief. These improvements ensure the network design is optimised before moving to the implementation phase in Activity 3.

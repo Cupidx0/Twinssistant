@@ -61,6 +61,7 @@ db = firestore.client()
 
 # Flask app
 app = Flask(__name__)
+app.register_blueprint(cv_bp)
 CORS(app, supports_credentials=True, origins=["http://localhost:5173"])
 socketio = SocketIO(app, cors_allowed_origins="http://localhost:5173", async_mode='threading')
 @app.route('/')
@@ -611,7 +612,6 @@ def smart_chat_history(history, recent=6, summarise_beyond=6):
     # Summarise old messages into one context line
     summary = f"Earlier in conversation: {' | '.join([get_content(m) for m in old])}"
     return summary + "\n" + "\n".join(recent_msgs)
-app.register_blueprint(cv_bp)
 
 @app.route('/api/chat', methods=['POST'])
 def chat():

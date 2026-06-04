@@ -13,6 +13,12 @@ export default function Weather_cv() {
     const [weather, setWeather] = useState(null);
     const [events, setEvents] = useState([]);
     const [cvFile, setCvFile] = useState(null);
+    const [role, setRole] = useState("")
+    const [preview, setPreview] = useState("")
+    const [review, setReview] = useState(null)
+    const [rewrite, setRewrite] = useState("")
+    const [loading, setLoading] = useState("")
+
     const { isLoggedIn } = useAuth();
     useEffect(() => {
         if (isLoggedIn) {
@@ -96,25 +102,63 @@ export default function Weather_cv() {
             </ul>
         </section>
         <section className="glass h-auto max-h-[400px] rounded-md p-5 m-6 text-lg text-card-foreground gap-4">
-            <Button
-                    variant="contained"
-                    color="primary"
-                    size="small"
-                    style={{ margin: '5px', padding: '10px' }}
-                    className="m-2 rounded-md border border-border bg-primary p-4 text-primary-foreground shadow-soft"
-                    >
-                    <label htmlFor="cv-upload" className="cursor-pointer flex items-center gap-2">
-                        <Upload className="text-primary"/>
-                        {cvFile ? cvFile.name : "Upload CV"}
-                    </label>
+            <div className="cv-page">
+                    <h2>CV Tool</h2>
 
-                    <input 
-                        type="file" 
-                        className="hidden" 
-                        id="cv-upload"
-                        onChange={handleFileChange}
-                    />
-                </Button>
+                    <div className="upload-section">
+                        <Button variant="contained" component="label" className="mb-4">
+                            <Upload className="text-primary"/>
+                            {cvFile ? cvFile.name : "Upload CV"}
+                            <input 
+                                type="file" 
+                                hidden 
+                                onChange={handleFileChange}
+                            />
+                        </Button>
+                        <TextField
+                            label="Role you're applying for"
+                            variant="outlined"
+                            fullWidth
+                            value={role}
+                            onChange={(e) => setRole(e.target.value)}
+                        />
+                        {cvFile && <p>File selected: {cvFile.name}</p>}
+                    </div>
+
+                    {preview && (
+                        <div className="preview">
+                            <p>Preview: {preview}</p>
+                            <button onClick={getReview}>
+                                {loading === "reviewing" ? "Reviewing..." : "Review CV"}
+                            </button>
+                            <button onClick={getRewrite}>
+                                {loading === "rewriting" ? "Rewriting..." : "Rewrite CV"}
+                            </button>
+                        </div>
+                    )}
+
+                    {review && (
+                        <div className="review-result">
+                            <h3>Review — Score: {review.score}/10</h3>
+                            <p>{review.summary}</p>
+                            <p><strong>Strengths:</strong> {review.strengths?.join(", ")}</p>
+                            <p><strong>Weaknesses:</strong> {review.weaknesses?.join(", ")}</p>
+                            {review.missing?.length > 0 && (
+                                <p><strong>Missing:</strong> {review.missing?.join(", ")}</p>
+                            )}
+                        </div>
+                    )}
+
+                    {rewrite && (
+                        <div className="rewrite-result">
+                            <h3>Rewritten CV</h3>
+                            <pre>{rewrite}</pre>
+                            <button onClick={() => navigator.clipboard.writeText(rewrite)}>
+                                Copy
+                            </button>
+                        </div>
+                    )}
+                </div>
             </section>
         </div>
   );
