@@ -1,0 +1,77 @@
+Unit 1: Programming
+Algorithm Design: Pseudocode
+North Sussex Judo Club: Monthly Fee Calculator
+Academic Year 2025/2026 | Tutor: Sean
+1. Introduction
+The following pseudocode outlines the algorithm designed for the North Sussex Judo Club monthly fee calculator. The program is designed to take athlete details as input and calculate the total monthly cost based on their training plan, competition entries and private coaching hours. The pseudocode acts as a blueprint for the Python program developed in the implementation stage.
+2. Pseudocode
+The pseudocode below follows a structured English format, outlining the logical steps the program takes from start to finish.
+BEGIN
+ // Step 1-2: Get and validate athlete name
+ REPEAT
+ OUTPUT "Enter athlete name: "
+ INPUT athleteName
+ UNTIL athleteName != ""
+ // Step 3: Get training plan and assign weekly fee
+ OUTPUT "Select training plan (Beginner / Intermediate / Elite): "
+ INPUT trainingPlan
+ IF trainingPlan == "Beginner" THEN
+ weeklyFee = 25.00
+ ELSE IF trainingPlan == "Intermediate" THEN
+ weeklyFee = 30.00
+ ELSE IF trainingPlan == "Elite" THEN
+ weeklyFee = 35.00
+ END IF
+ // Step 4-5: Get weight and assign category
+ OUTPUT "Enter current weight in kg: "
+ INPUT weight
+ IF weight > 100 THEN
+ category = "Heavyweight"
+ ELSE IF weight <= 100 THEN
+ category = "Light-Heavyweight"
+ ELSE IF weight <= 90 THEN
+ category = "Middleweight"
+ ELSE IF weight <= 81 THEN
+ category = "Light-Middleweight"
+ ELSE IF weight <= 73 THEN
+ category = "Lightweight"
+ ELSE
+ category = "Flyweight"
+ END IF
+ // Step 6-7: Get number of competitions (Intermediate and Elite only)
+ IF trainingPlan == "Intermediate" OR trainingPlan == "Elite" THEN
+ OUTPUT "Enter number of competitions this month: "
+ INPUT numCompetitions
+ ELSE
+ numCompetitions = 0
+ END IF
+ // Step 8-9: Get optional private coaching hours
+ OUTPUT "Do you want private coaching? (yes / no): "
+ INPUT coaching
+ IF coaching == "yes" THEN
+ OUTPUT "Enter coaching hours per week (max 5): "
+ INPUT coachingHours
+ IF coachingHours > 5 THEN
+ coachingHours = 5
+ END IF
+ ELSE
+ coachingHours = 0
+ END IF
+ // Step 10: Calculate all costs
+ trainingCost = weeklyFee * 4
+ competitionCost = numCompetitions * 22.00
+ coachingCost = coachingHours * 4 * 9.50
+ totalCost = trainingCost + competitionCost + coachingCost
+ // Step 11-14: Display results
+ OUTPUT "Athlete Name: " + athleteName
+ OUTPUT "Weight Category: " + category
+ OUTPUT "Monthly Training Fee: £" + trainingCost
+ OUTPUT "Competition Costs: £" + competitionCost
+ OUTPUT "Coaching Costs: £" + coachingCost
+ OUTPUT "Total Monthly Cost: £" + totalCost
+END
+3. Algorithm Explanation
+The algorithm begins by collecting and validating the athlete's name using a REPEAT-UNTIL loop to ensure the field is not left blank. The training plan is then selected and the appropriate weekly fee is assigned using a conditional IF-ELSE structure.
+The athlete's current weight is entered and the program automatically assigns the correct competition weight category using a series of conditional checks against the predefined weight thresholds. This removes the need for the user to manually select a category, reducing the risk of input errors.
+Competition entries are only available to Intermediate and Elite athletes, which is enforced through a conditional check on the training plan. Beginner athletes are automatically assigned zero competitions. Private coaching is optional and capped at a maximum of five hours per week as specified in the requirements.
+Finally the program calculates the total monthly cost by multiplying the weekly fee by four weeks, adding competition entry fees and coaching costs. The results are displayed in an itemised format so the athlete can clearly see how their total cost is made up.

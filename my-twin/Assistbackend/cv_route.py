@@ -2,11 +2,15 @@ from flask import Blueprint, request, jsonify
 import os, re, json, anthropic, pdfplumber
 from werkzeug.utils import secure_filename
 from docx import Document
-
+import re
+import json
+from Routing import create_anthropic_completion,extract_message_content
 cv_bp = Blueprint('cv', __name__)
 
 CV_DIR = "cv_docs"
+REFINED_CV_DIR = "refined"
 os.makedirs(CV_DIR, exist_ok=True)
+os.makedirs(REFINED_CV_DIR, exist_ok=True)
 
 def clean_text(text):
     text = re.sub(r'\n{3,}', '\n\n', text)
@@ -27,10 +31,27 @@ def extract_docx(path):
 
 def get_cv():
     files = sorted(f for f in os.listdir(CV_DIR) if f.endswith(".txt"))
+    # fix — sort by modified time, gets actual latest
+    files = sorted(
+        (f for f in os.listdir(CV_DIR) if f.endswith(".txt")),
+        key=lambda f: os.path.getmtime(os.path.join(CV_DIR, f))
+    )
     if not files:
         return ""
     with open(os.path.join(CV_DIR, files[-1]), "r") as f:
         return f.read().strip()
+
+
+def extract_anthropic_text(msg):
+    if msg is None:
+        return ""
+    content = getattr(msg, "content", None)
+    if isinstance(content, list):
+        return "".join(
+            getattr(block, "text", "") for block in content
+            if getattr(block, "type", None) == "text"
+        ).strip()
+    return str(content or msg).strip()
 
 @cv_bp.route('/cv/upload', methods=['POST'])
 def upload():
@@ -61,30 +82,75 @@ def upload():
 @cv_bp.route('/cv/review', methods=['POST'])
 def review():
     cv_text = get_cv()
+
     if not cv_text:
         return jsonify({"error": "No CV found"}), 400
 
-    target = request.json.get("target_role", "tech/developer roles")
-    client = anthropic.Anthropic()
+    data = request.get_json(silent=True) or {}
+    target = data.get("target_role", "tech/developer roles")
 
-    msg = client.messages.create(
-        model="claude-opus-4-6",
-        max_tokens=1000,
-        messages=[{"role": "user", "content": f"""
-                   Review this CV for {target}. Return JSON only:
-                   {{
-                        "score": 1-10,
-                        "strengths": ["max 3"],
-                        "weaknesses": ["max 3"],
-                        "missing": ["missing sections"],
-                        "summary": "2 sentence verdict"
-                    }}
+    def extract_anthropic_text(msg):
+        if msg is None:
+            return ""
+        content = getattr(msg, "content", None)
+        if isinstance(content, list):
+            return "".join(
+                getattr(block, "text", "") for block in content
+                if getattr(block, "type", None) == "text"
+            ).strip()
+        return str(content or msg).strip()
 
-                    CV:
-                    {cv_text[:3000]}"""}]
-                        )
+    try:
+        prompt = f"""
+        Review this CV for {target}. Return plain text only:
 
-    return jsonify(json.loads(msg.content[0].text))
+        {{
+            \"score\": 1-10,
+            \"strengths\": [\"max 3\"],
+            \"weaknesses\": [\"max 3\"],
+            \"missing\": [\"missing sections\"],
+            \"summary\": \"2 sentence verdict\"
+        }}
+
+        CV:
+        {cv_text[:3000]}
+        """
+        response = create_anthropic_completion(
+            model="claude-sonnet-4-6",
+            system="You are a helpful assistant, help the user review their CV.",
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=1000
+        )
+        response_text = extract_anthropic_text(response)
+
+        match = re.search(r"\{.*\}", response_text, re.DOTALL)
+        if not match:
+            raise ValueError("No JSON found")
+        review_data = json.loads(match.group())
+        cv_filename = os.path.join(REFINED_CV_DIR, f"review_{target.replace(' ', '_')}.json")
+        with open(cv_filename, "w") as f:
+            json.dump(review_data, f, indent=2)
+        with open(cv_filename, "r") as f:
+            review_data = json.load(f)
+            n_review = {
+                "score": review_data.get("score", ""),
+                "strengths": review_data.get("strengths", []),
+                "weaknesses": review_data.get("weaknesses", []),
+                "missing": review_data.get("missing", []),
+                "summary": review_data.get("summary", "")
+            }
+        return jsonify({"review":n_review})
+
+    except json.JSONDecodeError:
+        return jsonify({
+            "error": "Model returned invalid JSON"
+        },debug=True), 500
+    except Exception as e:
+        return jsonify({
+            "error": str(e)
+        },debug=True), 500
 
 
 @cv_bp.route('/cv/rewrite', methods=['POST'])
@@ -94,24 +160,37 @@ def rewrite():
         return jsonify({"error": "No CV found"}), 400
 
     target = request.json.get("target_role", "tech/developer roles")
-    client = anthropic.Anthropic()
+    #client = anthropic.Anthropic()
+    try:
+        prompt = f"""
+                    Rewrite this CV for {target}.
+                        - Keep all real experience
+                        - Achievement-focused bullet points
+                        - Strong action verbs
+                        - Remove filler
+                        - Do not add any em-dashes or emojis
+                        - Use concise language, avoid fluff
+                        - Use the best cv examples online as reference, but do not copy any phrasing or formatting, make it original
+                        Return plain text only, ready to copy.
 
-    msg = client.messages.create(
-        model="claude-opus-4-6",
-        max_tokens=1500,
-        messages=[{"role": "user", "content": f"""
-                   Rewrite this CV for {target}.
-                    - Keep all real experience
-                    - Achievement-focused bullet points
-                    - Strong action verbs
-                    - Remove filler
-                    Return plain text only, ready to copy.
-
-                    CV:
-                    {cv_text[:3000]}"""}]
-                        )
-    return jsonify({"rewritten_cv": msg.content[0].text})
+                        CV:
+                        {cv_text[:3000]}"""
+        response = create_anthropic_completion(
+                    model="claude-sonnet-4-6",
+                    messages=[
+                        {"role": "system", "content": f"You are a helpful assistant, help the user rewrite their CV."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=2048,
+                    temperature=0.7
+                )
+        response_text = extract_anthropic_text(response)
+        with open(os.path.join(REFINED_CV_DIR, f"rewritten_{target.replace(' ', '_')}.doc"), "w") as f:
+            f.write(response_text)
+        return jsonify({"rewritten_cv": response_text})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 def main():
-    app.run(debug=True)
+    cv_bp.run(debug=True)
 if __name__ == "__main__":
     main()

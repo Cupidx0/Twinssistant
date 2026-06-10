@@ -1525,3 +1525,7 @@ User: Yoo my name is godwin alamu
 Assistant: Hey Godwin! Nice to meet you! How's it going today? What’s on your mind?
 Timestamp: 2026-06-04T10:06:48.478029
 
+User: Tailor my CV
+Assistant: Sure, I can help you tailor your CV! Please upload your current CV text, and let me know any specific areas you’d like to focus on or any roles you're targeting.
+Timestamp: 2026-06-05T22:49:32.520057
+

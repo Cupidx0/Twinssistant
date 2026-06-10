@@ -9,6 +9,7 @@ import {Link, replace} from "react-router-dom";
 import {Anchor,Delete,SmartToy,Inventory,MusicNote,
         Settings,CalendarMonth,Inventory2,Cloud,
         Upload,Work,Code,ArrowUpwardTwoTone} from "@mui/icons-material";
+import { serverTimestamp } from "firebase/firestore";
 export default function Weather_cv() {
     const [weather, setWeather] = useState(null);
     const [events, setEvents] = useState([]);
@@ -40,16 +41,19 @@ export default function Weather_cv() {
     }, [isLoggedIn]); 
     const handleFileChange = (e) => {
         const file = e.target.files[0];
-
         if (!file) return;
 
         setCvFile(file);
+        setReview(null);
+        setRewrite("");
+        setPreview("");
 
         ConvertTextAPI.convertFileToText(file)
             .then((response) => {
                 if (response.text) {
                     toast.success("CV text extracted successfully!");
                     console.log("Extracted CV Text:", response.text);
+                    setPreview(response.text);
                 } else {
                     toast.error("Failed to extract text from CV");
                 }
@@ -64,6 +68,57 @@ export default function Weather_cv() {
                 console.error("Error converting file to text:", error);
                 toast.error("Error converting file to text");
             });
+    };
+
+    const getReview = async () => {
+        const role = "Software Engineer";
+        if (!cvFile) {
+            toast.error("Please upload a CV first.");
+            return;
+        }
+        
+        setLoading("reviewing");
+        
+        ConvertTextAPI.ReviewCV(role || "Software Engineer")
+            .then((response) => {
+                if (response.review) {
+                    toast.success("CV review fetched successfully!");
+                    console.log("CV Review:", response.review);
+                    setReview(response.review);
+                } else {
+                    toast.error("Failed to fetch CV review");
+                }
+            } )
+            .catch ((error)=> {
+                console.error("Error fetching CV review:", error);
+                toast.error("Error fetching CV review");
+            })
+            . finally (() => {
+                setLoading("");
+            });
+    };
+
+    const getRewrite = async () => {
+        if (!cvFile) {
+            toast.error("Please upload a CV first.");
+            return;
+        }
+
+        setLoading("rewriting");
+        try {
+            const response = await ConvertTextAPI.RewriteCV(role || "Software Engineer");
+            if (response.rewritten_cv) {
+                toast.success("CV rewritten successfully!");
+                setRewrite(response.rewritten_cv);
+            } else {
+                toast.error("Failed to rewrite CV");
+            }
+        } catch (error) {
+            console.error("Error rewriting CV:", error);
+            toast.error("Error rewriting CV");
+        } finally {
+            setLoading("");
+        }
     };
   return (
     <div className="flex h-full flex-col gap-4 bg-transparent">
@@ -131,21 +186,24 @@ export default function Weather_cv() {
                             <button onClick={getReview}>
                                 {loading === "reviewing" ? "Reviewing..." : "Review CV"}
                             </button>
-                            <button onClick={getRewrite}>
+                            {/*<button onClick={getRewrite}>
                                 {loading === "rewriting" ? "Rewriting..." : "Rewrite CV"}
-                            </button>
+                            </button>*/}
                         </div>
                     )}
 
                     {review && (
                         <div className="review-result">
-                            <h3>Review — Score: {review.score}/10</h3>
+                            <h3>Review — Score: {review.score || "N/A"}/10</h3>
                             <p>{review.summary}</p>
                             <p><strong>Strengths:</strong> {review.strengths?.join(", ")}</p>
                             <p><strong>Weaknesses:</strong> {review.weaknesses?.join(", ")}</p>
                             {review.missing?.length > 0 && (
                                 <p><strong>Missing:</strong> {review.missing?.join(", ")}</p>
                             )}
+                            <button onClick={() => navigator.clipboard.writeText(JSON.stringify(review))}>
+                                Copy Review JSON
+                            </button>
                         </div>
                     )}
 

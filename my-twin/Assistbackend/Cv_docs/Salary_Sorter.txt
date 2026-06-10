@@ -1,0 +1,87 @@
+Salary Sorter / Budget Planner System – Distinction Report
+Introduction
+This report builds upon the previously submitted design report to demonstrate a fully implemented Salary Sorter / Budget Planner system. The project targets students, apprentices and early‑career professionals who require a structured way to manage income, track expenses and allocate salary across essential costs, savings and discretionary categories. Unlike conventional banking apps or spreadsheets, Salary Sorter emphasises automation, transparency and data‑driven insights. The system has been implemented as a client–server application with a React Native front‑end, a Flask REST API, and a MySQL database. This document summarises the implementation and evaluates the design and solution at distinction level.
+Business context and problem
+As set out in the case study, many individuals rely on tools like (spreadsheets, manual notes or basic apps) that lack intelligent salary breakdowns or long‑term insights. Without a structured database, users struggle to track income accurately, categorise expenses, monitor spending limits, analyse savings progress and generate meaningful financial summaries. The Salary Sorter project addresses this gap by providing a relational database‑driven application that automatically organises salary data and applies user‑defined rules for allocations, budgets and reporting.
+Proposed solution and system architecture
+The system follows a three‑tier architecture:
+Presentation layer: a (React Native mobile application Expo) providing user interfaces for authentication, salary calculation, bill management, earnings overview and profile management. Navigation is handled through React Navigation and the app communicates with the API via Axios.
+Application layer: a Flask‑based REST API implemented in (api_server.py). This layer exposes endpoints for user registration, authentication, salary calculations, earnings summaries and bill operations. Input validation and error handling are implemented consistently.
+Data layer: a MySQL database created using (database_and_table.py) and documented in the provided (salary_management.sql) script. phpMyAdmin was used to verify table creation and relationships.
+This architecture separates concerns, improves maintainability and supports scalability. The API acts as a secure intermediary between the mobile app and the database.
+Database implementation
+The MySQL database is initialized in (database_and_table.py) and matches the structure defined in (salary_management.sql.) Key tables include:
+users: stores user credentials and hourly rate.
+Daily_salary: records each daily salary calculation with hours worked and computed earnings.
+Bills: stores user bills including name and amount.
+Weekly_earnings: aggregates weekly earnings.
+Monthly_salary: stores gross salary, tax and net salary by month.
+Salary_after_bills: calculates net income after deducting bills.
+daily_salary_history: maintains historical daily salary records.
+Primary keys and foreign keys enforce relationships. For example, each bill references a user with user_id. The schema avoids redundancy through normalisation up to third normal form and ensures data integrity.
+Normalisation and data integrity
+The database design follows best practices:
+First normal form (1NF): All tables have primary keys and hold atomic values; repeating groups are eliminated.
+Second normal form (2NF): Every non‑key attribute is fully functionally dependent on the primary key. For example, the bills table’s amount depends only on bill_id, not partially on user_id.
+Third normal form (3NF): Non‑prime attributes depend only on the primary key and not on other non‑prime attributes (no transitive dependencies). This reduces redundancy and avoids update anomalies, aligning with Codd’s definition of 3NF.
+Data validation is implemented via constraints (e.g. positive numeric values for amounts) and enforced through the API.
+Backend implementation (Flask API)
+The Flask API (api_server.py) exposes endpoints with predictable routes and JSON responses. Key features include:
+Authentication – /api/register and /api/login handle user sign‑up and sign‑in. A custom header (X‑User‑ID) is used to associate requests with users.
+Daily salary calculations – POST /api/user/<id>/daily-salary calculates daily earnings based on hourly rate and work hours. Calculations handle time validation (HH:MM format) and insert results into daily_salary.
+Earnings summaries – Endpoints such as /api/user/<id>/weekly-earnings and /api/user/<id>/monthly-salary aggregate data from daily_salary and monthly_salary to produce weekly and monthly reports, including tax deductions.
+Bills management – Users can add, retrieve and delete bills through /api/user/<id>/bills. The salary_after_bills table and API endpoints compute disposable income after deducting total bills.
+Chat assistant – An optional chat interface interacts with an AI budgeting assistant, demonstrating system extensibility.
+The API uses mysql-connector-python for database interactions. Error handling returns clear messages and HTTP status codes.
+Frontend implementation (React Native)
+The mobile application (App.js and associated screens) is built with React Native and Expo. Major screens include:
+Login/Signup: allow users to create an account or log in; input fields enforce required entries and show toast notifications for errors.
+Home screen: displays a personalized greeting and high‑level metrics: weekly earnings, monthly salary (gross, tax and net) and salary after bills. Analytical messages encourage users to review their expenses if net after bills is low.
+Daily Salary screen: allows users to select start and end times via a date/time picker and calculate earnings. Results are stored and displayed.
+Bills screen: enables adding and deleting bills; summarises total bills and lists individual items with delete options.
+Earnings screen: shows detailed weekly earnings, monthly salary breakdown and recent daily earnings.
+Profile screen: displays user information and allows updating the hourly rate.
+Navigation is handled by React Navigation with a bottom tab layout; icons convey screen purpose. Toast notifications provide feedback on success or errors.
+Testing and validation
+Testing involved:
+Database validation – Creating tables using database_and_table.py and loading salary_management.sql ensured correct schema. phpMyAdmin screenshots demonstrate that tables and relationships were created successfully.
+API testing – Each endpoint was tested via the mobile app. Valid and invalid inputs (e.g. missing fields, negative amounts, invalid time formats) were used to verify error handling. The API returned appropriate status codes and messages.
+Functional testing – The React Native app was run on iOS and Android simulators. Test cases included registering and logging in, adding bills, calculating salary with realistic hours, viewing summaries and updating hourly rate. The app correctly displayed calculated values and updated state.
+Overall, the system met functional requirements and handled edge cases gracefully. Manual tests were documented in a separate test log (not shown).
+Evaluation of the design 
+The original design for Salary Sorter proposed separate tables for users, income entries, expenses, allocations and transactions to ensure clear separation of concerns and to maintain data integrity. The implemented schema largely aligns with this design: users, daily_salary, bills, weekly_earnings, monthly_salary and salary_after_bills. These tables fulfil user requirements by supporting multiple income entries, bill records and summary calculations, while referential integrity enforces correct relationships.
+The design is effective because it:
+Meets user requirements – Users can log salary payments, track bills and view summaries (weekly, monthly and after bills). The design separates recurring salary calculations from one‑off bills, allowing consistent queries.
+Supports system requirements – The schema is normalised to 3NF, preventing redundancy. Keys and constraints enforce integrity. The design can be extended (e.g. add a savings table) without major changes.
+Enables meaningful queries – Aggregated data (weekly earnings, monthly salary) can be obtained via JOINs and SUM functions across related tables. This supports the business requirement to generate reports for decision‑making.
+However, there are areas where the design could be improved:
+Categories and budgets – Expenses are only recorded as bills. Introducing a categories table with many‑to‑many relationships between users and categories could enable fine‑grained budgeting and better reporting by category.
+Currency handling – The current schema assumes a single currency. Adding a currency field or a separate currencies table would support international users.
+Audit trail – Implementing a transactions or audit table with timestamps and change descriptions would facilitate better auditing and rollback of changes.
+User roles and permissions – The system currently assumes single‑user access. Adding roles (admin, advisor) would allow for future team‑based finance management.
+Overall, the design is sound for the stated requirements but requires additional tables and constraints to support advanced budgeting and multi‑user scenarios.
+Evaluation of the implementation
+The implemented database and API meet the functional requirements of the case study. Evidence from the SQL schema, phpMyAdmin screenshots and the React Native app demonstrates a working system. Queries across multiple tables produce meaningful management information (e.g. weekly earnings summarising daily salary records). Security measures include user authentication, password storage (note: passwords should ideally be hashed and salted), and separation of concerns between front‑end and back‑end.
+Strengths of the implementation include:
+Functional completeness – Users can register, log in, record salary, manage bills and view summaries. Each user’s data is kept separate via the user_id key.
+Validation and error handling – The API validates input (e.g. positive amounts, valid time format) and returns informative messages. The front‑end provides toast notifications and disables actions during loading.
+Extensibility – The Chat API integration shows that the system can be extended with AI features. The design allows for additional tables (e.g. savings goals) without altering existing tables.
+Areas for improvement include:
+Security – Although the API sets an X‑User‑ID header, a more secure authentication mechanism (JWT tokens or session management) is recommended. Passwords should be hashed (e.g. using bcrypt) before storage. HTTPS should be used to protect data in transit.
+Performance – The salary_after_bills table recalculates values on request; indexing frequently queried columns (e.g. user_id, date) will improve query performance as the dataset grows.
+Error resilience – Additional exception handling could catch database errors (e.g. connection issues) and prevent application crashes. A consistent error response schema would improve client handling.
+Testing coverage – Automated tests (unit and integration tests) are currently absent. Adding test suites with a framework like PyTest for the API and Jest/React Testing Library for the front‑end would ensure regression prevention.
+In summary, the implementation is effective for a prototype but would benefit from enhanced security, indexing, error handling and automated testing to ensure reliability and scalability.
+Recommendations for future improvements
+To ensure the continued effectiveness of the system and support future expansion, the following improvements are recommended:
+Enhance security – Implement password hashing and a token‑based authentication system. Use HTTPS for all API communication and limit CORS to trusted domains.
+Introduce budgeting categories – Create a categories table and a linking table between bills or expenses and categories. This would allow users to set budgets per category and track spending more precisely.
+Implement savings goals – Add a savings table where users can set goals and track contributions. The API can calculate progress and suggest adjustments.
+Add roles and permissions – Introduce user roles (e.g. administrator, financial advisor) and restrict certain operations accordingly. This would support multi‑user collaboration and potential integration with financial advisers.
+Improve UI/UX – Develop more intuitive workflows and visualisations (charts) for earnings and spending. Employ a design system with consistent colours and spacing. Consider accessibility requirements (e.g. larger fonts, contrast ratios).
+Automated testing and continuous integration – Create a suite of automated tests for both front‑end and back‑end. Use a CI pipeline to run tests and linting on every commit, ensuring code quality.
+Database optimisation – Add indexes on frequently queried columns. Use database views or stored procedures for complex aggregations. Consider migrating to a cloud database service for reliability.
+Analytics and AI – Leverage historical data to provide spending insights. Integrate machine‑learning models to forecast expenses and suggest cost‑saving strategies. Use the chat assistant to deliver personalised tips.
+Implementing these improvements will enhance the system’s robustness, usability and adaptability, ensuring that it continues to meet user needs and can scale to a larger audience.
+Conclusion
+The Salary Sorter / Budget Planner system demonstrates how effective database design, API development and mobile application development can solve real‑world financial management challenges. The implemented solution meets the core requirements of recording salary, tracking bills and providing insightful summaries. The evaluation shows that the design is effective and normalised, while the implementation is functional and extensible. To achieve a distinction level, the report proposes design improvements, recommends enhancements to security and performance, and outlines future developments that will ensure the system remains effective as it grows. With these refinements, Salary Sorter can mature from a prototype into a robust personal finance tool.

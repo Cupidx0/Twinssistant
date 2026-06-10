@@ -72,6 +72,14 @@ export const ConvertTextAPI = {
     });
     return response.data;
   },
+  ReviewCV: async (target_role) => {
+    const response = await api.post("/cv/review", { target_role });
+    return response.data;
+  },
+  RewriteCV: async (target_role) => {
+    const response = await api.post("/cv/rewrite", { target_role });
+    return response.data;
+  },
 };
 export const WeatherAPI = {
   fetchWeather: async () => {
