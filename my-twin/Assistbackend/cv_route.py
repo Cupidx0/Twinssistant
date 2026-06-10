@@ -169,6 +169,10 @@ def rewrite():
                         - Strong action verbs
                         - Remove filler
                         - Do not add any em-dashes or emojis
+                        - Tailor skills and keywords to the target role
+                        - Take what the user has and expand on it, do not remove content unless it's clearly weak or irrelevant
+                        - If experience is very thin, creatively expand on it to make it more substantial, but do not fabricate any new experience. For example, if they have a one-line experience about "built a website", you could expand that into multiple bullet points about the technologies used, the features of the website, the impact it had, etc. Just be creative with how you describe and expand on the existing experience.
+                        - If a section is missing, add it with placeholder content based on what you know about the user from the CV and the target role. For example, if they have no "Skills" section but mention various technologies in their experience, you could create a "Skills" section that lists those technologies.
                         - Use concise language, avoid fluff
                         - Use the best cv examples online as reference, but do not copy any phrasing or formatting, make it original
                         Return plain text only, ready to copy.
@@ -178,7 +182,6 @@ def rewrite():
         response = create_anthropic_completion(
                     model="claude-sonnet-4-6",
                     messages=[
-                        {"role": "system", "content": f"You are a helpful assistant, help the user rewrite their CV."},
                         {"role": "user", "content": prompt}
                     ],
                     max_tokens=2048,

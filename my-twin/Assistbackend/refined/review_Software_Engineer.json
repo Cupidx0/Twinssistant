@@ -1,21 +1,21 @@
 {
   "score": 3,
   "strengths": [
-    "Clear and concise skills section listing relevant technologies (Python, JavaScript, HTML, CSS, React)",
-    "Professional summary effectively communicates enthusiasm and current educational focus",
-    "Contact information is well-presented and easy to locate"
+    "Includes relevant hands-on project experience (weather app, shopping project) showing practical front-end development skills",
+    "Currently pursuing a Level 3 T-Level in Digital and Design Development, showing commitment to tech education",
+    "Has real-world placement experience in a professional environment"
   ],
   "weaknesses": [
-    "No work experience, internships, or placements listed, making it difficult to assess practical ability",
-    "No projects section to demonstrate hands-on application of listed skills",
-    "Education section is thin with only one qualification and no grades, modules, or achievements mentioned"
+    "Professional summary focuses on sales/hospitality experience, which is irrelevant for a Software Engineer role",
+    "No technical skills section listing languages, frameworks, tools, or technologies",
+    "Project descriptions are vague and lack measurable outcomes, GitHub links, or live demo URLs"
   ],
   "missing": [
-    "Work Experience or Internships section",
-    "Projects section with links (GitHub, live demos)",
-    "Certifications or online courses (e.g., freeCodeCamp, Coursera)",
-    "GitHub or LinkedIn profile URL",
-    "Any measurable achievements or awards"
+    "Technical Skills section (languages, tools, frameworks)",
+    "GitHub profile or portfolio link",
+    "Dedicated Projects section with proper descriptions",
+    "Any mention of achievements or metrics",
+    "LinkedIn profile"
   ],
-  "summary": "This CV is at an early-career stage and currently lacks the depth needed to stand out for a Software Engineer role, with no projects or experience to back up the listed skills. Adding a strong projects section and any relevant work experience or placements would significantly improve its competitiveness."
+  "summary": "This CV is not yet suitable for a Software Engineer role as it reads more like a retail/hospitality application with a weak technical narrative. Significant restructuring is needed to highlight technical skills, projects, and relevant experience front and centre."
 }

@@ -186,9 +186,9 @@ export default function Weather_cv() {
                             <button onClick={getReview}>
                                 {loading === "reviewing" ? "Reviewing..." : "Review CV"}
                             </button>
-                            {/*<button onClick={getRewrite}>
+                           <button onClick={getRewrite}>
                                 {loading === "rewriting" ? "Rewriting..." : "Rewrite CV"}
-                            </button>*/}
+                            </button>
                         </div>
                     )}
 
