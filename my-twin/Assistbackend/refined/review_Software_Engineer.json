@@ -1,21 +1,21 @@
 {
   "score": 3,
   "strengths": [
-    "Includes relevant hands-on project experience (weather app, shopping project) showing practical front-end development skills",
-    "Currently pursuing a Level 3 T-Level in Digital and Design Development, showing commitment to tech education",
-    "Has real-world placement experience in a professional environment"
+    "Clear and concise professional summary that sets expectations for an entry-level candidate",
+    "Relevant technical skills listed including Python, JavaScript, HTML, CSS, and React",
+    "Honest representation of current education status without overstating experience"
   ],
   "weaknesses": [
-    "Professional summary focuses on sales/hospitality experience, which is irrelevant for a Software Engineer role",
-    "No technical skills section listing languages, frameworks, tools, or technologies",
-    "Project descriptions are vague and lack measurable outcomes, GitHub links, or live demo URLs"
+    "No work experience, internships, or placements listed which is critical for any engineering role",
+    "Skills section lacks depth with no proficiency levels, frameworks, tools, or version control mentioned",
+    "No projects or portfolio work demonstrated to back up claimed technical skills"
   ],
   "missing": [
-    "Technical Skills section (languages, tools, frameworks)",
-    "GitHub profile or portfolio link",
-    "Dedicated Projects section with proper descriptions",
-    "Any mention of achievements or metrics",
-    "LinkedIn profile"
+    "Work experience or internships section",
+    "Personal or academic projects with descriptions and links",
+    "Tools and technologies such as Git, GitHub, VS Code, or databases",
+    "Certifications or online courses to supplement formal education",
+    "LinkedIn or GitHub profile links"
   ],
-  "summary": "This CV is not yet suitable for a Software Engineer role as it reads more like a retail/hospitality application with a weak technical narrative. Significant restructuring is needed to highlight technical skills, projects, and relevant experience front and centre."
+  "summary": "This CV is extremely thin for a Software Engineer role and currently reads more as a student profile than a professional application. To be competitive, Godwin must urgently add personal projects, GitHub links, and any practical experience to demonstrate real-world coding ability beyond listed skills."
 }

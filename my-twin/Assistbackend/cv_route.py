@@ -1,7 +1,10 @@
-from flask import Blueprint, request, jsonify
+from importlib.resources import path
+
+from flask import Blueprint, request, jsonify,send_file
 import os, re, json, anthropic, pdfplumber
 from werkzeug.utils import secure_filename
 from docx import Document
+from io import BytesIO
 import re
 import json
 from Routing import create_anthropic_completion,extract_message_content
@@ -130,6 +133,7 @@ def review():
             raise ValueError("No JSON found")
         review_data = json.loads(match.group())
         cv_filename = os.path.join(REFINED_CV_DIR, f"review_{target.replace(' ', '_')}.json")
+
         with open(cv_filename, "w") as f:
             json.dump(review_data, f, indent=2)
         with open(cv_filename, "r") as f:
@@ -158,12 +162,16 @@ def rewrite():
     cv_text = get_cv()
     if not cv_text:
         return jsonify({"error": "No CV found"}), 400
-
     target = request.json.get("target_role", "tech/developer roles")
+    feedback = os.path.join(REFINED_CV_DIR, f"review_{target.replace(' ', '_')}.json")
+    with open(feedback, "r") as f:
+        review_data = json.load(f)
+
     #client = anthropic.Anthropic()
     try:
         prompt = f"""
                     Rewrite this CV for {target}.
+                    Use the {review_data} as feedback to improve the CV. Focus on addressing weaknesses and missing sections, while maintaining strengths.
                         - Keep all real experience
                         - Achievement-focused bullet points
                         - Strong action verbs
@@ -188,9 +196,15 @@ def rewrite():
                     temperature=0.7
                 )
         response_text = extract_anthropic_text(response)
-        with open(os.path.join(REFINED_CV_DIR, f"rewritten_{target.replace(' ', '_')}.doc"), "w") as f:
-            f.write(response_text)
-        return jsonify({"rewritten_cv": response_text})
+        doc = Document()
+        for line in response_text.splitlines():
+            doc.add_paragraph(line)
+        buffer = BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
+        return send_file(buffer ,as_attachment=True,
+                         download_name=f"rewritten_{target.replace(' ', '_')}.docx",
+                         mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 def main():

@@ -103,16 +103,24 @@ export default function Weather_cv() {
             toast.error("Please upload a CV first.");
             return;
         }
-
         setLoading("rewriting");
         try {
             const response = await ConvertTextAPI.RewriteCV(role || "Software Engineer");
-            if (response.rewritten_cv) {
+            const blob = new Blob([response], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.setAttribute("download", `rewritten_${role.replace(/ /g, "_")}.docx`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            toast.success("CV rewritten successfully!");
+            /*if (response.rewritten_cv) {
                 toast.success("CV rewritten successfully!");
-                setRewrite(response.rewritten_cv);
+                //setRewrite(response.rewritten_cv);
             } else {
                 toast.error("Failed to rewrite CV");
-            }
+            }*/
         } catch (error) {
             console.error("Error rewriting CV:", error);
             toast.error("Error rewriting CV");
@@ -188,6 +196,7 @@ export default function Weather_cv() {
                             </button>
                            <button onClick={getRewrite}>
                                 {loading === "rewriting" ? "Rewriting..." : "Rewrite CV"}
+                                {loading === "rewriting" && <ArrowUpwardTwoTone className="animate-bounce"/>}
                             </button>
                         </div>
                     )}
