@@ -77,7 +77,12 @@ export const ConvertTextAPI = {
     return response.data;
   },
   RewriteCV: async (target_role) => {
-    const response = await api.post("/cv/rewrite", { target_role });
+    const response = await api.post("/cv/rewrite", { target_role },
+      {
+        timeout: 60000,
+        responseType: 'blob'
+      }
+    );
     return response.data;
   },
 };

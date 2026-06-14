@@ -1529,3 +1529,15 @@ User: Tailor my CV
 Assistant: Sure, I can help you tailor your CV! Please upload your current CV text, and let me know any specific areas you’d like to focus on or any roles you're targeting.
 Timestamp: 2026-06-05T22:49:32.520057
 
+User: you understand
+Assistant: Got it! If there's anything specific on your mind or if you need help with something, just let me know!
+Timestamp: 2026-06-14T21:17:20.238448
+
+User: you know please
+Assistant: It looks like your message got cut off. Can you please let me know what you need or clarify what you were trying to say? I'm here to help!
+Timestamp: 2026-06-14T23:59:26.420050
+
+User: shut your bitches
+Assistant: It seems like you're feeling a bit frustrated. If there's something specific on your mind or if you need to vent, I'm here to listen!
+Timestamp: 2026-06-14T23:59:48.423439
+

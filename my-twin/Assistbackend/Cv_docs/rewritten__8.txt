@@ -1,0 +1,29 @@
+Candidate Name
+Location | Phone Number | Email Address | GitHub: github.com/yourprofile | LinkedIn: linkedin.com/in/yourprofile
+PROFESSIONAL SUMMARY
+Junior Software Engineer with hands-on experience designing and building full-stack web applications using Python, Flask, and MySQL. Demonstrated ability to architect normalised relational databases, develop backend REST APIs, and deliver functional systems end to end. Eager to contribute to a collaborative engineering team and grow across the full software development lifecycle.
+PROJECTS
+Salary Sorter System | Python, Flask, MySQL
+Personal Project
+Designed and built a full-stack salary management application enabling employees and employers to log shifts, track expenses, and generate monthly salary summaries
+Architected a normalised relational database across six interrelated tables including users, shifts, bills, daily_keep, salary_after_bills, and notifications, implementing primary and foreign key constraints to enforce referential integrity throughout
+Normalised the schema to Third Normal Form (3NF), eliminating data redundancy and ensuring consistent, accurate records across all entities
+Developed dynamic salary calculation logic using SQL aggregation functions including SUM grouped by month and employee, removing the need to store pre-computed values and reducing risk of data inconsistency
+Built a role-based user system distinguishing employee and employer accounts, with separate permissions for submitting shifts, approving shifts, and viewing salary reports
+Implemented a Flask backend API to handle shift submission, approval workflows, bill tracking, and notification delivery between user roles
+Conducted functional testing against both valid and invalid data inputs, verifying correct behaviour for user creation, shift logging, shift approval, and salary computation
+Identified and documented system improvements including password hashing for secure credential storage and database indexing to optimise query performance at scale
+TECHNICAL SKILLS
+Languages: Python, SQL, HTML
+Frameworks and Libraries: Flask
+Databases: MySQL, relational database design, schema normalisation (1NF, 2NF, 3NF)
+Concepts: REST API development, foreign key constraints, referential integrity, SQL aggregation, role-based access control, functional testing
+Tools: Git, GitHub
+EDUCATION
+Your Qualification Title
+Institution Name | Start Year - End Year
+Relevant modules: Database Design, Software Development, Web Application Development
+CERTIFICATIONS AND ACHIEVEMENTS
+Add any relevant certifications here, for example Python, SQL, or Flask related courses completed via platforms such as Coursera, freeCodeCamp, or Udemy
+CONTACT
+Replace the placeholder name and contact details at the top of this CV with your real information before submitting or sharing it.

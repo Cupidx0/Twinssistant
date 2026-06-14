@@ -1,0 +1,33 @@
+Salary Sorter System – Database Design and Development Report (Final Version)
+1. Introduction
+This report describes the design, development, and implementation of the Salary Sorter system. The system was developed to help employees and employers manage shifts, calculate salary, track bills, and generate monthly salary summaries. The system uses a MySQL relational database, Flask backend API, and a client interface. The database ensures data integrity, accuracy, and efficient salary calculations.
+2. Database Design
+The system uses six interrelated tables: users, shifts, bills, daily_keep, salary_after_bills, and notifications. These tables are linked using primary keys and foreign keys to ensure referential integrity.
+
+========== INSERT SCREENSHOT HERE: Figure 1 – USERS TABLE STRUCTURE ==========
+
+The users table stores employee and employer account information including username, password, hourly rate, and role. The primary key is user_id. This table acts as the parent table for other tables.
+
+========== INSERT SCREENSHOT HERE: Figure 2 – SHIFTS TABLE STRUCTURE ==========
+
+The shifts table stores work shift records. It includes shift date, hours worked, earnings, and approval status. The employee_id field links each shift to a user. Monthly salary is calculated dynamically from this table using SQL SUM queries. This prevents redundancy and ensures accuracy.
+
+========== INSERT SCREENSHOT HERE: Figure 3 – BILLS TABLE STRUCTURE ==========
+
+The bills table stores user expenses. Each bill is linked to a user using a foreign key. This allows the system to calculate salary after deducting bills.
+3. Salary Calculation and Queries
+
+========== INSERT SCREENSHOT HERE: Figure 4 – MONTHLY SALARY QUERY RESULT ==========
+
+The system calculates monthly salary using SQL aggregation functions. The SUM() function is used to calculate total earnings from approved shifts. This ensures accurate salary calculation and follows database normalisation principles.
+4. System Testing
+
+========== INSERT SCREENSHOT HERE: Figure 5 – TESTING USING VALID DATA ==========
+
+The system was tested using valid and invalid data. Tests included creating users, submitting shifts, approving shifts, and calculating salary. The system returned correct results and handled errors correctly.
+5. Normalisation
+The database is normalised to Third Normal Form (3NF). Each table has a primary key, and there are no repeating groups. Salary is calculated dynamically instead of stored redundantly. This improves efficiency and prevents errors.
+6. Evaluation
+The database design meets user requirements by allowing salary tracking, bill management, and reporting. The use of foreign keys ensures data integrity. One improvement would be adding password encryption and indexing for performance.
+7. Conclusion
+In conclusion, the Salary Sorter system successfully demonstrates relational database design and development. The system meets all requirements and provides accurate salary calculations. The design is efficient, scalable, and secure.

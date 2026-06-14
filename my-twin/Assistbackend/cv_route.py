@@ -7,13 +7,16 @@ from docx import Document
 from io import BytesIO
 import re
 import json
+from docx.shared import Pt
 from Routing import create_anthropic_completion,extract_message_content
 cv_bp = Blueprint('cv', __name__)
 
 CV_DIR = "cv_docs"
 REFINED_CV_DIR = "refined"
+CHAT = "chat"
 os.makedirs(CV_DIR, exist_ok=True)
 os.makedirs(REFINED_CV_DIR, exist_ok=True)
+os.makedirs(CHAT, exist_ok=True)
 
 def clean_text(text):
     text = re.sub(r'\n{3,}', '\n\n', text)
@@ -44,7 +47,16 @@ def get_cv():
     with open(os.path.join(CV_DIR, files[-1]), "r") as f:
         return f.read().strip()
 
-
+def get_relevant_history(history, keywords=["cv", "job", "skill", "project", "experience", "role", "apply"]):
+    chat_path = os.path.join(CHAT, "chat_history.txt")
+    with open(chat_path, "r") as f:
+        history = f.readlines()
+    relevant = []
+    for msg in history:
+       content = msg if isinstance(msg, str) else msg.get("content", "")
+       if any(keyword.lower() in content.lower() for keyword in keywords):
+            relevant.append(content)
+    return relevant[-10:]  # last 10 relevant messages max
 def extract_anthropic_text(msg):
     if msg is None:
         return ""
@@ -166,12 +178,23 @@ def rewrite():
     feedback = os.path.join(REFINED_CV_DIR, f"review_{target.replace(' ', '_')}.json")
     with open(feedback, "r") as f:
         review_data = json.load(f)
-
+    chat_history = get_relevant_history([])
     #client = anthropic.Anthropic()
     try:
+        user_context = """
+                        About the user:
+                        - Name: Godwin
+                        - Age: 21, based in Horley, Surrey
+                        - Currently studying HNC/HND Computing
+                        - Progressing to a one year Computer Science top up degree (University of Greater Manchester, 2027)
+                        - Works in fast food currently
+                        - Building Twinssistant and Alamu — a multi provider AI assistant with voice, memory, and agentic routing
+                        - Targeting junior backend developer and AI integration roles
+                        - Skills: Python, React, Flask, Firebase, Firestore, REST APIs, WebSockets, Anthropic/OpenAI/Gemini APIs
+                        """
         prompt = f"""
                     Rewrite this CV for {target}.
-                    Use the {review_data} as feedback to improve the CV. Focus on addressing weaknesses and missing sections, while maintaining strengths.
+                    Use the userdetails{user_context},and {review_data} and {chat_history} as feedback to improve the CV. Focus on addressing weaknesses and missing sections, while maintaining strengths.
                         - Keep all real experience
                         - Achievement-focused bullet points
                         - Strong action verbs
@@ -197,12 +220,44 @@ def rewrite():
                 )
         response_text = extract_anthropic_text(response)
         doc = Document()
+
+        # set font defaults
+        style = doc.styles['Normal']
+        style.font.name = 'Arial'
+        style.font.size = Pt(11)
+
         for line in response_text.splitlines():
-            doc.add_paragraph(line)
+            if not line.strip():
+                doc.add_paragraph()  # blank spacer
+                continue
+
+            # strip markdown bold/italic
+            clean = re.sub(r'\*{1,3}(.*?)\*{1,3}', r'\1', line).strip()
+            # strip markdown headers
+            is_heading = clean.startswith('#')
+            clean = clean.lstrip('#').strip()
+
+            # detect bullet points
+            is_bullet = line.strip().startswith(('-', '*', '•'))
+            if is_bullet:
+                clean = re.sub(r'^[-*•]\s*', '', clean)
+
+            if is_heading or (clean.isupper() and len(clean) < 50):
+                p = doc.add_paragraph()
+                run = p.add_run(clean)
+                run.bold = True
+                run.font.size = Pt(13)
+                p.paragraph_format.space_before = Pt(10)
+            elif is_bullet:
+                p = doc.add_paragraph(style='List Bullet')
+                p.add_run(clean)
+            else:
+                p = doc.add_paragraph()
+                p.add_run(clean)
         buffer = BytesIO()
         doc.save(buffer)
         buffer.seek(0)
-        return send_file(buffer ,as_attachment=True,
+        return send_file(buffer,as_attachment=True,
                          download_name=f"rewritten_{target.replace(' ', '_')}.docx",
                          mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
     except Exception as e:
