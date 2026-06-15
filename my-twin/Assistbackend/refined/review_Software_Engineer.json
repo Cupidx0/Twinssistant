@@ -1,21 +1,21 @@
 {
   "score": 6,
   "strengths": [
-    "Strong project depth \u2014 both projects show real architectural thinking, including database normalisation, role-based access control, and agentic AI routing, which is impressive for a junior candidate",
-    "Good modern tech stack coverage \u2014 Python, Flask, React, Firebase, WebSockets, and multiple AI APIs demonstrate broad and relevant hands-on exposure",
-    "Clear and specific project descriptions \u2014 bullet points are detailed and outcome-focused rather than vague, making technical contributions easy to assess"
+    "Strong project depth: Both projects demonstrate real technical complexity, including multi-provider AI routing, WebSockets, Firestore, and normalised relational databases, which is impressive for a junior candidate.",
+    "Clear and relevant tech stack: Python, Flask, React, Firebase, and multiple AI APIs are modern and in-demand, showing practical hands-on experience aligned with backend and AI integration roles.",
+    "Well-articulated project descriptions: Bullet points are specific, results-oriented, and explain the 'why' behind technical decisions, which stands out compared to typical junior CVs."
   ],
   "weaknesses": [
-    "No work experience listed \u2014 the CV relies entirely on personal projects, which raises questions about professional environment exposure, teamwork, and real-world delivery under constraints",
-    "Placeholder contact details and GitHub/LinkedIn links are not filled in, which looks unprofessional and makes the candidate unreachable",
-    "The Salary Sorter description appears cut off mid-sentence ('verifying correct beha...'), suggesting the CV was not proofread before submission"
+    "No formal work experience listed: The CV appears to contain only projects and no employment history, internships, or placements, which is a significant gap employers will notice immediately.",
+    "Placeholder contact details: '[Phone Number]', '[Email Address]', and generic GitHub/LinkedIn URLs are still in the CV, making it look unfinished and unprofessional.",
+    "CV appears incomplete: The Salary Sorter section cuts off mid-sentence ('Implemented a Flask REST'), suggesting the document was not fully reviewed before submission."
   ],
   "missing": [
-    "Work Experience or Internships section",
-    "Education section with current HNC/HND details and institution",
-    "Skills section summarising languages, tools, and frameworks at a glance",
-    "Certifications or courses if applicable",
-    "Full name and completed contact information"
+    "Work experience or employment history section",
+    "Education section with dates, institution names, and qualifications",
+    "Skills section summarising languages, tools, and frameworks",
+    "Real contact details replacing placeholders",
+    "Certifications or courses if applicable"
   ],
-  "summary": "Godwin shows genuine technical ability and initiative for a junior candidate, with two well-described projects that demonstrate real backend and AI integration skills. However, the absence of any work experience, incomplete contact details, and missing education section significantly weaken the CV and must be addressed before submission."
+  "summary": "Godwin shows genuine technical ability through well-described, complex projects that go beyond typical junior-level work, particularly the AI routing system. However, the CV is clearly incomplete, missing an education section, work history, a skills summary, and even basic contact information, which would likely disqualify it at the screening stage."
 }

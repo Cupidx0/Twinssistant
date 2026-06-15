@@ -110,7 +110,7 @@ export default function Weather_cv() {
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement("a");
             link.href = url;
-            link.setAttribute("download", `rewritten_${role.replace(/ /g, "_")}.docx`);
+            link.setAttribute("download", `rewritten_${role.replace(/ /g, "_")||"Software Engineer"}.docx`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);

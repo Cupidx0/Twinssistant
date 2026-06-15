@@ -256,6 +256,8 @@ def rewrite():
                 p.add_run(clean)
         buffer = BytesIO()
         doc.save(buffer)
+        with open(os.path.join(REFINED_CV_DIR, f"rewritten_{target.replace(' ', '_')}.docx"), "wb") as f:
+            f.write(buffer.getvalue())
         buffer.seek(0)
         return send_file(buffer,as_attachment=True,
                          download_name=f"rewritten_{target.replace(' ', '_')}.docx",
