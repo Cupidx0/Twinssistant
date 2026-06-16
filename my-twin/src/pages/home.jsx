@@ -26,7 +26,8 @@ import {Anchor,Delete,SmartToy,Inventory,MusicNote,
         TurnLeft,
         HideSource,
         TurnSharpLeftTwoTone,
-        TurnSlightLeftTwoTone} from "@mui/icons-material";  
+        TurnSlightLeftTwoTone,
+        AssistantDirection} from "@mui/icons-material";  
 import {ChatAPI} from "../Utils/Assistant";
 import { WeatherAPI } from "../Utils/Assistant";
 import {useAuth} from "./AuthContext";
@@ -451,6 +452,9 @@ return (
                                 }/> {onlineStatus}</span>
                             <h3 className="text-card-foreground text-lg font-bold m-0">{usertime},{userDetails}</h3>
                             <p>How can i help you today?</p>
+                            <Link to="/speech">
+                                <AssistantDirection className="text-primary text-lg font-bold"/>
+                            </Link>
                         </section>
                             <div className="glass rounded-md p-2 mb-4 h-[300px] text-card-foreground text-lg overflow-auto border border-border">
                                 <span className=" text-left font-bold m-3 overflow-auto">

@@ -18,7 +18,7 @@ import {
 } from "@mui/icons-material";
 import { API_BASE_URL, ChatAPI } from "../../Utils/Assistant";
 import { io } from "socket.io-client"
-const WS_URL = import.meta.env.VITE_AI_SPEECH_WS_URL || "";
+const WS_URL = import.meta.env.VITE_AI_SPEECH_WS_URL || "http://localhost:5000";
 const AUTO_SEND_DELAY_MS = 1400;
 
 const quickPrompts = [
