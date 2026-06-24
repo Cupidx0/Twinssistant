@@ -35,6 +35,7 @@ from flask_socketio import SocketIO, emit
 #from gevent import monkey
 #import gevent.threadpool
 from cv_route import cv_bp
+from Pinecone_vec import save_pattern, find_pattern
 try:
     import holidays as holidays_lib
 except ImportError:
@@ -567,6 +568,15 @@ def audio():
         return jsonify({"transcription": transcription.text})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+def intent_classifier(user_text):
+    cached_intent,cached_confidence = find_pattern(user_text)
+    if cached_intent:
+        print(f"Found cached intent: {cached_intent} with confidence {cached_confidence}%")
+        return cached_intent, cached_confidence
+    intent_prompt = keyword_classify(user_text)
+    confidence = 0.9 if intent_prompt !="casual" else 0.5
+    save_pattern(user_text, intent_prompt, confidence)
+    return intent_prompt, confidence
 def get_ai_response(user_text):
     try:
         namer = "Tavily"
