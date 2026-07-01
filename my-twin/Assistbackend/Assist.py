@@ -621,15 +621,28 @@ def intent_classifier(user_text):
     intent = keyword_classify(user_text)
     confidence = 0.9 if intent != "casual" else 0.5
     if confidence < 0.7:
-        response = create_chat_completion(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are a smart assistant that classifies user intents. Return only the intent name and a confidence score between 0 and 1."},
-                {"role": "user", "content": f"Classify the intent of this message: '{user_text}'"}
-            ],
-            max_tokens=50,
-            temperature=0.5
-        )
+        try:
+            #response = create_chat_completion(
+            #    model="gpt-4o-mini",
+            #    messages=[
+            #        {"role": "system", "content": "You are a smart assistant that classifies user intents. Return only the intent name and a confidence score between 0 and 1."},
+            #        {"role": "user", "content": f"Classify the intent of this message: '{user_text}'"}
+            #    ],
+            #    max_tokens=50,
+            #    temperature=0.5
+            #)
+            response = create_gemini_completion(
+                model="gemini-3.1-flash-lite",
+                messages=[
+                    {"role": "system", "content": "You are a smart assistant that classifies user intents. Return only the intent name and a confidence score between 0 and 1."},
+                    {"role": "user", "content": f"Classify the intent of this message: '{user_text}'"}
+                ],
+                max_tokens=50,
+                temperature=0.5
+            )
+        except Exception as e:
+            print(f"Error during intent classification: {e}")
+    
         response_text = extract_message_content(response).strip()
         try:
             match = re.search(r"\{.*\}", response_text, re.DOTALL)
@@ -741,7 +754,8 @@ def chat():
         calevent = safe_get_calendar_events(data)
         # Tavily search trigger
         cv_info_json = os.path.join(CV_INFO_FILE, "review_Software_Engineer.json")
-        print(cv_info_json)
+        with open(cv_info_json, "r") as f:
+            cv_info = json.load(f)
         today = datetime.now().strftime("%Y-%m-%d")
         time = datetime.now().strftime("%H:%M:%S")
         web_context = ""
@@ -780,7 +794,7 @@ def chat():
             - If it's technical, be precise and concise
             - If it's emotional or personal, be empathetic and grounded
             - For code, format it cleanly with a brief explanation
-            - For CV questions, use the uploaded CV and give concrete specific feedback,check {cv_info_json} for the feed back or ask him to upload if not available
+            - For CV questions, use the uploaded CV and give concrete specific feedback,check {cv_info} for the feed back or ask him to upload if not available
             - For calendar, use the events provided and confirm when adding or deleting
             - In voice mode, respond in natural spoken sentences — no bullet points, no markdown
             - Be direct. Don't over-explain. Don't pad responses
