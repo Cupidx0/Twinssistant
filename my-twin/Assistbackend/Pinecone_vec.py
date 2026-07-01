@@ -14,8 +14,16 @@ def get_embedding(user_text):
          )
     return response['data'][0]['embedding']
 def save_pattern(user_text, intent, confidence):
-     embedding = get_embedding(user_text)
-     index.upsert([(user_text, embedding, {"intent": intent, "confidence": confidence})])
+    embedding = get_embedding(user_text)
+    index.upsert(vectors=[{
+        "id": user_text[:100],  # pinecone needs a string ID
+        "values": embedding,
+        "metadata": {
+            "intent": intent,
+            "confidence": confidence,
+            "text": user_text
+        }
+    }])
 def find_pattern(user_text, threshold=0.85):
      embedding = get_embedding(user_text)
      results = index.query(vector=embedding, top_k=1, include_metadata=True)

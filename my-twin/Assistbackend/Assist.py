@@ -27,6 +27,7 @@ from googleapiclient.errors import HttpError
 from gtts import gTTS
 from Routing import get_tavily_results, create_chat_completion, extract_function_call, create_anthropic_completion, extract_message_content, create_gemini_completion
 import io
+import re
 from werkzeug.utils import secure_filename
 from google import genai
 from google.genai import types
@@ -36,6 +37,7 @@ from flask_socketio import SocketIO, emit
 #import gevent.threadpool
 from cv_route import cv_bp
 from Pinecone_vec import save_pattern, find_pattern
+from pinecone import Pinecone
 try:
     import holidays as holidays_lib
 except ImportError:
@@ -45,6 +47,7 @@ except ImportError:
 # Load env variables
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CV_DIR = os.path.join(BASE_DIR, "Cv_docs")
+CV_INFO_FILE = os.path.join(CV_DIR,"refined")
 CHAT_DIR = os.path.join(BASE_DIR, "chat")
 CHAT_HISTORY_FILE = os.path.join(CHAT_DIR, "chat_history.txt")
 load_dotenv()
@@ -54,12 +57,12 @@ tavilyclient = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
 openai.api_key = os.getenv("OPENAI_API_KEY")
 anthropic.api_key = os.getenv("CLAUDE_API_KEY")
 genai.api_key = os.getenv("GEMINI_API_KEY")
+pinecone = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 # Initialize Firebase properly
 cred = credentials.Certificate(os.path.join(BASE_DIR, "tw.json"))  # 👈 your Firebase service account JSON
 firebase_app = initialize_app(cred)
 db = firestore.client()
-
 # Flask app
 app = Flask(__name__)
 app.register_blueprint(cv_bp)
@@ -568,15 +571,78 @@ def audio():
         return jsonify({"transcription": transcription.text})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+def keyword_classify(user_text):
+    text = user_text.lower()
+    
+    if any(word in text for word in [
+        "calendar", "schedule", "remind", "meeting", "event", "appointment", "book"
+    ]):
+        return "calendar"
+    
+    elif any(word in text for word in [
+        "cv", "resume", "cover letter", "job application", "rewrite my cv"
+    ]):
+        return "cv"
+    
+    elif any(word in text for word in [
+        "open", "launch", "play", "spotify", "file", "folder", "close", "quit"
+    ]):
+        return "mac_control"
+    
+    elif any(word in text for word in [
+        "code", "debug", "error", "function", "python", "react", "flask", "bug", "fix"
+    ]):
+        return "code"
+    elif any(word in text for word in [
+        "good morning", "good afternoon", "good evening", "hello", "hi", "hey", "how are you"
+    ]):
+        return "greeting"
+    elif any(word in text for word in [
+        "latest", "news", "search", "youtube", "today","current","year",
+        "music","song","songs","weather","sports","football","cricket","president",
+        "prime minister","capital of","country","countries","who is","what is",
+        "when is","where is","how to","define"
+    ]):
+        return "web_search"
+    
+    elif any(word in text for word in [
+         "what are you", "who made you", "your name"
+    ]):
+        return "identity"
+    
+    else:
+        return "casual"
+
 def intent_classifier(user_text):
     cached_intent,cached_confidence = find_pattern(user_text)
     if cached_intent:
-        print(f"Found cached intent: {cached_intent} with confidence {cached_confidence}%")
+        print(f"Found cached intent: {cached_intent} with confidence {cached_confidence}")
         return cached_intent, cached_confidence
-    intent_prompt = keyword_classify(user_text)
-    confidence = 0.9 if intent_prompt !="casual" else 0.5
-    save_pattern(user_text, intent_prompt, confidence)
-    return intent_prompt, confidence
+    intent = keyword_classify(user_text)
+    confidence = 0.9 if intent != "casual" else 0.5
+    if confidence < 0.7:
+        response = create_chat_completion(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a smart assistant that classifies user intents. Return only the intent name and a confidence score between 0 and 1."},
+                {"role": "user", "content": f"Classify the intent of this message: '{user_text}'"}
+            ],
+            max_tokens=50,
+            temperature=0.5
+        )
+        response_text = extract_message_content(response).strip()
+        try:
+            match = re.search(r"\{.*\}", response_text, re.DOTALL)
+            if not match:
+                raise ValueError("No JSON found")
+            response_json = json.loads(match.group())
+            intent = response_json.get("intent", intent)
+            confidence = float(response_json.get("confidence", confidence))
+        except json.JSONDecodeError:
+            print(f"Failed to parse JSON from response: {response_text}")
+
+    save_pattern(user_text, intent=intent, confidence=confidence)
+    return intent, confidence
 def get_ai_response(user_text):
     try:
         namer = "Tavily"
@@ -630,6 +696,18 @@ def chat():
         message = data.get("question", "").strip()
         if not message:
             return jsonify({"error": "Please provide a question."}), 400
+        intent = intent_classifier(message)
+        if intent == "calendar":
+            return calendar_manage()
+        elif intent == "cv":
+            pass
+        elif intent == "mac_control":
+            pass
+        elif intent == "code":
+            pass
+        else:
+            pass
+
         #review = ""
         #latest_cv_text = ""
         #if any(word in message.lower() for word in ["cv", "resume", "curriculum vitae"]):
@@ -662,9 +740,12 @@ def chat():
         fit_check = "if the user asks for outfit suggestion or fashion advice,check if the users sex,age,height,weight,skin tone is in the history if not ask the user for the details ."
         calevent = safe_get_calendar_events(data)
         # Tavily search trigger
+        cv_info_json = os.path.join(CV_INFO_FILE, "review_Software_Engineer.json")
+        print(cv_info_json)
         today = datetime.now().strftime("%Y-%m-%d")
         time = datetime.now().strftime("%H:%M:%S")
         web_context = ""
+        #change to use keyword_classify or intent_classifier to determine if web search is needed
         if any(word in message.lower() for word in ["latest", "news", "search", "youtube", "today","current","year",
                                                     "music","song","songs","weather","sports","football","cricket","president",
                                                     "prime minister","capital of","country","countries","who is","what is",
@@ -699,7 +780,7 @@ def chat():
             - If it's technical, be precise and concise
             - If it's emotional or personal, be empathetic and grounded
             - For code, format it cleanly with a brief explanation
-            - For CV questions, use the uploaded CV text and give concrete specific feedback, ask him to upload if not available
+            - For CV questions, use the uploaded CV and give concrete specific feedback,check {cv_info_json} for the feed back or ask him to upload if not available
             - For calendar, use the events provided and confirm when adding or deleting
             - In voice mode, respond in natural spoken sentences — no bullet points, no markdown
             - Be direct. Don't over-explain. Don't pad responses
