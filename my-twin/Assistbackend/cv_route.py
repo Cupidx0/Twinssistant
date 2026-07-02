@@ -1,19 +1,18 @@
-from importlib.resources import path
-
-from flask import Blueprint, request, jsonify,send_file
-import os, re, json, anthropic, pdfplumber
+from flask import Blueprint, request, jsonify, send_file
+import os, re, json, pdfplumber
 from werkzeug.utils import secure_filename
 from docx import Document
 from io import BytesIO
-import re
-import json
 from docx.shared import Pt
-from Routing import create_anthropic_completion,extract_message_content
+from Routing import create_anthropic_completion
+from auth_utils import require_auth
 cv_bp = Blueprint('cv', __name__)
 
-CV_DIR = "cv_docs"
-REFINED_CV_DIR = "refined"
-CHAT = "chat"
+# Anchor to this file's directory so paths match Assist.py regardless of cwd
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CV_DIR = os.path.join(BASE_DIR, "Cv_docs")
+REFINED_CV_DIR = os.path.join(BASE_DIR, "refined")
+CHAT = os.path.join(BASE_DIR, "chat")
 os.makedirs(CV_DIR, exist_ok=True)
 os.makedirs(REFINED_CV_DIR, exist_ok=True)
 os.makedirs(CHAT, exist_ok=True)
@@ -36,8 +35,7 @@ def extract_docx(path):
     ))
 
 def get_cv():
-    files = sorted(f for f in os.listdir(CV_DIR) if f.endswith(".txt"))
-    # fix — sort by modified time, gets actual latest
+    # sort by modified time so the latest upload wins
     files = sorted(
         (f for f in os.listdir(CV_DIR) if f.endswith(".txt")),
         key=lambda f: os.path.getmtime(os.path.join(CV_DIR, f))
@@ -47,15 +45,16 @@ def get_cv():
     with open(os.path.join(CV_DIR, files[-1]), "r") as f:
         return f.read().strip()
 
-def get_relevant_history(history, keywords=["cv", "job", "skill", "project", "experience", "role", "apply"]):
+def get_relevant_history(keywords=("cv", "job", "skill", "project", "experience", "role", "apply")):
     chat_path = os.path.join(CHAT, "chat_history.txt")
+    if not os.path.exists(chat_path):
+        return []
     with open(chat_path, "r") as f:
         history = f.readlines()
-    relevant = []
-    for msg in history:
-       content = msg if isinstance(msg, str) else msg.get("content", "")
-       if any(keyword.lower() in content.lower() for keyword in keywords):
-            relevant.append(content)
+    relevant = [
+        line for line in history
+        if any(keyword in line.lower() for keyword in keywords)
+    ]
     return relevant[-10:]  # last 10 relevant messages max
 def extract_anthropic_text(msg):
     if msg is None:
@@ -69,6 +68,7 @@ def extract_anthropic_text(msg):
     return str(content or msg).strip()
 
 @cv_bp.route('/cv/upload', methods=['POST'])
+@require_auth
 def upload():
     file = request.files.get("file")
     if not file:
@@ -95,6 +95,7 @@ def upload():
 
 
 @cv_bp.route('/cv/review', methods=['POST'])
+@require_auth
 def review():
     cv_text = get_cv()
 
@@ -103,17 +104,6 @@ def review():
 
     data = request.get_json(silent=True) or {}
     target = data.get("target_role", "tech/developer roles")
-
-    def extract_anthropic_text(msg):
-        if msg is None:
-            return ""
-        content = getattr(msg, "content", None)
-        if isinstance(content, list):
-            return "".join(
-                getattr(block, "text", "") for block in content
-                if getattr(block, "type", None) == "text"
-            ).strip()
-        return str(content or msg).strip()
 
     try:
         prompt = f"""
@@ -148,38 +138,35 @@ def review():
 
         with open(cv_filename, "w") as f:
             json.dump(review_data, f, indent=2)
-        with open(cv_filename, "r") as f:
-            review_data = json.load(f)
-            n_review = {
-                "score": review_data.get("score", ""),
-                "strengths": review_data.get("strengths", []),
-                "weaknesses": review_data.get("weaknesses", []),
-                "missing": review_data.get("missing", []),
-                "summary": review_data.get("summary", "")
-            }
-        return jsonify({"review":n_review})
+        n_review = {
+            "score": review_data.get("score", ""),
+            "strengths": review_data.get("strengths", []),
+            "weaknesses": review_data.get("weaknesses", []),
+            "missing": review_data.get("missing", []),
+            "summary": review_data.get("summary", "")
+        }
+        return jsonify({"review": n_review})
 
     except json.JSONDecodeError:
-        return jsonify({
-            "error": "Model returned invalid JSON"
-        },debug=True), 500
+        return jsonify({"error": "Model returned invalid JSON"}), 500
     except Exception as e:
-        return jsonify({
-            "error": str(e)
-        },debug=True), 500
+        return jsonify({"error": str(e)}), 500
 
 
 @cv_bp.route('/cv/rewrite', methods=['POST'])
+@require_auth
 def rewrite():
     cv_text = get_cv()
     if not cv_text:
         return jsonify({"error": "No CV found"}), 400
-    target = request.json.get("target_role", "tech/developer roles")
+    data = request.get_json(silent=True) or {}
+    target = data.get("target_role", "tech/developer roles")
     feedback = os.path.join(REFINED_CV_DIR, f"review_{target.replace(' ', '_')}.json")
-    with open(feedback, "r") as f:
-        review_data = json.load(f)
-    chat_history = get_relevant_history([])
-    #client = anthropic.Anthropic()
+    review_data = {}
+    if os.path.exists(feedback):
+        with open(feedback, "r") as f:
+            review_data = json.load(f)
+    chat_history = get_relevant_history()
     try:
         user_context = """
                         About the user:
@@ -264,7 +251,3 @@ def rewrite():
                          mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-def main():
-    cv_bp.run(debug=True)
-if __name__ == "__main__":
-    main()

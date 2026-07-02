@@ -1,4 +1,5 @@
 import axios from "axios";
+import { auth } from "./Firebase";
 
 const getBaseURL = () => {
   const envBaseUrl = import.meta.env.VITE_API_BASE_URL;
@@ -16,17 +17,14 @@ const api = axios.create({
 });
 
 api.interceptors.request.use(
-  (config) => {
+  async (config) => {
     try {
-      const userData = localStorage.getItem("userData");
-      if (userData) {
-        const user = JSON.parse(userData);
-        if (user?.user_id) {
-          config.headers["X-User-ID"] = user.user_id;
-        }
+      const token = await auth.currentUser?.getIdToken();
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
       }
     } catch (error) {
-      console.warn("Error retrieving user data:", error);
+      console.warn("Error attaching auth token:", error);
     }
     return config;
   },
@@ -55,6 +53,11 @@ export const ChatAPI = {
 
   fetchFit: async (fit) => {
     const response = await api.post("/outfit", { fit });
+    return response.data;
+  },
+
+  clearHistory: async (confirmation) => {
+    const response = await api.post("/clear", { confirmation });
     return response.data;
   },
 };
@@ -101,17 +104,24 @@ export const WeatherAPI = {
 };
 
 export const CalendarAPI = {
-  addEvent: async (summary, dueDate, user) => {
+  addEvent: async (summary, dueDate) => {
+    // Backend reads the field as "end" (ISO 8601); userId comes from the auth token
     const response = await api.post("/calendar/add", {
       summary,
-      dueDate,
-      userId: user?.uid || user?.email,
+      end: dueDate,
+    });
+    return response.data;
+  },
+
+  deleteEvent: async (eventId) => {
+    const response = await api.delete("/calendar/delete", {
+      data: { eventId },
     });
     return response.data;
   },
 
   fetchEvents: async () => {
-    const response = await api.post("/calendar/get");
+    const response = await api.post("/calendar/get", {});
     const payload = response.data;
     const events = Array.isArray(payload?.events)
       ? payload.events

@@ -3,6 +3,8 @@
 **Goal:** push this toward maximum Jarvis / Perplexity AI vibes.
 **Date:** 2026-07-02 · **Scope:** whole repo (backend `my-twin/Assistbackend/`, frontend `my-twin/src/`, repo hygiene)
 
+> **Status update (2026-07-02):** Phases 1–3 have been applied on this branch — repo hygiene (venv/personal docs untracked, `requirements.txt` + README added), all P0 bugs (items 1–10), and the P1 security/correctness fixes (Firebase token auth on data routes, `calendarId="primary"`, word-boundary intent matching, cache-poisoning guard, path fixes, dead code removal). Phase 4 (streaming, citations, status lines, unified thread) remains the roadmap.
+
 ---
 
 ## TL;DR

@@ -1,63 +1,42 @@
-from pickle import GET
-from flask import Flask, request, jsonify, session
+from flask import Flask, request, jsonify
 from flask_cors import CORS
-import openai
-import anthropic
 import os
-import os.path
 from dotenv import load_dotenv
-from firebase_admin import credentials, firestore, initialize_app   
+from firebase_admin import credentials, firestore, initialize_app
 import requests
-import cv2
 from dateutil import parser
 import dateparser
-import pdfplumber
-from docx import Document
-from yaml import emit
 from eleven import text_to_speech_ws_streaming
 import asyncio
 import base64
 from tavily import TavilyClient
-from datetime import datetime, time, timedelta
+from datetime import datetime, timedelta
 from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from gtts import gTTS
-from Routing import get_tavily_results, create_chat_completion, extract_function_call, create_anthropic_completion, extract_message_content, create_gemini_completion
+from Routing import create_chat_completion, extract_function_call, create_anthropic_completion, extract_message_content, create_gemini_completion
 import io
 import re
-from werkzeug.utils import secure_filename
-from google import genai
-from google.genai import types
 import json
 from flask_socketio import SocketIO, emit
-#from gevent import monkey
-#import gevent.threadpool
 from cv_route import cv_bp
 from Pinecone_vec import save_pattern, find_pattern
-from pinecone import Pinecone
+from auth_utils import require_auth
 try:
     import holidays as holidays_lib
 except ImportError:
     holidays_lib = None
-#gevent monkey patching for async support in Flask with SocketIO
-#monkey.patch_all()
 # Load env variables
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CV_DIR = os.path.join(BASE_DIR, "Cv_docs")
-CV_INFO_FILE = os.path.join(CV_DIR,"refined")
+CV_INFO_FILE = os.path.join(BASE_DIR, "refined")
 CHAT_DIR = os.path.join(BASE_DIR, "chat")
 CHAT_HISTORY_FILE = os.path.join(CHAT_DIR, "chat_history.txt")
 load_dotenv()
 api_key = os.getenv("OPENWEATHER_API_KEY")
 city = "horley"
 tavilyclient = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
-openai.api_key = os.getenv("OPENAI_API_KEY")
-anthropic.api_key = os.getenv("CLAUDE_API_KEY")
-genai.api_key = os.getenv("GEMINI_API_KEY")
-pinecone = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 # Initialize Firebase properly
 cred = credentials.Certificate(os.path.join(BASE_DIR, "tw.json"))  # 👈 your Firebase service account JSON
@@ -99,9 +78,8 @@ def get_request_json():
     data = request.get_json(silent=True)
     return data if isinstance(data, dict) else {}
 
-def safe_get_calendar_events(data):
+def safe_get_calendar_events(data, user_id):
     try:
-        user_id = data.get("userId")
         max_results = data.get("maxResults", 5)
         return get_calendar_events(user_id=user_id, maxResults=max_results)
     except Exception as e:
@@ -207,6 +185,7 @@ def get_current_label(current_date):
     return "Winter"
 
 @app.route('/calendar', methods=['GET'])
+@require_auth
 def calendar():
     try:
         creds = get_creds()
@@ -214,7 +193,7 @@ def calendar():
         today = datetime.utcnow().date()
         now = str(today) + "T00:00:00Z"
         events_result = service.events().list(
-            calendarId="alamugodwin@gmail.com",
+            calendarId="primary",
             timeMin=now,
             maxResults=10,
             singleEvents=True,
@@ -259,18 +238,19 @@ def add_event_to_calendar(summary, start_time, end_time):
         "start": {"dateTime": start_time, "timeZone": "Europe/London"},
         "end": {"dateTime": end_time, "timeZone": "Europe/London"},
     }
-    created_event = service.events().insert(calendarId="alamugodwin@gmail.com", body=event).execute()
+    created_event = service.events().insert(calendarId="primary", body=event).execute()
     #return f"Event created: {created_event.get('htmlLink')}"
     return created_event
 
 
 @app.route('/calendar/add', methods=['POST'])
+@require_auth
 def calendar_add():
     try:
         data = request.get_json()
         summary = data.get("summary")
         end_time = data.get("end")  # ISO 8601 string
-        user_id = data.get("userId","default_user")
+        user_id = request.user["uid"]
         if not all([summary, end_time]):
             return jsonify({"error": "summary and end are required"}), 400
 
@@ -336,7 +316,7 @@ def get_calendar_events(user_id, maxResults=5):
     now = str(today) + "T00:00:00Z"
 
     events_result = service.events().list(
-        calendarId="alamugodwin@gmail.com",  # or dynamic if needed
+        calendarId="primary",
         timeMin=now,
         maxResults=maxResults,
         singleEvents=True,
@@ -387,23 +367,24 @@ def get_calendar_events(user_id, maxResults=5):
         "events": formatted,
         "total_duration": str(total_duration)
     }
-print(get_calendar_events)
 @app.route("/calendar/get", methods=["POST"])
+@require_auth
 def fetch_calendar_events():
     try:
         data = get_request_json()
-        events = safe_get_calendar_events(data)
-        return jsonify({"events":events})  
+        events = safe_get_calendar_events(data, request.user["uid"])
+        return jsonify({"events":events})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500  
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route('/calendar/delete', methods=['DELETE'])
+@require_auth
 def calendar_delete():
     try:
         data = request.get_json()
         event_id = data.get("eventId")
-        user_id = data.get("userId")
+        user_id = request.user["uid"]
 
         if not event_id:
             return jsonify({"error": "eventId is required"}), 400
@@ -412,7 +393,7 @@ def calendar_delete():
         creds = get_creds()
         service = build("calendar", "v3", credentials=creds)
         service.events().delete(
-            calendarId="alamugodwin@gmail.com",
+            calendarId="primary",
             eventId=event_id
         ).execute()
 
@@ -432,11 +413,12 @@ def calendar_delete():
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/calendar/manage', methods=['POST'])
+@require_auth
 def calendar_manage():
     try:
         data = get_request_json()
         message = data.get("question", "").strip()
-        calevent = safe_get_calendar_events(data)
+        calevent = safe_get_calendar_events(data, request.user["uid"])
         if not message:
             return jsonify({"error": "Please provide a question."}), 400
         prompt =( f"User request: {message}\nManage Google Calendar accordingly.\n"
@@ -463,7 +445,7 @@ def calendar_manage():
             args = json.loads(fn.get("arguments") or "{}")
 
             if fn_name == "get_calendar_events":
-                events = fetch_calendar_events()
+                events = safe_get_calendar_events(args, request.user["uid"])
                 return jsonify({"reply": events})
 
             elif fn_name == "add_calendar_event":
@@ -484,40 +466,39 @@ def calendar_manage():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+def fetch_weather(city_name):
+    """Fetch current weather for a city; returns a dict or None."""
+    url = f"https://api.openweathermap.org/data/2.5/weather?q={city_name}&appid={api_key}&units=metric"
+    weather_data = requests.get(url, timeout=10).json()
+    if weather_data.get("main"):
+        return {
+            "city": city_name,
+            "temperature": weather_data["main"]["temp"],
+            "description": weather_data["weather"][0]["description"],
+        }
+    return None
+
 @app.route('/weather', methods=['POST'])
 def getWeather():
     try:
-        data = request.get_json()
-        city = data.get("location", "London")  # ✅ get city from frontend, fallback to London
-
-        url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
-        weather_data = requests.get(url).json()
-
-        if weather_data.get("main"):
-            temp = weather_data["main"]["temp"]
-            desc = weather_data["weather"][0]["description"]
-
-            # ✅ return structured JSON instead of a single string
-            return jsonify({
-                "weather": {
-                    "city": city,
-                    "temperature": temp,
-                    "description": desc
-                }
-            })
-
+        data = get_request_json()
+        city_name = data.get("location", "London")
+        weather = fetch_weather(city_name)
+        if weather:
+            return jsonify({"weather": weather})
         return jsonify({"error": "Sorry, I could not fetch the weather right now."}), 404
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 @app.route('/outfit',methods=['POST'])
+@require_auth
 def outfit():
     try:
         data = request.get_json()
         message = data.get("fit", "").strip()
         user_time = datetime.now()
         city = "Horley"
-        weather = getWeather()
+        weather = fetch_weather(city)
         if not message:
             return jsonify({"error": "Please provide a question."}), 400
         prompt =( 
@@ -548,113 +529,97 @@ def holiday_season():
         return jsonify({"dreply": dreply})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-@app.route('/audio', methods=['POST'])
-def audio():
-    try:
-        data = request.get_json()
-        message = data.get("audio", "").strip()
-        with open(f"{message}.mp3", "wb") as f:
-            f.write(request.data)
-        if not message:
-            return jsonify({"error": "Please provide a message."}), 400
-        # Process audio input (placeholder for actual audio processing)
-        client = create_chat_completion(model="gpt-4o-transcribe", messages=[{"role": "user", "content": message}])
-        audio_file = open(f"{message}.mp3", "rb")
+def has_word(text, words):
+    """Match whole words/phrases, not substrings ('hi' should not match 'this')."""
+    return any(re.search(rf"\b{re.escape(w)}\b", text) for w in words)
 
-        transcription = client.audio.transcriptions.create(
-            model="gpt-4o-transcribe", 
-            file=audio_file, 
-            response_format="text"
-        )
+WEB_SEARCH_KEYWORDS = [
+    "latest", "news", "search", "youtube", "today", "current", "year",
+    "music", "song", "songs", "weather", "sports", "football", "cricket", "president",
+    "prime minister", "capital of", "country", "countries", "who is", "what is",
+    "when is", "where is", "how to", "define"
+]
 
-        print(transcription.text)
-        return jsonify({"transcription": transcription.text})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 def keyword_classify(user_text):
     text = user_text.lower()
-    
-    if any(word in text for word in [
-        "calendar", "schedule", "remind", "meeting", "event", "appointment", "book"
-    ]):
-        return "calendar"
-    
-    elif any(word in text for word in [
-        "cv", "resume", "cover letter", "job application", "rewrite my cv"
-    ]):
-        return "cv"
-    
-    elif any(word in text for word in [
-        "open", "launch", "play", "spotify", "file", "folder", "close", "quit"
-    ]):
-        return "mac_control"
-    
-    elif any(word in text for word in [
-        "code", "debug", "error", "function", "python", "react", "flask", "bug", "fix"
-    ]):
-        return "code"
-    elif any(word in text for word in [
+
+    if has_word(text, [
         "good morning", "good afternoon", "good evening", "hello", "hi", "hey", "how are you"
     ]):
         return "greeting"
-    elif any(word in text for word in [
-        "latest", "news", "search", "youtube", "today","current","year",
-        "music","song","songs","weather","sports","football","cricket","president",
-        "prime minister","capital of","country","countries","who is","what is",
-        "when is","where is","how to","define"
-    ]):
-        return "web_search"
-    
-    elif any(word in text for word in [
-         "what are you", "who made you", "your name"
+
+    if has_word(text, [
+        "what are you", "who made you", "your name"
     ]):
         return "identity"
-    
-    else:
-        return "casual"
+
+    if has_word(text, [
+        "calendar", "schedule", "remind", "meeting", "event", "appointment", "book"
+    ]):
+        return "calendar"
+
+    if has_word(text, [
+        "cv", "resume", "cover letter", "job application", "rewrite my cv"
+    ]):
+        return "cv"
+
+    if has_word(text, [
+        "open", "launch", "play", "spotify", "file", "folder", "close", "quit"
+    ]):
+        return "mac_control"
+
+    if has_word(text, [
+        "code", "debug", "error", "function", "python", "react", "flask", "bug", "fix"
+    ]):
+        return "code"
+
+    if has_word(text, WEB_SEARCH_KEYWORDS):
+        return "web_search"
+
+    return "casual"
+
+INTENT_NAMES = ["calendar", "cv", "mac_control", "code", "greeting", "web_search", "identity", "casual"]
 
 def intent_classifier(user_text):
-    cached_intent,cached_confidence = find_pattern(user_text)
-    if cached_intent:
-        print(f"Found cached intent: {cached_intent} with confidence {cached_confidence}")
-        return cached_intent, cached_confidence
+    try:
+        cached_intent, cached_confidence = find_pattern(user_text)
+        if cached_intent:
+            print(f"Found cached intent: {cached_intent} with confidence {cached_confidence}")
+            return cached_intent, cached_confidence
+    except Exception as e:
+        print(f"Intent cache lookup failed: {e}")
+
     intent = keyword_classify(user_text)
     confidence = 0.9 if intent != "casual" else 0.5
     if confidence < 0.7:
         try:
-            #response = create_chat_completion(
-            #    model="gpt-4o-mini",
-            #    messages=[
-            #        {"role": "system", "content": "You are a smart assistant that classifies user intents. Return only the intent name and a confidence score between 0 and 1."},
-            #        {"role": "user", "content": f"Classify the intent of this message: '{user_text}'"}
-            #    ],
-            #    max_tokens=50,
-            #    temperature=0.5
-            #)
             response = create_gemini_completion(
                 model="gemini-3.1-flash-lite",
                 messages=[
-                    {"role": "system", "content": "You are a smart assistant that classifies user intents. Return only the intent name and a confidence score between 0 and 1."},
+                    {"role": "system", "content": (
+                        "You classify user intents. Respond with JSON only: "
+                        f'{{"intent": one of {INTENT_NAMES}, "confidence": 0-1}}'
+                    )},
                     {"role": "user", "content": f"Classify the intent of this message: '{user_text}'"}
                 ],
                 max_tokens=50,
                 temperature=0.5
             )
-        except Exception as e:
-            print(f"Error during intent classification: {e}")
-    
-        response_text = extract_message_content(response).strip()
-        try:
+            response_text = extract_message_content(response).strip()
             match = re.search(r"\{.*\}", response_text, re.DOTALL)
             if not match:
-                raise ValueError("No JSON found")
+                raise ValueError(f"No JSON found in: {response_text}")
             response_json = json.loads(match.group())
             intent = response_json.get("intent", intent)
             confidence = float(response_json.get("confidence", confidence))
-        except json.JSONDecodeError:
-            print(f"Failed to parse JSON from response: {response_text}")
+        except Exception as e:
+            # Fall back to the keyword result on any classification failure
+            print(f"Error during intent classification: {e}")
 
-    save_pattern(user_text, intent=intent, confidence=confidence)
+    try:
+        save_pattern(user_text, intent=intent, confidence=confidence)
+    except Exception as e:
+        print(f"Intent cache save failed: {e}")
     return intent, confidence
 def get_ai_response(user_text):
     try:
@@ -684,86 +649,56 @@ def text_to_speech_sync(text: str) -> bytes:
     buf = io.BytesIO()
     tts.write_to_fp(buf)
     return buf.getvalue()
-def smart_chat_history(history, recent=6, summarise_beyond=6):
-    if len(history) <= recent:
-        return history
-    
-    old = history[:-recent]
-    recent_msgs = history[-recent:]
+def smart_chat_history(history_text, recent=6):
+    """Keep the last `recent` exchanges verbatim and squash older ones into one line.
 
-    def get_content(m):
-        if isinstance(m, dict):
-            return m.get("content", "")[:50]
-        elif isinstance(m, str):
-            return m[:50]
-        return ""
+    History is stored as text blocks separated by blank lines (one per exchange).
+    """
+    turns = [t for t in history_text.split("\n\n") if t.strip()]
+    if len(turns) <= recent:
+        return history_text
 
-    # Summarise old messages into one context line
-    summary = f"Earlier in conversation: {' | '.join([get_content(m) for m in old])}"
-    return summary + "\n" + "\n".join(recent_msgs)
+    old = turns[:-recent]
+    recent_turns = turns[-recent:]
+    summary = f"Earlier in conversation: {' | '.join(t[:50] for t in old)}"
+    return summary + "\n" + "\n\n".join(recent_turns)
 
 @app.route('/api/chat', methods=['POST'])
+@require_auth
 def chat():
     try:
         data = get_request_json()
         message = data.get("question", "").strip()
         if not message:
             return jsonify({"error": "Please provide a question."}), 400
-        intent = intent_classifier(message)
+        intent, confidence = intent_classifier(message)
         if intent == "calendar":
             return calendar_manage()
-        elif intent == "cv":
-            pass
-        elif intent == "mac_control":
-            pass
-        elif intent == "code":
-            pass
-        else:
-            pass
 
-        #review = ""
-        #latest_cv_text = ""
-        #if any(word in message.lower() for word in ["cv", "resume", "curriculum vitae"]):
-        #    cv_check = review_cv()
-        #    if cv_check.get("error"):
-        #        return jsonify({"error": cv_check["error"]}), 500
-        #    review = cv_check.get("feedback", "")
-        #    latest_cv_text = get_latest_cv_text()
-       #     if any(phrase in message.lower() for phrase in ["review my cv", "review my resume", "check my cv", "check my resume"]):
-       #         if not latest_cv_text:
-        #            return jsonify({"reply": review})
         # Weather check
         if "weather" in message.lower():
-            url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
-            weather_data = requests.get(url).json()
-            if weather_data.get("main"):
-                temp = weather_data["main"]["temp"]
-                desc = weather_data["weather"][0]["description"]
-                return jsonify({"reply": f"The current weather in {city} is {temp}°C with {desc}."})
+            weather = fetch_weather(city)
+            if weather:
+                return jsonify({"reply": f"The current weather in {weather['city']} is {weather['temperature']}°C with {weather['description']}."})
             return jsonify({"reply": "Sorry, I could not fetch the weather right now."})
         #prompt
         creatorname = "Godwin Alamu"
-        if not creatorname:
-            return jsonify({"reply":"hello designated user"})
-        history = load_chat_history()
-        history = smart_chat_history(history)
+        history = smart_chat_history(read_chat_history())
         if history.count("User:") > 20:  # 20 exchanges
             return jsonify({"reply": "Your chat history is too long. Do you want to clear it (Y/N)?"})
         #tavily response
         fit_check = "if the user asks for outfit suggestion or fashion advice,check if the users sex,age,height,weight,skin tone is in the history if not ask the user for the details ."
-        calevent = safe_get_calendar_events(data)
-        # Tavily search trigger
+        calevent = safe_get_calendar_events(data, request.user["uid"])
+        # Latest CV review feedback, if one exists
+        cv_info = None
         cv_info_json = os.path.join(CV_INFO_FILE, "review_Software_Engineer.json")
-        with open(cv_info_json, "r") as f:
-            cv_info = json.load(f)
+        if intent == "cv" and os.path.exists(cv_info_json):
+            with open(cv_info_json, "r") as f:
+                cv_info = json.load(f)
         today = datetime.now().strftime("%Y-%m-%d")
         time = datetime.now().strftime("%H:%M:%S")
         web_context = ""
-        #change to use keyword_classify or intent_classifier to determine if web search is needed
-        if any(word in message.lower() for word in ["latest", "news", "search", "youtube", "today","current","year",
-                                                    "music","song","songs","weather","sports","football","cricket","president",
-                                                    "prime minister","capital of","country","countries","who is","what is",
-                                                    "when is","where is","how to","define"]):
+        if intent == "web_search" or has_word(message.lower(), WEB_SEARCH_KEYWORDS):
             try:
                 results = tavilyclient.search(query=message, max_results=5)
                 items = results.get("results", []) if isinstance(results, dict) else results
@@ -794,7 +729,7 @@ def chat():
             - If it's technical, be precise and concise
             - If it's emotional or personal, be empathetic and grounded
             - For code, format it cleanly with a brief explanation
-            - For CV questions, use the uploaded CV and give concrete specific feedback,check {cv_info} for the feed back or ask him to upload if not available
+            - For CV questions, use the uploaded CV and give concrete specific feedback. Latest CV review: {cv_info if cv_info else 'none available — ask him to upload a CV first'}
             - For calendar, use the events provided and confirm when adding or deleting
             - In voice mode, respond in natural spoken sentences — no bullet points, no markdown
             - Be direct. Don't over-explain. Don't pad responses
@@ -823,35 +758,25 @@ def chat():
         )
         # assistant name
         assistantname = data.get("assistantname", "").strip()
-        namer = f"{assistantname}" or "Ashen"
-        # Otherwise ask OpenAI
-        #model analyse
-        #choose model based on presence of function calls
-        if any(k in message.lower() for k in ["calendar", "event", "schedule"]):
+        namer = assistantname or "Ashen"
+        system_msg = f"You are a helpful assistant named {namer}. Current date is {today}, current time is {time}."
+        #choose model based on intent
+        if intent == "calendar":
+            # Anthropic takes the system prompt as a separate parameter, not a message
             response = create_anthropic_completion(
-                model="claude-2",
+                model="claude-sonnet-4-6",
+                system=system_msg,
                 messages=[
-                    {"role": "system", "content": f"You are a helpful assistant,and your name is {namer},Current date is {today}, Current time is {time}."},
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=2048,
                 temperature=0.7
             )
-        elif any(k in message.lower() for k in ["cv", "resume", "curriculum vitae"]):
-            response = create_chat_completion(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": f"You are a helpful assistant,and your name is {namer},Current date is {today}, Current time is {time}."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=2048,
-                temperature=0.7
-            )
-        elif any(k in message.lower() for k in ["weather","outfit","logic","jokes"]):
+        elif intent in ("weather", "web_search") or any(k in message.lower() for k in ["weather", "outfit", "logic", "jokes"]):
             response = create_gemini_completion(
                 model="gemini-3.1-flash-lite",
                 messages=[
-                    {"role": "system", "content": f"You are a helpful assistant,and your name is {namer},Current date is {today}, Current time is {time}."},
+                    {"role": "system", "content": system_msg},
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=2048,
@@ -861,7 +786,7 @@ def chat():
             response = create_chat_completion(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": f"You are a helpful assistant,and your name is {namer},Current date is {today}, Current time is {time}."},
+                    {"role": "system", "content": system_msg},
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=2048,
@@ -892,16 +817,19 @@ def chat():
         }), 200
 
     except Exception as e:
-        return jsonify({"error": str(e)},debug=True), 500
-@app.route("/load_history", methods=["GET"])
-def load_chat_history(n=10):
+        return jsonify({"error": str(e)}), 500
+def read_chat_history(n=10):
     if os.path.exists(CHAT_HISTORY_FILE):
         with open(CHAT_HISTORY_FILE, "r", encoding="utf-8") as f:
             lines = f.readlines()
-        convo = "".join(lines[-(n*2):])
-        return convo 
+        return "".join(lines[-(n * 2):])
     return ""
+@app.route("/load_history", methods=["GET"])
+@require_auth
+def load_chat_history():
+    return jsonify({"history": read_chat_history()})
 @app.route("/clear", methods=["POST"])
+@require_auth
 def clear_chat():
     try:
         data = request.get_json()

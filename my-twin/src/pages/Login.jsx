@@ -2,8 +2,8 @@ import React,{useState} from 'react';
 import { Login as LoginIcon,} from '@mui/icons-material';
 import { Link ,useNavigate} from 'react-router-dom';
 import { TextField, Button, Box, Typography } from '@mui/material';
-import {auth,db} from '../Utils/Firebase';
-import { collection, addDoc } from "firebase/firestore";
+import toast from 'react-hot-toast';
+import {auth} from '../Utils/Firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 function Login () {
     const[Email,setEmail]=useState("");
@@ -21,13 +21,7 @@ function Login () {
             return;
         }
         try {
-            const userCredential = await signInWithEmailAndPassword(auth, Email, Password);
-            const user = userCredential.user;
-            await addDoc(collection(db, "logins"), {
-                email: Email,
-                timestamp: new Date()
-            });
-            console.log('Logged in:', user);
+            await signInWithEmailAndPassword(auth, Email, Password);
             navigate("/home");
             toast.success("Login successful!");
             setEmail("");

@@ -1,61 +1,14 @@
-from pickle import GET
-from flask import Flask, request, jsonify, session
-from flask_cors import CORS
+import os
+
 import openai
 import anthropic
-import os
-import os.path
 from dotenv import load_dotenv
-from firebase_admin import credentials, firestore, initialize_app   
-import requests
-import cv2
-from dateutil import parser
-import dateparser
-import pdfplumber
-from docx import Document
-from yaml import emit
-from eleven import text_to_speech_ws_streaming
-import asyncio
-import base64
-from tavily import TavilyClient
-from datetime import datetime, time, timedelta
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
-from gtts import gTTS
-import io
-from werkzeug.utils import secure_filename
 from google import genai
 from google.genai import types
-import json
-from flask_socketio import SocketIO, emit
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CV_DIR = os.path.join(BASE_DIR, "Cv_docs")
-CHAT_DIR = os.path.join(BASE_DIR, "chat")
-CHAT_HISTORY_FILE = os.path.join(CHAT_DIR, "chat_history.txt")
 
 load_dotenv()
-api_key = os.getenv("OPENWEATHER_API_KEY")
-city = "horley"
-tavilyclient = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
-openai.api_key = os.getenv("OPENAI_API_KEY")
-anthropic.api_key = os.getenv("CLAUDE_API_KEY")
-genai.api_key = os.getenv("GEMINI_API_KEY")
-SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
-app = Flask(__name__)
-CORS(app, supports_credentials=True, origins=["http://localhost:5173"])
 
-def get_tavily_results(query, num_results=5):
-    """Helper to fetch Tavily search results."""
-    try:
-        results = tavilyclient.search(query=query, max_results=num_results)
-        return results.get("results", [])
-    except Exception as e:
-        return [{"title": "Error", "url": "", "content": str(e)}]
 def create_chat_completion(model, messages, functions=None, function_call=None, **kwargs):
     if hasattr(openai, "ChatCompletion"):
         payload = {"model": model, "messages": messages, **kwargs}
@@ -78,9 +31,11 @@ def create_chat_completion(model, messages, functions=None, function_call=None, 
             )
         return client.chat.completions.create(model=model, messages=messages, **kwargs)
     raise RuntimeError("OpenAI client is not available.")
+
+
 def create_anthropic_completion(model, messages, functions=None, function_call=None, **kwargs):
     client = anthropic.Anthropic(api_key=os.getenv("CLAUDE_API_KEY"))
-    
+
     payload = {
         "model": model,
         "max_tokens": kwargs.pop("max_tokens", 1024),
@@ -94,6 +49,8 @@ def create_anthropic_completion(model, messages, functions=None, function_call=N
             payload["tool_choice"] = {"type": "tool", "name": function_call}
 
     return client.messages.create(**payload)
+
+
 def create_gemini_completion(model, messages, functions=None, function_call=None, **kwargs):
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
@@ -115,13 +72,10 @@ def create_gemini_completion(model, messages, functions=None, function_call=None
             parts=[types.Part(text=content)]
         ))
 
-    # Build config
+    # Build config, remapping OpenAI-style keys to Gemini equivalents
     config_kwargs = {**kwargs}
-    # Remap OpenAI-style keys to Gemini equivalents
     if "max_tokens" in config_kwargs:
         config_kwargs["max_output_tokens"] = config_kwargs.pop("max_tokens")
-    if "temperature" in config_kwargs:
-        config_kwargs["temperature"] = config_kwargs.pop("temperature")
     if system_instruction:
         config_kwargs["system_instruction"] = system_instruction
 
@@ -151,6 +105,8 @@ def create_gemini_completion(model, messages, functions=None, function_call=None
         contents=contents,
         config=config
     )
+
+
 def extract_message_content(response):
     try:
         if hasattr(response, "candidates"):
@@ -172,6 +128,14 @@ def extract_message_content(response):
             # Normal text
             return part.text
 
+        # Anthropic Message (content is a list of blocks)
+        anthropic_content = getattr(response, "content", None)
+        if isinstance(anthropic_content, list):
+            return "".join(
+                getattr(block, "text", "") for block in anthropic_content
+                if getattr(block, "type", None) == "text"
+            )
+
         # OpenAI-style dict (other providers)
         if isinstance(response, dict):
             return response["choices"][0]["message"]["content"]
@@ -179,6 +143,8 @@ def extract_message_content(response):
     except TypeError:
         raise ValueError(f"Unrecognised response type: {type(response)}")
     return response.choices[0].message.content
+
+
 def extract_function_call(message):
     if isinstance(message, dict):
         return message.get("function_call")
@@ -187,7 +153,3 @@ def extract_function_call(message):
         tool = tool_calls[0]
         return {"name": tool.function.name, "arguments": tool.function.arguments}
     return None
-def main():
-    app.run(debug=True)
-if __name__ == "__main__":    
-    main()
