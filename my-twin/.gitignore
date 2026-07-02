@@ -27,6 +27,16 @@ dist-ssr
 *.env.local
 Assistbackend/tw.json
 Assistbackend/token.json
-*Assistbackend/tw.json
-*Assistbackend/token.json
+Assistbackend/credentials.json
+
+# Python
+Assistbackend/venv/
+Assistbackend/__pycache__/
+*.pyc
+
+# Runtime data
+Assistbackend/Cv_docs/
+Assistbackend/chat/
+Assistbackend/refined/
+*.mp3
 
