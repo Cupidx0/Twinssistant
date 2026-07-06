@@ -1,13 +1,10 @@
 import hashlib
 import os
-
-import openai
+from openai import OpenAI
 from dotenv import load_dotenv
 from pinecone import Pinecone
-
 load_dotenv()
-if hasattr(openai, "OpenAI"):
-    openai_client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
 index = pc.Index("twins")
 
@@ -17,7 +14,7 @@ SAVE_CONFIDENCE_THRESHOLD = 0.8
 
 
 def get_embedding(user_text):
-    response = openai_client.embeddings.create(
+    response = client.embeddings.create(
         input=user_text,
         model="text-embedding-3-small",
         dimensions=512,
