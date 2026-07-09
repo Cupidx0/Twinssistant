@@ -1,6 +1,0 @@
-Test Plan and Test Table – Salary Sorter System
-Generated: 2026-01-25
-This document provides a structured test table to evidence testing against user and system requirements. Actual results can be completed during execution (screenshots may be attached in an appendix if required).
-Test Cases
-Notes on Evidence
-For assessment evidence, screenshots can be taken during testing (e.g., successful login, bill added, validation error, earnings totals). phpMyAdmin screenshots can also be used to prove records were created and updated correctly.
