@@ -709,6 +709,14 @@ def chat():
                     )
             except Exception as e:
                 web_context = f"(Tavily search failed: {e})"
+        print(f"web_context: {web_context}")
+        if web_context:
+            ss = web_context.split("\n")
+            if len(ss) > 5:
+                web_context = "\n".join(ss[:5]) + "\n... (more results available)"
+            source = f"Web search results:\n{web_context}"
+        else:
+            source = "no web search results available."
         prompt = (
             f"""
             You are Godwin's personal AI assistant. You are sharp, intelligent, and adaptive — not just a coding assistant. Most conversations will be personal, practical, or conversational.
@@ -789,7 +797,7 @@ def chat():
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=2048,
+                #max_tokens=2048,
                 temperature=0.7
             )
         reply = extract_message_content(response).strip()
@@ -798,7 +806,7 @@ def chat():
          # Save chat to local file
         os.makedirs(CHAT_DIR, exist_ok=True)
         with open(CHAT_HISTORY_FILE, "a", encoding="utf-8") as f:
-            f.write(f"User: {message}\nAssistant: {reply}\nTimestamp: {datetime.now().isoformat()}\n\n")
+            f.write(f"User: {message}\nAssistant: {reply}\n Source: {source}\n Timestamp: {datetime.now().isoformat()}\n\n")
             try:
                 audio_bytes = asyncio.run(text_to_speech_ws_streaming(
                         voice_id="JBFqnCBsd6RMkjVDRZzb",
@@ -809,15 +817,15 @@ def chat():
                 audio_bytes = text_to_speech_sync(reply)
                 
             audio_b64 = base64.b64encode(audio_bytes).decode()
-
         # just return it, no emit
         return jsonify({
             "reply": reply,
+            "source": source,
             "audio": audio_b64
         }), 200
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e)},debug=True), 500
 def read_chat_history(n=10):
     if os.path.exists(CHAT_HISTORY_FILE):
         with open(CHAT_HISTORY_FILE, "r", encoding="utf-8") as f:

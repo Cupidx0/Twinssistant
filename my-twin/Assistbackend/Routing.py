@@ -11,25 +11,26 @@ load_dotenv()
 
 def create_chat_completion(model, messages, functions=None, function_call=None, **kwargs):
     if hasattr(openai, "ChatCompletion"):
-        payload = {"model": model, "messages": messages, **kwargs}
+        payload = {"model": model, "input": messages, **kwargs}
         if functions is not None:
             payload["functions"] = functions
         if function_call is not None:
             payload["function_call"] = function_call
-        return openai.ChatCompletion.create(**payload)
+        return openai.responses.create(**payload)
     if hasattr(openai, "OpenAI"):
         client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         if functions is not None:
             tools = [{"type": "function", "function": fn} for fn in functions]
             tool_choice = "auto" if function_call in (None, "auto") else {"type": "function", "function": {"name": function_call}}
-            return client.chat.completions.create(
+            return client.responses.create(
                 model=model,
-                messages=messages,
+                input=messages,
                 tools=tools,
                 tool_choice=tool_choice,
                 **kwargs
             )
-        return client.chat.completions.create(model=model, messages=messages, **kwargs)
+        
+        return client.responses.create(model=model, messages=messages, **kwargs)
     raise RuntimeError("OpenAI client is not available.")
 
 
@@ -137,12 +138,20 @@ def extract_message_content(response):
             )
 
         # OpenAI-style dict (other providers)
+        text = getattr(response, "output_text", None)
+        if text:
+            return text
+        # Chat Completions object
+        choices = getattr(response, "choices", None)
+        if choices:
+            return choices[0].message.content
+        # Plain dict fallback (e.g. cached or manually built responses)
         if isinstance(response, dict):
-            return response["choices"][0]["message"]["content"]
-
+            return response.get("output_text") or \
+                response.get("choices", [{}])[0].get("message", {}).get("content")
     except TypeError:
         raise ValueError(f"Unrecognised response type: {type(response)}")
-    return response.choices[0].message.content
+    return response.get("output_text") or response.get("choices", [{}])[0].get("message", {}).get("content")
 
 
 def extract_function_call(message):

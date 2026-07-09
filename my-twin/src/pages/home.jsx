@@ -76,11 +76,12 @@ function Home () {
                         localStorage.setItem("userQuestion", nextQuestion);
                         const response = await ChatAPI.fetchAssistantResponse(nextQuestion);
                         const nextReply = response.reply || "No response from assistant.";
+                        const source = response.source || "no source provided.";
                         if (response.audio) {
                                 const audio_res = new Audio("data:audio/mpeg;base64," + response.audio);
                                 audio_res.play().catch((err) => console.warn("Audio playback failed:", err));
                         }
-                        setAiReply(nextReply);
+                        setAiReply(nextReply, source);
                         localStorage.setItem("AiReply", nextReply);
                         if (nextReply.toLowerCase().includes("chat history is too long")) {
                                 setOpenConfirm(true);
