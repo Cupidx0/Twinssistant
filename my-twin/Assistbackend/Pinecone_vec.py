@@ -1,6 +1,7 @@
 import hashlib
 import os
 from openai import OpenAI
+from google import genai
 from dotenv import load_dotenv
 from pinecone import Pinecone
 load_dotenv()
@@ -20,12 +21,21 @@ def get_embedding(user_text):
         dimensions=512,
     )
     return response.data[0].embedding
-
+def get_gemini_embedding(user_text):
+    response = gemini_client.embeddings.create(
+        model="gemini-embedding-3-small",
+        input=user_text,
+    )
+    return response.data[0].embedding
 
 def save_pattern(user_text, intent, confidence):
     if confidence < SAVE_CONFIDENCE_THRESHOLD:
         return
-    embedding = get_embedding(user_text)
+    try:
+        embedding = get_embedding(user_text)
+    except Exception as e:
+        print(f"Error generating embedding: {e}")
+        return
     index.upsert(vectors=[{
         "id": hashlib.sha256(user_text.encode("utf-8")).hexdigest(),
         "values": embedding,
@@ -38,7 +48,11 @@ def save_pattern(user_text, intent, confidence):
 
 
 def find_pattern(user_text, threshold=0.85):
-    embedding = get_embedding(user_text)
+    try:
+        embedding = get_embedding(user_text)
+    except Exception as e:
+        print(f"Error generating embedding: {e}")
+        return None, None
     results = index.query(vector=embedding, top_k=1, include_metadata=True)
 
     if results["matches"] and results["matches"][0]["score"] >= threshold:
