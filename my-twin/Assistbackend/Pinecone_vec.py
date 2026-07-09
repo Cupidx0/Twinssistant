@@ -21,13 +21,6 @@ def get_embedding(user_text):
         dimensions=512,
     )
     return response.data[0].embedding
-def get_gemini_embedding(user_text):
-    response = gemini_client.embeddings.create(
-        model="gemini-embedding-3-small",
-        input=user_text,
-    )
-    return response.data[0].embedding
-
 def save_pattern(user_text, intent, confidence):
     if confidence < SAVE_CONFIDENCE_THRESHOLD:
         return
