@@ -10,28 +10,20 @@ load_dotenv()
 
 
 def create_chat_completion(model, messages, functions=None, function_call=None, **kwargs):
-    if hasattr(openai, "ChatCompletion"):
-        payload = {"model": model, "input": messages, **kwargs}
-        if functions is not None:
-            payload["functions"] = functions
-        if function_call is not None:
-            payload["function_call"] = function_call
-        return openai.responses.create(**payload)
-    if hasattr(openai, "OpenAI"):
-        client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        if functions is not None:
-            tools = [{"type": "function", "function": fn} for fn in functions]
-            tool_choice = "auto" if function_call in (None, "auto") else {"type": "function", "function": {"name": function_call}}
-            return client.responses.create(
-                model=model,
-                input=messages,
-                tools=tools,
-                tool_choice=tool_choice,
-                **kwargs
-            )
-        
-        return client.responses.create(model=model, messages=messages, **kwargs)
-    raise RuntimeError("OpenAI client is not available.")
+    if not hasattr(openai, "OpenAI"):
+        raise RuntimeError("OpenAI client is not available.")
+    client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    if functions is not None:
+        tools = [{"type": "function", "function": fn} for fn in functions]
+        tool_choice = "auto" if function_call in (None, "auto") else {"type": "function", "function": {"name": function_call}}
+        return client.chat.completions.create(
+            model=model,
+            messages=messages,
+            tools=tools,
+            tool_choice=tool_choice,
+            **kwargs
+        )
+    return client.chat.completions.create(model=model, messages=messages, **kwargs)
 
 
 def create_anthropic_completion(model, messages, functions=None, function_call=None, **kwargs):
