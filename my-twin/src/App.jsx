@@ -9,20 +9,37 @@ import Weather_cv from './pages/page_connect/Weather_cv'
 import AiSpeech from './pages/page_connect/ai_speech'
 import './App.css'
 import './index.css'
-import { BrowserRouter as Router,Routes,Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { Toaster } from 'react-hot-toast'
+
 function App() {
   return (
     <>
       <Router>
+        <Toaster
+          position="top-right"
+          reverseOrder={false}
+          toastOptions={{
+            duration: 1500,
+            style: {
+              background: 'hsl(22, 12%, 11%)',
+              color: 'hsl(32, 24%, 92%)',
+              border: '1px solid hsl(24, 10%, 18%)',
+            },
+          }}
+        />
         <Routes>
+          {/* Full-screen surfaces (no header/footer chrome) */}
+          <Route index element={<Home />} />
+          <Route path="/home" element={<Home />} />
+          <Route path="/speech" element={<AiSpeech />} />
+
+          {/* Pages that keep the classic header/footer */}
           <Route path="/" element={<Layout />}>
-            <Route index element={<Home />}/>
             <Route path="/cv" element={<Weather_cv />} />
-            <Route path="/home" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/settings" element={<Settings />} />
-            <Route path="/speech" element={<AiSpeech />} />
             <Route path="*" element={<Error404 />} />
           </Route>
         </Routes>

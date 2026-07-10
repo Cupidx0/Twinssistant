@@ -1,37 +1,29 @@
 import React, { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
-import SpeechRecognition, {
-  useSpeechRecognition,
-} from "react-speech-recognition";
+import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition";
 import {
+  Anchor,
+  ArrowBack,
+  ArrowUpward,
+  ChatBubbleOutline,
+  Close,
   GraphicEq,
-  Link,
-  LinkOff,
-  Mic,
-  PauseCircle,
-  Radio,
-  Refresh,
-  SettingsVoice,
+  MicNone,
+  MicOff,
   Stop,
-  VolumeUp,
-  WifiTethering,
 } from "@mui/icons-material";
 import { API_BASE_URL, ChatAPI } from "../../Utils/Assistant";
-import { io } from "socket.io-client"
+import { io } from "socket.io-client";
+
 const WS_URL = import.meta.env.VITE_AI_SPEECH_WS_URL || "http://localhost:5000";
 const AUTO_SEND_DELAY_MS = 1400;
 
-const quickPrompts = [
-  "Start a mock interview with me",
-  "Coach me through a coding problem",
-  "Review my CV for an internship role",
-];
-
-const makeMessage = (role, text, status = "final") => ({
+const makeMessage = (role, text) => ({
   id: `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
   role,
   text,
-  status,
+  ts: Date.now(),
 });
 
 function AiSpeech() {
@@ -44,18 +36,12 @@ function AiSpeech() {
   } = useSpeechRecognition();
 
   const transcriptTimerRef = useRef(null);
-  const conversationEndRef = useRef(null);
-  const socketRef = useRef(null)
-  const [messages, setMessages] = useState([
-    makeMessage(
-      "assistant",
-      "Live voice mode is ready. Start the microphone and I will treat pauses like turn endings.",
-    ),
-  ]);
+  const transcriptEndRef = useRef(null);
+  const socketRef = useRef(null);
+  const [messages, setMessages] = useState([]);
   const [draftTranscript, setDraftTranscript] = useState("");
   const [reply, setReply] = useState("");
-  const [status, setStatus] = useState("Idle");
-  const [connectionStatus, setConnectionStatus] = useState(WS_URL ? "Disconnected" : "HTTP Fallback");
+  const [connectionStatus, setConnectionStatus] = useState("Disconnected");
   const [micError, setMicError] = useState("");
   const [isPendingReply, setIsPendingReply] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -63,6 +49,8 @@ function AiSpeech() {
   const [voices, setVoices] = useState([]);
   const [selectedVoice, setSelectedVoice] = useState("");
   const [speechRate, setSpeechRate] = useState(1);
+
+  const vstate = listening ? "listening" : isPendingReply ? "thinking" : isSpeaking ? "speaking" : "idle";
 
   useEffect(() => {
     const loadVoices = () => {
@@ -76,10 +64,8 @@ function AiSpeech() {
         setSelectedVoice(englishVoice.name);
       }
     };
-
     loadVoices();
     window.speechSynthesis?.addEventListener?.("voiceschanged", loadVoices);
-
     return () => {
       window.speechSynthesis?.removeEventListener?.("voiceschanged", loadVoices);
       window.speechSynthesis?.cancel?.();
@@ -87,17 +73,12 @@ function AiSpeech() {
   }, [selectedVoice]);
 
   useEffect(() => {
-    if (conversationEndRef.current) {
-      conversationEndRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
-    }
+    transcriptEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, draftTranscript]);
 
   useEffect(() => {
-    setStatus(listening ? "Listening" : isPendingReply ? "Thinking" : isSpeaking ? "Speaking" : "Idle");
-    if (listening) {
-      setMicError("");
-    }
-  }, [listening, isPendingReply, isSpeaking]);
+    if (listening) setMicError("");
+  }, [listening]);
 
   useEffect(() => {
     if (isMicrophoneAvailable === false) {
@@ -106,80 +87,54 @@ function AiSpeech() {
   }, [isMicrophoneAvailable]);
 
   useEffect(() => {
-    if (!transcript) {
-      return;
-    }
-
+    if (!transcript) return;
     setDraftTranscript(transcript);
-
-    if (!listening || isPendingReply) {
-      return;
-    }
+    if (!listening || isPendingReply) return;
 
     clearTimeout(transcriptTimerRef.current);
     transcriptTimerRef.current = setTimeout(() => {
       const stabilizedText = transcript.trim();
-      if (stabilizedText) {
-        void sendTurn(stabilizedText);
-      }
+      if (stabilizedText) void sendTurn(stabilizedText);
     }, AUTO_SEND_DELAY_MS);
 
     return () => clearTimeout(transcriptTimerRef.current);
   }, [transcript, listening, isPendingReply]);
 
-  useEffect(() => () => {
-    clearTimeout(transcriptTimerRef.current);
-    socketRef.current?.close?.();
+  useEffect(() => {
+    openSocket();
+    return () => {
+      clearTimeout(transcriptTimerRef.current);
+      closeSocket();
+    };
   }, []);
 
-  const appendMessage = (role, text, messageStatus = "final") => {
-    if (!text?.trim()) {
-      return;
-    }
-    setMessages((current) => [...current, makeMessage(role, text, messageStatus)]);
-  };
-
-  const replacePendingAssistantMessage = (text, messageStatus = "streaming") => {
-    setMessages((current) => {
-      const next = [...current];
-      const lastMessage = next[next.length - 1];
-
-      if (lastMessage?.role === "assistant" && lastMessage.status === "streaming") {
-        next[next.length - 1] = {
-          ...lastMessage,
-          text,
-          status: messageStatus,
-        };
-        return next;
-      }
-
-      next.push(makeMessage("assistant", text, messageStatus));
-      return next;
-    });
+  const appendMessage = (role, text) => {
+    if (!text?.trim()) return;
+    setMessages((current) => [...current, makeMessage(role, text)]);
   };
 
   const speakReply = (text) => {
-      if (!text.trim()) return
+    if (!text.trim()) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    const voice = voices.find((v) => v.name === selectedVoice);
+    if (voice) utterance.voice = voice;
+    utterance.rate = speechRate;
 
-      window.speechSynthesis.cancel()
-      const utterance = new SpeechSynthesisUtterance(text)
-      
-      utterance.onstart = () => {
-          setIsSpeaking(true)
-          SpeechRecognition.stopListening() // make sure mic is off
-      }
-      utterance.onend = () => {
-          setIsSpeaking(false)
-          // resume listening after AI finishes
-          SpeechRecognition.startListening({ continuous: true, language: "en-GB" })
-      }
-      utterance.onerror = () => {
-          setIsSpeaking(false)
-          SpeechRecognition.startListening({ continuous: true, language: "en-GB" })
-      }
-
-      window.speechSynthesis.speak(utterance)
-  }
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+      SpeechRecognition.stopListening();
+    };
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      SpeechRecognition.startListening({ continuous: true, language: "en-GB" });
+    };
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+      SpeechRecognition.startListening({ continuous: true, language: "en-GB" });
+    };
+    window.speechSynthesis.speak(utterance);
+  };
 
   const stopSpeaking = () => {
     window.speechSynthesis?.cancel?.();
@@ -189,41 +144,22 @@ function AiSpeech() {
   const finalizeAssistantReply = (text) => {
     setReply(text);
     setIsPendingReply(false);
-    setStatus("Replied");
-    replacePendingAssistantMessage(text, "final");
-
+    appendMessage("assistant", text);
     if (autoSpeak) {
-        // stop listening before speaking
-        SpeechRecognition.stopListening()
-        speakReply(text)
+      SpeechRecognition.stopListening();
+      speakReply(text);
     }
   };
-  useEffect(() => {
-    if (!WS_URL) {
-      return undefined;
-    }
-
-    openSocket();
-    return () => closeSocket();
-  }, []);
 
   const openSocket = () => {
-    const socketUrl = WS_URL || API_BASE_URL;
     closeSocket();
     setConnectionStatus("Connecting");
-
-    socketRef.current = io(socketUrl, {
+    socketRef.current = io(WS_URL || API_BASE_URL, {
       transports: ["websocket", "polling"],
     });
-
     socketRef.current.on("connect", () => setConnectionStatus("Connected"));
-    socketRef.current.on("disconnect", () =>
-      setConnectionStatus(WS_URL ? "Disconnected" : "HTTP Fallback"),
-    );
-    socketRef.current.on("connect_error", () =>
-      setConnectionStatus(WS_URL ? "Error" : "HTTP Fallback"),
-    );
-
+    socketRef.current.on("disconnect", () => setConnectionStatus("Disconnected"));
+    socketRef.current.on("connect_error", () => setConnectionStatus("HTTP fallback"));
     socketRef.current.on("ai_response", (data) => {
       finalizeAssistantReply(data?.text || "No response from assistant.");
     });
@@ -232,7 +168,6 @@ function AiSpeech() {
   const closeSocket = () => {
     socketRef.current?.disconnect();
     socketRef.current = null;
-    setConnectionStatus(WS_URL ? "Disconnected" : "HTTP Fallback");
   };
 
   const sendViaHttp = async (text) => {
@@ -242,19 +177,16 @@ function AiSpeech() {
 
   const sendTurn = async (text) => {
     if (!text.trim() || isPendingReply) return;
-
     appendMessage("user", text);
     resetTranscript();
     setDraftTranscript("");
     setIsPendingReply(true);
-
     try {
       const socket = socketRef.current;
       if (socket?.connected) {
         socket.emit("voice_message", { text });
         return;
       }
-
       await sendViaHttp(text);
     } catch (error) {
       console.error("Failed to send assistant turn:", error);
@@ -267,18 +199,16 @@ function AiSpeech() {
     setMicError("");
     setDraftTranscript("");
     resetTranscript();
+    stopSpeaking();
     try {
-      await SpeechRecognition.startListening({
-        continuous: true,
-        language: "en-GB",
-      });
+      await SpeechRecognition.startListening({ continuous: true, language: "en-GB" });
     } catch (error) {
       console.error("Failed to start speech recognition:", error);
       setMicError("Speech recognition could not start in this browser.");
     }
   };
 
-  const handleStopListening = async () => {
+  const handleEndTurn = async () => {
     SpeechRecognition.stopListening();
     const finalTranscript = (transcript || draftTranscript).trim();
     if (!finalTranscript) {
@@ -288,329 +218,246 @@ function AiSpeech() {
     await sendTurn(finalTranscript);
   };
 
-  const handleReset = () => {
+  const handleExitCleanup = () => {
     SpeechRecognition.stopListening();
     stopSpeaking();
     clearTimeout(transcriptTimerRef.current);
-    resetTranscript();
-    setDraftTranscript("");
-    setReply("");
-    setIsPendingReply(false);
-    setStatus("Idle");
-    setMicError("");
-    setMessages([
-      makeMessage(
-        "assistant",
-        "Live voice mode is ready. Start the microphone and I will treat pauses like turn endings.",
-      ),
-    ]);
-  };
-
-  const handleQuickPrompt = async (prompt) => {
-    await sendTurn(prompt);
   };
 
   if (!browserSupportsSpeechRecognition) {
     return (
-      <section className="m-6 rounded-3xl border border-border bg-card p-8 text-card-foreground shadow-soft">
-        Browser speech recognition is not supported here.
+      <section className="glass m-6 rounded-3xl p-8 text-card-foreground">
+        Browser speech recognition is not supported here.{" "}
+        <Link to="/home" className="text-primary underline">Back to chat</Link>
       </section>
     );
   }
 
-  const hasSocket = Boolean(WS_URL);
+  const stateCaption = {
+    idle: "Ready when you are",
+    listening: "Listening",
+    thinking: "Thinking",
+    speaking: "Speaking",
+  }[vstate];
+
+  const stageText =
+    vstate === "listening"
+      ? draftTranscript || "Say something — I'm listening…"
+      : vstate === "thinking"
+        ? "Working on your reply…"
+        : vstate === "speaking"
+          ? reply
+          : "Tap the orb or press start to begin a live conversation.";
+
+  const stageHint = {
+    idle: "Pauses end your turn automatically once we're rolling.",
+    listening: "Pause to send · or press ↑ to end your turn now",
+    thinking: "intent → context → compose",
+    speaking: "Press stop to interrupt",
+  }[vstate];
 
   return (
-    <div className="min-h-screen bg-background px-4 py-6 text-foreground sm:px-6 lg:px-8">
-      <section className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-        <div className="glass-strong overflow-hidden rounded-[32px] border border-border bg-gradient-aurora p-6 sm:p-8">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-3xl">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border bg-card/70 px-4 py-2 text-sm font-semibold text-card-foreground">
-                <GraphicEq className="text-primary" fontSize="small" />
-                Realtime Conversation Interface
-              </div>
-              <h1 className="text-3xl font-semibold tracking-tight sm:text-5xl">
-                Continuous voice turns, connection state, and streamed replies.
-              </h1>
-              <p className="mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
-                This interface behaves like a websocket conversation client. It auto-sends on a pause in speech,
-                keeps a running thread, and can switch to a real socket session when a backend endpoint is available.
-              </p>
-            </div>
+    <main className="grid h-screen w-screen grid-cols-[64px_minmax(0,1fr)] overflow-hidden bg-background text-foreground xl:grid-cols-[64px_minmax(0,1fr)_304px]">
+      {/* ── Icon rail ── */}
+      <aside className="flex flex-col items-center gap-1.5 border-r border-sidebar-border bg-sidebar-background py-3.5">
+        <Link
+          to="/home"
+          onClick={handleExitCleanup}
+          className="mb-3 grid h-[38px] w-[38px] place-items-center rounded-xl bg-gradient-primary text-primary-foreground shadow-glow"
+          title="Twinssistant"
+        >
+          <Anchor sx={{ fontSize: 20 }} />
+        </Link>
+        <nav className="flex flex-1 flex-col gap-1.5">
+          <Link
+            to="/home"
+            onClick={handleExitCleanup}
+            title="Chat"
+            className="grid h-[42px] w-[42px] place-items-center rounded-xl text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          >
+            <ChatBubbleOutline sx={{ fontSize: 19 }} />
+          </Link>
+          <span
+            title="Live voice"
+            className="relative grid h-[42px] w-[42px] place-items-center rounded-xl bg-primary/15 text-primary-glow before:absolute before:-left-[11px] before:top-[11px] before:bottom-[11px] before:w-[3px] before:rounded before:bg-primary"
+          >
+            <GraphicEq sx={{ fontSize: 19 }} />
+          </span>
+        </nav>
+      </aside>
 
-            <div className="grid grid-cols-2 gap-3 text-center text-sm md:grid-cols-4">
-              <div className="rounded-2xl border border-border bg-card/70 px-4 py-3">
-                <p className="text-muted-foreground">Connection</p>
-                <p className="mt-1 font-semibold text-card-foreground">{connectionStatus}</p>
-              </div>
-              <div className="rounded-2xl border border-border bg-card/70 px-4 py-3">
-                <p className="text-muted-foreground">Mic</p>
-                <p className="mt-1 font-semibold text-card-foreground">{listening ? "Hot" : "Standby"}</p>
-              </div>
-              <div className="rounded-2xl border border-border bg-card/70 px-4 py-3">
-                <p className="text-muted-foreground">Assistant</p>
-                <p className="mt-1 font-semibold text-card-foreground">{isPendingReply ? "Thinking" : "Ready"}</p>
-              </div>
-              <div className="rounded-2xl border border-border bg-card/70 px-4 py-3">
-                <p className="text-muted-foreground">Voice</p>
-                <p className="mt-1 font-semibold text-card-foreground">{isSpeaking ? "Playing" : "Ready"}</p>
-              </div>
-            </div>
-          </div>
+      {/* ── Stage ── */}
+      <section className="relative flex min-w-0 flex-col overflow-hidden">
+        <div className="absolute left-0 right-0 top-0 z-10 flex items-center justify-between px-7 pt-6">
+          <Link
+            to="/home"
+            onClick={handleExitCleanup}
+            className="flex items-center gap-1.5 rounded-[10px] px-3 py-1.5 text-[13px] font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          >
+            <ArrowBack sx={{ fontSize: 14 }} /> Back to chat
+          </Link>
+          <span className="glass flex items-center gap-1.5 rounded-full px-3 py-1.5 font-mono text-[11.5px] text-muted-foreground">
+            <span className={`pulse-dot h-[7px] w-[7px] rounded-full ${connectionStatus === "Connected" ? "bg-success" : "bg-warning"}`} />
+            {connectionStatus}
+          </span>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[1.45fr_0.85fr]">
-          <div className="flex flex-col gap-6">
-            <section className="glass rounded-[28px] border border-border p-5 sm:p-6">
-              <div className="flex flex-col gap-5">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <h2 className="text-xl font-semibold text-card-foreground">Voice Session</h2>
-                    <p className="text-sm text-muted-foreground">
-                      The interface listens continuously and treats a pause as the end of a user turn.
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      onClick={openSocket}
-                      disabled={!hasSocket || connectionStatus === "Connected" || connectionStatus === "Connecting"}
-                      className="flex h-11 items-center gap-2 rounded-2xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
-                    >
-                      <Link fontSize="small" />
-                      Connect
-                    </button>
-                    <button
-                      onClick={closeSocket}
-                      disabled={!hasSocket || connectionStatus !== "Connected"}
-                      className="flex h-11 items-center gap-2 rounded-2xl border border-border bg-card px-4 text-sm font-semibold text-card-foreground disabled:opacity-50"
-                    >
-                      <LinkOff fontSize="small" />
-                      Disconnect
-                    </button>
-                  </div>
-                </div>
+        <div className="flex flex-1 flex-col items-center justify-center px-6 pt-10">
+          <button
+            onClick={vstate === "idle" ? handleStartListening : vstate === "listening" ? handleEndTurn : stopSpeaking}
+            className="relative grid h-[300px] w-[300px] cursor-pointer place-items-center border-0 bg-transparent p-0"
+            aria-label={vstate === "idle" ? "Start voice session" : "End turn"}
+          >
+            <span className={`ringwave ${vstate === "listening" ? "ripple-in" : vstate === "speaking" ? "ripple-out" : ""}`} />
+            <span className={`ringwave ${vstate === "listening" ? "ripple-in ripple-d2" : vstate === "speaking" ? "ripple-out ripple-d2" : ""}`} />
+            <span className={`ringwave ${vstate === "listening" ? "ripple-in ripple-d3" : vstate === "speaking" ? "ripple-out ripple-d3" : ""}`} />
+            <span
+              className={`orb block h-[190px] w-[190px] transition-transform duration-500 ${
+                vstate === "idle" ? "orb-idle" : vstate === "listening" ? "orb-listening" : vstate === "thinking" ? "orb-thinking" : "orb-speaking"
+              }`}
+            />
+          </button>
 
-                <div className="rounded-[24px] border border-border bg-card p-5">
-                  <div className="mb-5 flex items-end justify-center gap-2">
-                    {Array.from({ length: 20 }).map((_, index) => (
-                      <span
-                        key={index}
-                        className={`w-2 rounded-full transition-all duration-300 ${
-                          listening
-                            ? index % 4 === 0
-                              ? "h-16 bg-primary"
-                              : index % 2 === 0
-                                ? "h-11 bg-accent"
-                                : "h-6 bg-secondary"
-                            : isPendingReply
-                              ? index % 3 === 0
-                                ? "h-12 bg-accent"
-                                : "h-7 bg-primary"
-                              : isSpeaking
-                                ? "h-9 bg-primary"
-                                : "h-4 bg-border"
-                        }`}
-                      />
-                    ))}
-                  </div>
-
-                  <div className="flex flex-wrap items-center justify-center gap-3">
-                    {!listening ? (
-                      <button
-                        onClick={handleStartListening}
-                        className="flex h-14 min-w-[170px] items-center justify-center gap-2 rounded-2xl bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-soft transition hover:opacity-95"
-                      >
-                        <Mic />
-                        Start Session Mic
-                      </button>
-                    ) : (
-                      <button
-                        onClick={handleStopListening}
-                        className="flex h-14 min-w-[170px] items-center justify-center gap-2 rounded-2xl bg-destructive px-5 text-sm font-semibold text-white shadow-soft transition hover:opacity-95"
-                      >
-                        <Stop />
-                        End Turn Now
-                      </button>
-                    )}
-
-                    <button
-                      onClick={handleReset}
-                      className="flex h-14 min-w-[130px] items-center justify-center gap-2 rounded-2xl border border-border bg-card px-5 text-sm font-semibold text-card-foreground transition hover:bg-secondary"
-                    >
-                      <Refresh />
-                      Reset
-                    </button>
-
-                    <button
-                      onClick={() => speakReply(reply)}
-                      disabled={!reply}
-                      className="flex h-14 min-w-[130px] items-center justify-center gap-2 rounded-2xl border border-border bg-card px-5 text-sm font-semibold text-card-foreground transition hover:bg-secondary disabled:opacity-50"
-                    >
-                      <VolumeUp />
-                      Replay
-                    </button>
-
-                    <button
-                      onClick={stopSpeaking}
-                      disabled={!isSpeaking}
-                      className="flex h-14 min-w-[130px] items-center justify-center gap-2 rounded-2xl border border-border bg-card px-5 text-sm font-semibold text-card-foreground transition hover:bg-secondary disabled:opacity-50"
-                    >
-                      <PauseCircle />
-                      Stop Voice
-                    </button>
-                  </div>
-
-                  {micError ? (
-                    <p className="mt-4 rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-                      {micError}
-                    </p>
-                  ) : null}
-                </div>
-
-                <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-                  <div className="rounded-[24px] border border-border bg-card p-5">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-                      Live Transcript
-                    </p>
-                    <p className="min-h-[180px] whitespace-pre-wrap text-sm text-card-foreground">
-                      {draftTranscript || "Your current turn appears here while you are speaking."}
-                    </p>
-                    <p className="mt-4 text-xs text-muted-foreground">
-                      Auto-send delay: {(AUTO_SEND_DELAY_MS / 1000).toFixed(1)}s after speech pauses.
-                    </p>
-                  </div>
-
-                  <div className="rounded-[24px] border border-border bg-card p-5">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-                      Conversation Thread
-                    </p>
-                    <div className="flex max-h-[360px] flex-col gap-3 overflow-auto pr-2">
-                      {messages.map((message) => (
-                        <div
-                          key={message.id}
-                          className={`rounded-2xl px-4 py-3 text-sm ${
-                            message.role === "user"
-                              ? "ml-auto max-w-[85%] bg-primary text-primary-foreground"
-                              : "mr-auto max-w-[90%] border border-border bg-background text-card-foreground"
-                          }`}
-                        >
-                          <p className="mb-1 text-[11px] uppercase tracking-[0.18em] opacity-70">
-                            {message.role === "user" ? "You" : "Assistant"}
-                          </p>
-                          <p className="whitespace-pre-wrap">{message.text}</p>
-                        </div>
-                      ))}
-                      <div ref={conversationEndRef} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section className="glass rounded-[28px] border border-border p-5 sm:p-6">
-              <h2 className="text-xl font-semibold text-card-foreground">Quick Starts</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                These drop directly into the conversation thread without a manual send step.
-              </p>
-              <div className="mt-4 grid gap-3 md:grid-cols-3">
-                {quickPrompts.map((prompt) => (
-                  <button
-                    key={prompt}
-                    onClick={() => void handleQuickPrompt(prompt)}
-                    className="rounded-2xl border border-border bg-card px-4 py-4 text-left text-sm font-medium text-card-foreground transition hover:-translate-y-0.5 hover:bg-secondary"
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
-            </section>
+          <div className="mt-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-primary-glow">
+            {stateCaption}
           </div>
+          <p className="mx-auto mb-0 mt-3.5 min-h-[64px] max-w-[560px] text-balance text-center text-[21px] font-medium leading-normal text-foreground/90">
+            {vstate === "listening" && draftTranscript ? `"${draftTranscript}"` : stageText}
+          </p>
+          <p className="mt-2.5 text-[12.5px] text-muted-foreground">{stageHint}</p>
 
-          <aside className="flex flex-col gap-6">
-            <section className="glass rounded-[28px] border border-border p-5 sm:p-6">
-              <div className="mb-4 flex items-center gap-2">
-                <SettingsVoice className="text-primary" />
-                <h2 className="text-xl font-semibold text-card-foreground">Realtime Settings</h2>
-              </div>
+          {micError ? (
+            <p className="mt-4 rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
+              {micError}
+            </p>
+          ) : null}
+        </div>
 
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-border bg-card px-4 py-4">
-                  <p className="text-sm font-medium text-card-foreground">Transport</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {hasSocket
-                      ? `WebSocket enabled via ${WS_URL}`
-                      : "No websocket URL is configured, so turns fall back to the existing HTTP chat endpoint."}
-                  </p>
-                </div>
-
-                <label className="block">
-                  <span className="mb-2 block text-sm font-medium text-card-foreground">Playback voice</span>
-                  <select
-                    value={selectedVoice}
-                    onChange={(event) => setSelectedVoice(event.target.value)}
-                    className="w-full rounded-2xl border border-border bg-card px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-primary"
-                  >
-                    {voices.length > 0 ? (
-                      voices.map((voice) => (
-                        <option key={`${voice.name}-${voice.lang}`} value={voice.name}>
-                          {voice.name} ({voice.lang})
-                        </option>
-                      ))
-                    ) : (
-                      <option value="">System default voice</option>
-                    )}
-                  </select>
-                </label>
-
-                <label className="block">
-                  <span className="mb-2 block text-sm font-medium text-card-foreground">
-                    Speech rate: {speechRate.toFixed(1)}x
-                  </span>
-                  <input
-                    type="range"
-                    min="0.7"
-                    max="1.3"
-                    step="0.1"
-                    value={speechRate}
-                    onChange={(event) => setSpeechRate(Number(event.target.value))}
-                    className="w-full accent-[var(--color-primary)]"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3">
-                  <span className="text-sm font-medium text-card-foreground">Auto speak assistant replies</span>
-                  <input
-                    type="checkbox"
-                    checked={autoSpeak}
-                    onChange={(event) => setAutoSpeak(event.target.checked)}
-                    className="h-4 w-4 accent-[var(--color-primary)]"
-                  />
-                </label>
-              </div>
-            </section>
-
-            <section className="glass rounded-[28px] border border-border p-5 sm:p-6">
-              <h2 className="text-xl font-semibold text-card-foreground">Session States</h2>
-              <div className="mt-4 space-y-3">
-                <div className="flex items-start gap-3 rounded-2xl border border-border bg-card px-4 py-4 text-sm text-card-foreground">
-                  <WifiTethering className="mt-0.5 text-primary" fontSize="small" />
-                  <span>Connect the page to a future websocket endpoint with `VITE_AI_SPEECH_WS_URL`.</span>
-                </div>
-                <div className="flex items-start gap-3 rounded-2xl border border-border bg-card px-4 py-4 text-sm text-card-foreground">
-                  <Radio className="mt-0.5 text-primary" fontSize="small" />
-                  <span>Speech pauses trigger automatic turn submission, so the user does not need to press send.</span>
-                </div>
-                <div className="flex items-start gap-3 rounded-2xl border border-border bg-card px-4 py-4 text-sm text-card-foreground">
-                  <Mic className="mt-0.5 text-primary" fontSize="small" />
-                  <span>Manual `End Turn Now` is still available for faster interruptions and tighter control.</span>
-                </div>
-              </div>
-            </section>
-          </aside>
+        {/* Control pill */}
+        <div className="flex flex-col items-center pb-6 pt-5">
+          <div className="glass flex items-center gap-2 rounded-full p-2">
+            <button
+              onClick={listening ? () => SpeechRecognition.stopListening() : handleStartListening}
+              title={listening ? "Mute microphone" : "Start microphone"}
+              className={`grid h-[46px] w-[46px] place-items-center rounded-full border border-border transition hover:border-primary/40 hover:text-primary-glow ${
+                listening ? "bg-secondary text-foreground" : "bg-secondary text-muted-foreground"
+              }`}
+            >
+              {listening ? <MicNone sx={{ fontSize: 18 }} /> : <MicOff sx={{ fontSize: 18 }} />}
+            </button>
+            <button
+              onClick={handleEndTurn}
+              disabled={isPendingReply}
+              title="End turn now"
+              className="grid h-[58px] w-[58px] place-items-center rounded-full bg-primary text-primary-foreground transition hover:bg-primary-glow disabled:opacity-50"
+            >
+              <ArrowUpward sx={{ fontSize: 22 }} />
+            </button>
+            <button
+              onClick={stopSpeaking}
+              disabled={!isSpeaking}
+              title="Stop voice"
+              className="grid h-[46px] w-[46px] place-items-center rounded-full border border-border bg-secondary text-foreground transition hover:border-primary/40 hover:text-primary-glow disabled:opacity-40"
+            >
+              <Stop sx={{ fontSize: 17 }} />
+            </button>
+            <Link
+              to="/home"
+              onClick={handleExitCleanup}
+              title="Exit voice mode"
+              className="grid h-[46px] w-[46px] place-items-center rounded-full border border-border bg-secondary text-destructive transition hover:border-destructive/50"
+            >
+              <Close sx={{ fontSize: 17 }} />
+            </Link>
+          </div>
+          <span className="mt-1.5 text-[11px] font-semibold text-muted-foreground">
+            mic · end turn · stop voice · exit
+          </span>
         </div>
       </section>
-    </div>
+
+      {/* ── Transcript rail ── */}
+      <aside className="hidden flex-col gap-3.5 overflow-hidden border-l border-border bg-background/40 p-5 pt-8 xl:flex">
+        <div className="glass flex min-h-0 flex-1 flex-col rounded-2xl p-4">
+          <div className="mb-2 flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+            Transcript
+            <button
+              onClick={() => setMessages([])}
+              className="font-sans text-[11px] font-semibold normal-case tracking-normal text-primary"
+            >
+              Clear
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {messages.length === 0 && !draftTranscript ? (
+              <p className="m-0 text-[12.5px] text-muted-foreground">Your conversation appears here as you talk.</p>
+            ) : null}
+            {messages.map((m) => (
+              <div key={m.id} className="flex flex-col gap-1 border-t border-border py-2 first:border-t-0">
+                <span className={`font-mono text-[9.5px] font-bold uppercase tracking-[0.16em] ${m.role === "user" ? "text-primary-glow" : "text-muted-foreground"}`}>
+                  {m.role === "user" ? "You" : "Ashen"} · {new Date(m.ts).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                </span>
+                <span className="text-[12.5px] leading-normal text-foreground/85">{m.text}</span>
+              </div>
+            ))}
+            {draftTranscript ? (
+              <div className="flex flex-col gap-1 border-t border-border py-2">
+                <span className="font-mono text-[9.5px] font-bold uppercase tracking-[0.16em] text-primary-glow">You · now</span>
+                <span className="blink-caret text-[12.5px] leading-normal text-foreground">{draftTranscript}</span>
+              </div>
+            ) : null}
+            <div ref={transcriptEndRef} />
+          </div>
+        </div>
+
+        <div className="glass rounded-2xl p-4">
+          <div className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+            Voice settings
+          </div>
+          <div className="flex flex-col gap-2.5">
+            <label className="flex items-center justify-between gap-2 text-[12.5px] text-foreground/85">
+              Voice
+              <select
+                value={selectedVoice}
+                onChange={(e) => setSelectedVoice(e.target.value)}
+                className="max-w-[150px] rounded-lg border border-border bg-secondary px-2 py-1 text-[12px] text-foreground outline-none focus:border-primary"
+              >
+                {voices.length > 0 ? (
+                  voices.map((voice) => (
+                    <option key={`${voice.name}-${voice.lang}`} value={voice.name}>
+                      {voice.name}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">System default</option>
+                )}
+              </select>
+            </label>
+            <label className="flex items-center justify-between gap-2 text-[12.5px] text-foreground/85">
+              Speed · {speechRate.toFixed(1)}×
+              <input
+                type="range"
+                min="0.7"
+                max="1.3"
+                step="0.1"
+                value={speechRate}
+                onChange={(e) => setSpeechRate(Number(e.target.value))}
+                className="w-[120px] accent-[hsl(24,88%,60%)]"
+              />
+            </label>
+            <label className="flex items-center justify-between text-[12.5px] text-foreground/85">
+              Auto-speak replies
+              <input
+                type="checkbox"
+                checked={autoSpeak}
+                onChange={(e) => setAutoSpeak(e.target.checked)}
+                className="h-4 w-4 accent-[hsl(24,88%,60%)]"
+              />
+            </label>
+          </div>
+        </div>
+      </aside>
+    </main>
   );
 }
 

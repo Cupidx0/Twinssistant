@@ -698,25 +698,23 @@ def chat():
         today = datetime.now().strftime("%Y-%m-%d")
         time = datetime.now().strftime("%H:%M:%S")
         web_context = ""
+        sources = []
         if intent == "web_search" or has_word(message.lower(), WEB_SEARCH_KEYWORDS):
             try:
                 results = tavilyclient.search(query=message, max_results=5)
                 items = results.get("results", []) if isinstance(results, dict) else results
-                if items:
-                    # Build web context string
-                    web_context = "\n".join(
-                        [f"{r.get('title', 'No title')}: {r.get('url','')}" for r in items]
-                    )
+                # Structured list for the frontend source chips…
+                sources = [
+                    {"title": r.get("title", "Untitled"), "url": r.get("url", "")}
+                    for r in items[:5]
+                ]
+                # …and a numbered string for the prompt, so the model can cite [1], [2]
+                web_context = "\n".join(
+                    f"[{i}] {s['title']}: {s['url']}" for i, s in enumerate(sources, start=1)
+                )
             except Exception as e:
                 web_context = f"(Tavily search failed: {e})"
-        print(f"web_context: {web_context}")
-        if web_context:
-            ss = web_context.split("\n")
-            if len(ss) > 5:
-                web_context = "\n".join(ss[:5]) + "\n... (more results available)"
-            source = f"Web search results:\n{web_context}"
-        else:
-            source = "no web search results available."
+        source = f"Web search results:\n{web_context}" if web_context else "no web search results available."
         prompt = (
             f"""
             You are Godwin's personal AI assistant. You are sharp, intelligent, and adaptive — not just a coding assistant. Most conversations will be personal, practical, or conversational.
@@ -731,6 +729,7 @@ def chat():
             Respond to this directly and specifically. Do not get distracted by context unless it
             How to behave:
             - Prioritise web context over your training knowledge for anything current
+            - When you use a web result, cite it inline as [1], [2] matching the numbered list above
             - Primary rule: Always respond directly to the current message first.
                 Use context only if it strengthens the response.
             - If it's casual, respond like a smart friend — no unnecessary structure
@@ -797,35 +796,34 @@ def chat():
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": prompt}
                 ],
-                #max_tokens=2048,
+                max_tokens=2048,
                 temperature=0.7
             )
         reply = extract_message_content(response).strip()
-        if "*" in reply:
-            reply = reply.replace("*", "")
+        # Plain-text version for TTS so markdown/citation markers aren't read aloud
+        speech_text = re.sub(r"\[\d+\]", "", reply)
+        speech_text = re.sub(r"[*_#`]", "", speech_text)
          # Save chat to local file
         os.makedirs(CHAT_DIR, exist_ok=True)
         with open(CHAT_HISTORY_FILE, "a", encoding="utf-8") as f:
             f.write(f"User: {message}\nAssistant: {reply}\n Source: {source}\n Timestamp: {datetime.now().isoformat()}\n\n")
-            try:
-                audio_bytes = asyncio.run(text_to_speech_ws_streaming(
-                        voice_id="JBFqnCBsd6RMkjVDRZzb",
-                        model_id="eleven_flash_v2_5",
-                        text=reply,
-                ))
-            except Exception as e:
-                audio_bytes = text_to_speech_sync(reply)
-                
-            audio_b64 = base64.b64encode(audio_bytes).decode()
-        # just return it, no emit
+        try:
+            audio_bytes = asyncio.run(text_to_speech_ws_streaming(
+                    voice_id="JBFqnCBsd6RMkjVDRZzb",
+                    model_id="eleven_flash_v2_5",
+                    text=speech_text,
+            ))
+        except Exception:
+            audio_bytes = text_to_speech_sync(speech_text)
+        audio_b64 = base64.b64encode(audio_bytes).decode()
         return jsonify({
             "reply": reply,
-            "source": source,
+            "sources": sources,
             "audio": audio_b64
         }), 200
 
     except Exception as e:
-        return jsonify({"error": str(e)},debug=True), 500
+        return jsonify({"error": str(e)}), 500
 def read_chat_history(n=10):
     if os.path.exists(CHAT_HISTORY_FILE):
         with open(CHAT_HISTORY_FILE, "r", encoding="utf-8") as f:
