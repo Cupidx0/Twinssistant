@@ -47,119 +47,20 @@ const readStoredValue = (key, fallback = "") => {
   }
 };
 
-const readStoredThread = () => {
-  try {
-    const raw = localStorage.getItem("chatThread");
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-};
-
-const makeMessage = (role, text, sources = []) => ({
-  id: `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-  role,
-  text,
-  sources,
-  ts: Date.now(),
-});
-
-const quickActions = [
-  { label: "Search the web", icon: <Search fontSize="inherit" />, prompt: "What's the latest tech news today?" },
-  { label: "Tailor my CV", icon: <Description fontSize="inherit" />, prompt: "Tailor my CV" },
-  { label: "Suggest an outfit", icon: <Checkroom fontSize="inherit" />, prompt: "Suggest an outfit" },
-  { label: "Plan my day", icon: <CalendarMonth fontSize="inherit" />, prompt: "Plan my day" },
-];
-
-function SourceChips({ sources }) {
-  if (!sources?.length) return null;
-  return (
-    <div className="mt-3">
-      <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-        <Public sx={{ fontSize: 13 }} /> Sources · {sources.length}
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {sources.map((s, i) => {
-          let domain = "";
-          try { domain = new URL(s.url).hostname.replace("www.", ""); } catch { domain = s.url; }
-          return (
-            <a
-              key={`${s.url}-${i}`}
-              href={s.url}
-              target="_blank"
-              rel="noreferrer"
-              className="flex max-w-[230px] items-center gap-2 rounded-[10px] border border-border bg-card px-3 py-1.5 transition hover:border-primary/40 hover:bg-secondary"
-            >
-              <span className="grid h-[17px] w-[17px] shrink-0 place-items-center rounded-[5px] bg-primary/15 font-mono text-[10px] font-bold text-primary-glow">
-                {i + 1}
-              </span>
-              <span className="flex min-w-0 flex-col">
-                <span className="truncate text-xs font-semibold text-card-foreground">{s.title}</span>
-                <span className="truncate font-mono text-[10.5px] text-muted-foreground">{domain}</span>
-              </span>
-            </a>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function ThinkingSteps() {
-  return (
-    <div className="mb-6">
-      <div className="mb-2 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
-        <span className="grid h-[18px] w-[18px] place-items-center rounded-md bg-gradient-primary text-primary-foreground">
-          <GraphicEq sx={{ fontSize: 11 }} />
-        </span>
-        Working on it
-      </div>
-      <div className="flex flex-col">
-        <div className="flex items-center gap-3 py-1.5 text-[13.5px] text-foreground/80">
-          <CheckCircleOutline className="text-primary-glow" sx={{ fontSize: 18 }} />
-          Understanding your request
-        </div>
-        <div className="flex items-center gap-3 py-1.5 text-[13.5px] font-semibold text-foreground">
-          <AutorenewOutlined className="animate-spin text-primary" sx={{ fontSize: 18 }} />
-          Gathering context &amp; composing…
-        </div>
-      </div>
-      <div className="mt-4 space-y-2">
-        <div className="h-3 w-full animate-pulse rounded-lg bg-muted" />
-        <div className="h-3 w-4/5 animate-pulse rounded-lg bg-muted" />
-        <div className="h-3 w-3/5 animate-pulse rounded-lg bg-muted" />
-      </div>
-    </div>
-  );
-}
-
-function Home() {
-  const { user } = useAuth();
-  const [messages, setMessages] = useState(readStoredThread);
-  const [pending, setPending] = useState(false);
-  const [question, setQuestion] = useState(() => readStoredValue("userQuestion", ""));
-  const [holidate, setHolidate] = useState(null);
-  const [online, setOnline] = useState(navigator.onLine);
-  const [section, setSection] = useState("chat");
-  const [micError, setMicError] = useState("");
-  const [openConfirm, setOpenConfirm] = useState(false);
-  const [weather, setWeather] = useState(null);
-  const [events, setEvents] = useState([]);
-  const [now, setNow] = useState(new Date());
-  const bottomRef = useRef(null);
-
-  const {
-    transcript,
-    listening,
-    resetTranscript,
-    browserSupportsSpeechRecognition,
-    isMicrophoneAvailable,
-  } = useSpeechRecognition();
-
-  const name = user?.displayName || (user?.email ? user.email.split("@")[0] : "there");
-  const hours = now.getHours();
-  const greeting = hours < 12 ? "Good morning" : hours < 18 ? "Good afternoon" : "Good evening";
+function Home () {
+    const [dateAndTime, setDateAndTime] = useState(new Date().toLocaleString("en-GB",{fullDate:'long', hour:'2-digit', minute:'2-digit', second:'2-digit'}));
+    const {user} = useAuth();
+    const[usertime, setUsertime] = useState("");
+    const[recording, setRecording] = useState(false);
+    const[holidate, setHolidate] = useState(null);
+    const [AiTasks, setAiTasks] = useState(() => readStoredValue("AiTasks", ""));
+    const[AiReply, setAiReply] = useState(() => readStoredValue("AiReply", ""));
+    const[AiSource, setAiSource] = useState(() => readStoredValue("AiSource", ""));
+    const [question, setQuestion] = useState(() => readStoredValue("userQuestion", ""));
+    const [openConfirm, setOpenConfirm] = useState(false);
+    const[online, setOnline] = useState(navigator.onLine);
+    const [section, setSection] = useState(() => readStoredValue("home:section", "weather"));
+    const [micError, setMicError] = useState("");
 
   useEffect(() => {
     const goOnline = () => setOnline(true);
@@ -172,39 +73,124 @@ function Home() {
     };
   }, []);
 
-  useEffect(() => {
-    const interval = setInterval(() => setNow(new Date()), 30000);
-    return () => clearInterval(interval);
-  }, []);
+    useEffect(() => {
+        localStorage.setItem("home:section", section);
+    }, [section]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem("chatThread", JSON.stringify(messages.slice(-40)));
-    } catch (error) {
-      console.warn("Failed to persist chat thread", error);
-    }
-  }, [messages]);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, pending]);
-
-  useEffect(() => {
-    const fetchSeason = async () => {
-      try {
-        const season = "a single word representing the current season/holiday (e.g., Christmas, Halloween, Summer, etc.) not a sentence, just the season name and if there isn't one,make sure to check the date to verify if the day is actually a holiday; use none if not a holiday or season.";
-        const res = await WeatherAPI.fetchSeason(season);
-        setHolidate(res.dreply && res.dreply !== "none" ? `Happy ${res.dreply}!` : "");
-      } catch (error) {
-        console.error("Error fetching season:", error);
-      }
+    const handleAiTasksChange = (e) => {
+        setAiTasks(e.target.value);
+        localStorage.setItem("AiTasks", e.target.value);
     };
-    if (new Date().getDate() <= 2) {
-      setHolidate(new Date().getMonth() === 0 ? "Happy new year!" : "Happy new month!");
-    } else {
-      fetchSeason();
-    }
-  }, []);
+
+    const handleuserQuestionChange = async (overrideQuestion) => {
+        const nextQuestion = (overrideQuestion ?? question).trim();
+        if(nextQuestion === ""){
+                toast.error("Please enter a question.");
+                return;
+        }
+        else{
+                toast.success("Question sent to assistant!");
+                try{
+                        setQuestion(nextQuestion);
+                        localStorage.setItem("userQuestion", nextQuestion);
+                        const response = await ChatAPI.fetchAssistantResponse(nextQuestion);
+                        const nextReply = response.reply || "No response from assistant.";
+                        const source = response.source || "no source provided.";
+                        console.log("source:", source);
+                        if (response.audio) {
+                                const audio_res = new Audio("data:audio/mpeg;base64," + response.audio);
+                                audio_res.play().catch((err) => console.warn("Audio playback failed:", err));
+                        }
+                        setAiReply(nextReply);
+                        setAiSource(source);
+                        localStorage.setItem("AiReply", nextReply);
+                        localStorage.setItem("AiSource", source);
+                        if (nextReply.toLowerCase().includes("chat history is too long")) {
+                                setOpenConfirm(true);
+                        }
+                }catch(error){
+                        console.error("Error fetching assistant response:", error);
+                        toast.error("Failed to get response from assistant.");
+                }
+        }
+    };
+
+    const handleConfirmClear = async () => {
+                try{
+                        const data = await ChatAPI.clearHistory("yes");
+                        toast.success(data.reply || "Chat history cleared!");
+                        localStorage.removeItem("AiReply");
+                        localStorage.removeItem("userQuestion");
+                } catch(error) {
+                        toast.error("Failed to clear history");
+                        console.error(error);
+                }
+                setOpenConfirm(false); // close dialog
+        };
+       const handleCancelClear = () => {
+                toast("Chat history kept.");
+                setOpenConfirm(false);
+        };
+const {
+    transcript,
+    listening,
+    resetTranscript,
+    browserSupportsSpeechRecognition,
+    isMicrophoneAvailable
+} = useSpeechRecognition();
+const mail = user ? user.email.replace("@gmail.com","") : "";
+const userDetails = user ? `${mail}` : "Not logged in";
+const onlineStatus = user ? "Online" : "Offline";
+   useEffect(() => {
+        const interval = setInterval(() => {
+            setDateAndTime(new Date().toLocaleString());
+        }, 1000);
+        return () => clearInterval(interval);
+    }, []);
+    useEffect(() => {
+        const checkTime = ()=>{
+                const hours = new Date().getHours();
+                if (hours < 12){
+                        setUsertime("Good morning");
+                }else if (hours >= 12 && hours < 18){
+                        setUsertime("Good afternoon");
+                }else{
+                        setUsertime("Good evening");
+                }
+        };
+        checkTime();}, []);
+        const fetchSeason = async ()=>{
+                try{
+                        const season = "a single word representing the current season/holiday (e.g., Christmas, Halloween, Summer, etc.) not a sentence, just the season name and if there isn't one,make sure to check the date to verify if the day is actually a holiday; use none if not a holiday or season.";
+                        WeatherAPI.fetchSeason(season).then((season) => {
+                                if (season.dreply === "none") {
+                                        setHolidate("");
+                                } else {
+                                        setHolidate(`Happy ${season.dreply}!`);
+                                }
+                        });
+                }catch(error){
+                        console.error("Error fetching season:", error);
+                        toast.error("Failed to fetch season");
+                }
+        };
+        const happyNewMonthandYear =()=>{
+                const date = new Date();
+                if(date.getDate() <= 7){
+                        toast("Happy new month!");
+                        setHolidate("Happy new month!");
+                        if(date.getMonth() === 0){
+                                toast("Happy new year!");
+                        }
+                }
+        };
+    useEffect(() => {
+        if (new Date().getDate() <= 2) {
+                happyNewMonthandYear();
+        }else{
+                fetchSeason();
+        }
+   }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -475,129 +461,142 @@ function Home() {
               {pending ? <ThinkingSteps /> : null}
               <div ref={bottomRef} />
             </div>
-          </div>
+            <div className="bg-card flex flex-col md:flex-row h-full w-full rounded-md !overflow-auto">
+                 <section className=" h-auto w-[80%] p-2 rounded-md text-foreground border border-border !overflow-auto">
+                        <section className="glass h-auto rounded-md p-2 bg-transparent content-start font-serif text-left text-card-foreground text-lg">
+                                <span className="text-success"><CircleRounded style={
+                                        {
+                                                height:"10px",
+                                                color: online ? "linear-gradient(135deg, #46e556 0%, #7d7d7da9 100%)" : "#ff0000",
+                                                backgroundBlendMode:"difference",
+                                                backdropFilter:"blur(10px)"
+                                        }
+                                }/> {onlineStatus}</span>
+                            <h3 className="text-card-foreground text-lg font-bold m-0">{usertime},{userDetails}</h3>
+                            <p>How can i help you today?</p>
+                            <Link to="/speech">
+                                <AssistantDirection className="text-primary text-lg font-bold"/>
+                            </Link>
+                        </section>
+                            <div className="glass rounded-md p-2 mb-4 h-[300px] text-card-foreground text-lg overflow-auto border border-border">
+                                <span className=" text-left font-bold m-3 overflow-auto">
+                                    {AiReply ? AiReply :"no reply"}
+                                    {AiSource && AiSource !== "no source provided." ? (
+                                        <div className="text-muted-foreground text-left font-bold m-3">
+                                            <p>Source:</p>
+                                            <p className="flex flex-col rounded-md bg-secondary p-2 mb-4 max-h-[200px] text-card-foreground border border-border overflow-auto">{AiSource}</p>
+                                        </div>
+                                    ) : null}
+                                </span>
+                                    <h4 className="text-muted-foreground text-right font-bold">
+                                        <div className="text-primary text-left font-bold m-3">You asked:</div>
+                                        <p className="flex flex-col rounded-md bg-secondary p-2 mb-4 max-h-[200px] text-card-foreground border border-border overflow-auto">{question ? question : "ask me anything!"}</p>
+                                    </h4>
+                            </div>
+                            <Dialog open={openConfirm} onClose={handleCancelClear}>
+                                <DialogTitle>⚠️ Clear Chat History?</DialogTitle>
+                                <DialogContent>
+                                        Your chat history is very long. Do you want to clear it now?
+                                </DialogContent>
+                                <DialogActions>
+                                        <Button onClick={handleCancelClear} color="secondary">No</Button>
+                                        <Button onClick={handleConfirmClear} color="error" variant="contained">Yes, Clear</Button>
+                                </DialogActions>
+                            </Dialog>
+                            <div className="glass mb-4 flex w-full max-w-full items-center gap-2 rounded-2xl p-2">
+                                        <div className="rounded-xl bg-card text-primary shadow-soft transition hover:bg-secondary">
+                                                <input type="file" className="hidden" id="file-upload" />
+                                                <label
+                                                  className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm font-semibold"
+                                                  htmlFor="file-upload"
+                                                >
+                                                  <AttachFile fontSize="small" />
+                                                  <span className="hidden sm:inline"></span>
+                                                </label>
+                                        </div>
+                                <input className="min-w-0 flex-1 border-0 bg-transparent px-3 py-2 text-foreground outline-none focus:outline-none focus:ring-0"
+                                        id="user-question"
+                                        value={question}
+                                        onChange={(e) => setQuestion(e.target.value)}
+                                        onKeyDown={(e)=>{if(e.key === "Enter"){
+                                                handleuserQuestionChange(question);
+                                        }}}
+                                        type="text" placeholder="Ask me anything..."
+                                        />
+                                        <div className="flex shrink-0 items-center content-between gap-2">
+                                        <Button variant="contained"
+                                                color="primary"
+                                                size="small"
+                                                onClick={() => handleuserQuestionChange(question)}
+                                                style={{ minHeight:"36px", margin: 0 }}
+                                                component="span"
+                                                className="flex min-w-10 items-center justify-center rounded-xl border border-border/40 bg-primary px-3 text-primary-foreground shadow-soft"><ArrowUpwardTwoTone /></Button>
+                                        </div>
+                                </div>
+                            <section className=" gap-4 mb-4">
+                                <p>{recording ? "Listening..." : "Mic Off"}</p>
+                                {micError ? <p className="text-red-500">{micError}</p> : null}
 
-          {/* Input dock */}
-          <div className="flex justify-center px-6 pb-4 pt-2">
-            <div className="w-full max-w-[720px]">
-              <div className="glass flex items-end gap-1.5 rounded-[18px] p-2 transition focus-within:border-primary/50 focus-within:shadow-glow">
-                <button
-                  onClick={() => setSection("weather")}
-                  title="Upload a CV"
-                  className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-xl text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                >
-                  <AttachFile sx={{ fontSize: 17 }} />
-                </button>
-                <textarea
-                  rows={1}
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSend();
-                    }
-                  }}
-                  placeholder={listening ? "Listening…" : "Ask anything…"}
-                  aria-label="Message"
-                  className="max-h-[130px] min-h-[24px] flex-1 resize-none border-0 bg-transparent px-1.5 py-2 text-[15px] text-foreground outline-none placeholder:text-muted-foreground"
-                />
-                {browserSupportsSpeechRecognition ? (
-                  <button
-                    onClick={handleMicToggle}
-                    title={listening ? "Stop and send" : "Dictate"}
-                    className={`grid h-[38px] w-[38px] shrink-0 place-items-center rounded-xl transition ${
-                      listening ? "bg-destructive/20 text-destructive" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    {listening ? <StopCircleOutlined sx={{ fontSize: 17 }} /> : <MicNone sx={{ fontSize: 17 }} />}
-                  </button>
-                ) : null}
-                <Link
-                  to="/speech"
-                  title="Live voice mode"
-                  className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-xl border border-border text-muted-foreground transition hover:border-primary/40 hover:text-primary-glow"
-                >
-                  <GraphicEq sx={{ fontSize: 17 }} />
-                </Link>
-                <button
-                  onClick={() => handleSend()}
-                  disabled={pending}
-                  title="Send"
-                  className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground transition hover:bg-primary-glow disabled:opacity-50"
-                >
-                  <ArrowUpward sx={{ fontSize: 16 }} />
-                </button>
-              </div>
-              <div className="flex items-center justify-between px-2 pt-2 font-mono text-[11px] text-muted-foreground">
-                <span className="flex items-center gap-1.5">
-                  <span className={`pulse-dot h-1.5 w-1.5 rounded-full ${online ? "bg-success" : "bg-destructive"}`} />
-                  {online ? "Connected" : "Offline"} · auto-routing Gemini / GPT / Claude
-                </span>
-                <span>⏎ send · ⇧⏎ newline</span>
-              </div>
-            </div>
-          </div>
-        </section>
-      ) : (
-        <section className="min-w-0 overflow-y-auto p-4 pt-6">
-          {section === "weather" && <Weather_cv />}
-          {section === "cal" && <Calendar_g />}
-          {section === "oot" && <Outfit_of_day />}
-          {section === "studier" && <Study />}
-        </section>
-      )}
-
-      {/* ── Context rail ── */}
-      <aside className="hidden flex-col gap-3.5 overflow-y-auto border-l border-border bg-background/40 p-5 pt-8 xl:flex">
-        <div className="glass rounded-2xl p-4">
-          <div className="mb-3 flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-            Weather
-            <button onClick={() => setSection("weather")} className="font-sans text-[11px] font-semibold normal-case tracking-normal text-primary">
-              Open
-            </button>
-          </div>
-          {weather ? (
-            <div className="flex items-center gap-3.5">
-              <Cloud className="text-warning" sx={{ fontSize: 38 }} />
-              <span className="text-[32px] font-semibold tracking-tight">{Math.round(weather.temperature)}°</span>
-              <span className="text-[12.5px] leading-snug text-muted-foreground">
-                <b className="block text-[13px] text-foreground">{weather.description}</b>
-                {weather.city}
-              </span>
-            </div>
-          ) : (
-            <p className="m-0 text-[12.5px] text-muted-foreground">
-              {user ? "Loading weather…" : "Log in to see your weather."}
-            </p>
-          )}
-          <button
-            onClick={() => handleSend("Suggest an outfit")}
-            className="mt-3 flex w-full items-start gap-2 rounded-[10px] border border-primary/20 bg-primary/15 px-3 py-2 text-left text-[12.5px] leading-snug text-foreground/85 transition hover:border-primary/40"
-          >
-            <Checkroom className="mt-px shrink-0 text-primary" sx={{ fontSize: 14 }} />
-            Ask me for today's outfit.
-          </button>
-        </div>
-
-        <div className="glass rounded-2xl p-4">
-          <div className="mb-2 flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-            Today
-            <button onClick={() => setSection("cal")} className="font-sans text-[11px] font-semibold normal-case tracking-normal text-primary">
-              Calendar
-            </button>
-          </div>
-          {events.length > 0 ? (
-            events.map((ev) => (
-              <div key={ev.googleEventId || ev.id} className="flex items-start gap-2.5 border-t border-border py-2 first:border-t-0">
-                <time className="whitespace-nowrap rounded-[7px] bg-primary/15 px-1.5 py-1 font-mono text-[11px] font-semibold text-primary-glow">
-                  {ev.start && !Number.isNaN(new Date(ev.start).valueOf())
-                    ? new Date(ev.start).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
-                    : "—"}
-                </time>
-                <div>
-                  <div className="text-[13px] font-semibold leading-snug">{ev.summary || "No title"}</div>
-                  <div className="mt-0.5 text-[11px] text-muted-foreground">{ev.duration || ""}</div>
+                                       { !recording? (<button
+                                                onClick={handleStartListening}
+                                        >
+                                                <MicSharp/>
+                                        </button> ): (<button
+                                                onClick={handleStopListening}
+                                        >
+                                                <StopSharp/>
+                                        </button>)}
+                                        <button onClick={handleResetTranscript}>
+                                                Clear
+                                        </button>
+                                    <Button variant="contained"
+                                    color="primary"
+                                    size="small"
+                                    onClick={() => handleuserQuestionChange("Tailor my CV")}
+                                    style={{ margin: '2px',padding: '2px' }}
+                                    component="span"
+                                    className="bg-success text-primary-foreground p-2 rounded-md m-2 border border-border/50">Tailor my CV</Button>
+                                    <Button variant="contained"
+                                    component="span"
+                                    color="primary"
+                                    size="small"
+                                    onClick={()=> handleuserQuestionChange("Suggest an outfit")}
+                                    style={{ margin: '2px',padding: '2px' }}
+                                    className="bg-accent text-primary-foreground p-2 rounded-md m-2 border border-border/50">Suggest an outfit</Button>
+                                    <Button variant="contained"
+                                    component="span"
+                                    color="primary"
+                                    size="small"
+                                    onClick={() => handleuserQuestionChange("Plan my day")}
+                                    style={{ margin: '2px',padding: '2px' }}
+                                    className="bg-primary text-primary-foreground p-2 rounded-md m-2 border border-border/50">Plan my day</Button>
+                                    <Button
+                                        size="small"
+                                        variant="contained"
+                                        color="primary"
+                                        placeholder="Add a task..."
+                                        onClick={() => handleuserQuestionChange(AiTasks || null)}
+                                        style={{ margin: '2px',padding: '2px' }}
+                                        className="w-[200px] bg-surface text-primary rounded-2xl shadow-soft border border-border/50 hover:bg-accent-indigo-light transition"
+                                        >
+                                        {AiTasks || "No tasks added yet"}
+                                </Button>
+                                <input
+                                        className="w-[150px] rounded-md border border-border/50 bg-background text-primary placeholder-secondary p-2 mb-0 focus:outline-none focus:ring-2 focus:ring-accent-indigo"
+                                        id="task-input"
+                                        value={AiTasks}
+                                        onChange={handleAiTasksChange}
+                                        style={{ margin: '2px',padding: '2px' }}
+                                        type="text"
+                                        placeholder="New task..."
+                                        />
+                            </section>
+                    </section>
+                    <div className="bg-card md:flex-col md: h-full max-h-full w-[400px] text-card-foreground rounded-md m-2 !overflow-auto">
+                {section === "weather" && <Weather_cv />}
+                {section === "cal" && <Calendar_g />}
+                {section === "oot" && <Outfit_of_day />}
+                {section === "studier" && <Study />}
                 </div>
               </div>
             ))
