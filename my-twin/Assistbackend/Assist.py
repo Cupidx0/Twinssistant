@@ -508,10 +508,11 @@ def outfit():
                   "output the weather info to the user before the outfit idea. \n"
                   "start with a friendly greeting and confirm actions."
                    )
+        System_prompt = "You are a smart assistant that manages Fashion closet. Always try to provide relevant outfit to the user based on the weather whilst keeping your word length at a minimum."
         response = create_chat_completion(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are a smart assistant that manages Fashion closet. Always try to provide relevant outfit to the user based on the weather whilst keeping your word length at a minimum."},
+                {"role": "system", "content": System_prompt},
                 {"role": "user", "content":prompt}
             ],
             max_tokens=180,
