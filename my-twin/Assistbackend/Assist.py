@@ -702,7 +702,8 @@ def chat():
         sources = []
         if intent == "web_search" or has_word(message.lower(), WEB_SEARCH_KEYWORDS):
             try:
-                results = tavilyclient.search(query=message, max_results=5)
+                results = tavilyclient.search(query=message,include_answer="advanced",
+                                              search_depth="advanced",include_raw_content="text", max_results=5)
                 items = results.get("results", []) if isinstance(results, dict) else results
                 # Structured list for the frontend source chips…
                 sources = [
@@ -715,6 +716,7 @@ def chat():
                 )
             except Exception as e:
                 web_context = f"(Tavily search failed: {e})"
+            print(f"web_context: {web_context}")
         source = f"Web search results:\n{web_context}" if web_context else "no web search results available."
         prompt = (
             f"""
