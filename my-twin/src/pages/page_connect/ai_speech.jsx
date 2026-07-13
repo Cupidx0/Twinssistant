@@ -194,7 +194,7 @@ function AiSpeech() {
       toast.error("Assistant reply failed.");
     }
   };
-
+  //const SpeechActivation = {"hey assistant": true, "hello assistant": true, "hey ashen": true, "hello ashen": true};
   const handleStartListening = async () => {
     setMicError("");
     setDraftTranscript("");
