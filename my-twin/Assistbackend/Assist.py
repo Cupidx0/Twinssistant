@@ -3,6 +3,7 @@ from flask_cors import CORS
 import os
 from dotenv import load_dotenv
 from firebase_admin import credentials, firestore, initialize_app
+from google.cloud.firestore_v1.base_query import FieldFilter
 import requests
 from dateutil import parser
 import dateparser
@@ -19,6 +20,7 @@ from Routing import create_chat_completion, extract_function_call, create_anthro
 import io
 import re
 import json
+import traceback
 from flask_socketio import SocketIO, emit
 from cv_route import cv_bp
 from Pinecone_vec import save_pattern, find_pattern
@@ -80,10 +82,15 @@ def get_request_json():
 
 def safe_get_calendar_events(data, user_id):
     try:
+        summary = data.get("summary")
+        start_time = data.get("start")
+        end_time = data.get("end")
+        if summary and start_time and end_time:
+            return add_event_to_calendar(summary, start_time, end_time)
         max_results = data.get("maxResults", 5)
         return get_calendar_events(user_id=user_id, maxResults=max_results)
     except Exception as e:
-        return {"error": str(e)}
+        return {"error": str(e), "debug": str(e.__traceback__)}
 
 def get_easter_date(year):
     """Return Easter Sunday for the given year using the Gregorian algorithm."""
@@ -354,7 +361,7 @@ def get_calendar_events(user_id, maxResults=5):
         }
 
         # Firestore upsert
-        snapshot = db.collection("events").where("googleEventId", "==", google_id).limit(1).get()
+        snapshot = db.collection("events").where(filter=FieldFilter("googleEventId", "==", google_id)).limit(1).get()
         if not snapshot:
             db.collection("events").document(google_id).set(event_doc, merge=True)
         else:
@@ -399,8 +406,8 @@ def calendar_delete():
 
         # 🔹 Delete from Firestore
         docs = db.collection("events") \
-                 .where("googleEventId", "==", event_id) \
-                 .where("userId", "==", user_id) \
+                 .where(filter=FieldFilter("googleEventId", "==", event_id)) \
+                 .where(filter=FieldFilter("userId", "==", user_id)) \
                  .stream()
         for doc in docs:
             doc.reference.delete()
@@ -535,7 +542,7 @@ def has_word(text, words):
     return any(re.search(rf"\b{re.escape(w)}\b", text) for w in words)
 
 WEB_SEARCH_KEYWORDS = [
-    "latest", "news", "search", "youtube", "today", "current", "year",
+    "latest", "news", "search", "youtube", "today", "current", "year","lyrics", "video", "videos", "google", "bing", "duckduckgo", "search engine",
     "music", "song", "songs", "weather", "sports", "football", "cricket", "president",
     "prime minister", "capital of", "country", "countries", "who is", "what is",
     "when is", "where is", "how to", "define"
@@ -673,9 +680,9 @@ def chat():
         if not message:
             return jsonify({"error": "Please provide a question."}), 400
         intent, confidence = intent_classifier(message)
+        calevent = None
         if intent == "calendar":
-            return calendar_manage()
-
+            calevent = safe_get_calendar_events(data, request.user["uid"])
         # Weather check
         if "weather" in message.lower():
             weather = fetch_weather(city)
@@ -685,11 +692,10 @@ def chat():
         #prompt
         creatorname = "Godwin Alamu"
         history = smart_chat_history(read_chat_history())
-        if history.count("User:") > 20:  # 20 exchanges
+        if history.count("User:") > 40:  # 20 exchanges
             return jsonify({"reply": "Your chat history is too long. Do you want to clear it (Y/N)?"})
         #tavily response
         fit_check = "if the user asks for outfit suggestion or fashion advice,check if the users sex,age,height,weight,skin tone is in the history if not ask the user for the details ."
-        calevent = safe_get_calendar_events(data, request.user["uid"])
         # Latest CV review feedback, if one exists
         cv_info = None
         cv_info_json = os.path.join(CV_INFO_FILE, "review_Software_Engineer.json")
@@ -771,6 +777,7 @@ def chat():
         namer = assistantname or "Ashen"
         system_msg = f"You are a helpful assistant named {namer}. Current date is {today}, current time is {time}."
         #choose model based on intent
+        reply = None
         if intent == "calendar":
             # Anthropic takes the system prompt as a separate parameter, not a message
             response = create_anthropic_completion(
@@ -780,8 +787,29 @@ def chat():
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=2048,
-                temperature=0.7
+                temperature=0.7,
+                functions=calendar_functions,
+                function_call="auto"
             )
+            fn = extract_function_call(response)
+            if fn:
+                fn_name = fn["name"]
+                raw_args = fn.get("arguments") or {}
+                args = raw_args if isinstance(raw_args, dict) else json.loads(raw_args or "{}")
+
+                if fn_name == "add_calendar_event":
+                    end_time = parse_natural_datetime(args.get("end"))
+                    if not end_time:
+                        reply = "Sorry, I couldn't work out the date/time for that event — could you be more specific?"
+                    else:
+                        end_time_obj = datetime.fromisoformat(end_time)
+                        start_time = end_time_obj - timedelta(hours=1)
+                        add_event_to_calendar(args.get("summary"), start_time.isoformat(), end_time_obj.isoformat())
+                        reply = f"Done — added \"{args.get('summary')}\" to your calendar for {end_time_obj.strftime('%A %d %b, %H:%M')}."
+
+                elif fn_name == "get_calendar_events":
+                    calevent = safe_get_calendar_events(args, request.user["uid"])
+                    reply = f"Here's what's on your calendar: {calevent}"
         elif intent in ("weather", "web_search") or any(k in message.lower() for k in ["weather", "outfit", "logic", "jokes"]):
             response = create_gemini_completion(
                 model="gemini-3.1-flash-lite",
@@ -802,7 +830,8 @@ def chat():
                 max_tokens=2048,
                 temperature=0.7
             )
-        reply = extract_message_content(response).strip()
+        if reply is None:
+            reply = extract_message_content(response).strip()
         # Plain-text version for TTS so markdown/citation markers aren't read aloud
         speech_text = re.sub(r"\[\d+\]", "", reply)
         speech_text = re.sub(r"[*_#`]", "", speech_text)
@@ -826,6 +855,7 @@ def chat():
         }), 200
 
     except Exception as e:
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 def read_chat_history(n=10):
     if os.path.exists(CHAT_HISTORY_FILE):

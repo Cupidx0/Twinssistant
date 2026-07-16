@@ -37,7 +37,14 @@ def create_anthropic_completion(model, messages, functions=None, function_call=N
     }
 
     if functions is not None:
-        payload["tools"] = [{"type": "function", "function": fn} for fn in functions]
+        payload["tools"] = [
+            {
+                "name": fn["name"],
+                "description": fn.get("description", ""),
+                "input_schema": fn.get("parameters", {})
+            }
+            for fn in functions
+        ]
         if function_call not in (None, "auto"):
             payload["tool_choice"] = {"type": "tool", "name": function_call}
 
@@ -149,6 +156,14 @@ def extract_message_content(response):
 def extract_function_call(message):
     if isinstance(message, dict):
         return message.get("function_call")
+
+    # Anthropic: message is the top-level response, content is a list of blocks
+    content = getattr(message, "content", None)
+    if isinstance(content, list):
+        for block in content:
+            if getattr(block, "type", None) == "tool_use":
+                return {"name": block.name, "arguments": block.input}
+
     tool_calls = getattr(message, "tool_calls", None)
     if tool_calls:
         tool = tool_calls[0]
