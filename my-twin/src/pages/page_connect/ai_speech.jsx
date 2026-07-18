@@ -113,12 +113,19 @@ function AiSpeech() {
     setMessages((current) => [...current, makeMessage(role, text)]);
   };
 
-  const speakReply = (text) => {
+  const speakReply = async (text) => {
     if (!text.trim()) return;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    const voice = voices.find((v) => v.name === selectedVoice);
-    if (voice) utterance.voice = voice;
+    try {
+      const response = await ChatAPI.fetchAssistantResponse(text);
+      if (response.audio) {
+          const audio = new Audio("data:audio/mpeg;base64," + response.audio);
+          audio.play().catch((err) => console.warn("Audio playback failed:", err));
+        }
+    }catch (error) {
+      console.error("Error fetching audio:", error);
+    }
     utterance.rate = speechRate;
 
     utterance.onstart = () => {
@@ -173,6 +180,7 @@ function AiSpeech() {
   const sendViaHttp = async (text) => {
     const response = await ChatAPI.fetchAssistantResponse(text);
     finalizeAssistantReply(response.reply || "No response from assistant.");
+    setvoices(response.audio_b64||"");
   };
 
   const sendTurn = async (text) => {
