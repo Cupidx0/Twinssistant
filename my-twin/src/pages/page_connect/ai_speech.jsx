@@ -19,11 +19,12 @@ import { io } from "socket.io-client";
 const WS_URL = import.meta.env.VITE_AI_SPEECH_WS_URL || "http://localhost:5000";
 const AUTO_SEND_DELAY_MS = 1400;
 
-const makeMessage = (role, text) => ({
+const makeMessage = (role,data) => ({
   id: `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
   role,
-  text,
+  text: data?.text,
   ts: Date.now(),
+  audio: data?.audio,
 });
 
 function AiSpeech() {
@@ -108,38 +109,42 @@ function AiSpeech() {
     };
   }, []);
 
-  const appendMessage = (role, text) => {
-    if (!text?.trim()) return;
-    setMessages((current) => [...current, makeMessage(role, text)]);
+  const appendMessage = (role, data) => {
+    if (!data?.text?.trim()) return;
+    setMessages((current) => [...current, makeMessage(role, data)]);
   };
-
-  const speakReply = async (text) => {
-    if (!text.trim()) return;
+  const speakReply = (data) => {
+    if (!data?.text?.trim()) return;
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    try {
-      const response = await ChatAPI.fetchAssistantResponse(text);
-      if (response.audio) {
-          const audio = new Audio("data:audio/mpeg;base64," + response.audio);
-          audio.play().catch((err) => console.warn("Audio playback failed:", err));
-        }
-    }catch (error) {
-      console.error("Error fetching audio:", error);
-    }
-    utterance.rate = speechRate;
 
-    utterance.onstart = () => {
+    if (data.audio) {
+      // ElevenLabs path
+      const audio = new Audio("data:audio/mpeg;base64," + data.audio);
       setIsSpeaking(true);
       SpeechRecognition.stopListening();
-    };
+      audio.onended = () => {
+        setIsSpeaking(false);
+        SpeechRecognition.startListening({ continuous: true, language: "en-GB" });
+      };
+      audio.onerror = audio.onended;
+      audio.play().catch((err) => {
+        console.warn("Audio playback failed:", err);
+        audio.onended();
+      });
+      return;
+    }
+
+    // Browser TTS fallback when no audio came back
+    const utterance = new SpeechSynthesisUtterance(data.text);
+    utterance.rate = speechRate;
+    const voice = voices.find((v) => v.name === selectedVoice);
+    if (voice) utterance.voice = voice;
+    utterance.onstart = () => { setIsSpeaking(true); SpeechRecognition.stopListening(); };
     utterance.onend = () => {
       setIsSpeaking(false);
       SpeechRecognition.startListening({ continuous: true, language: "en-GB" });
     };
-    utterance.onerror = () => {
-      setIsSpeaking(false);
-      SpeechRecognition.startListening({ continuous: true, language: "en-GB" });
-    };
+    utterance.onerror = utterance.onend;
     window.speechSynthesis.speak(utterance);
   };
 
@@ -148,27 +153,27 @@ function AiSpeech() {
     setIsSpeaking(false);
   };
 
-  const finalizeAssistantReply = (text) => {
-    setReply(text);
+  const finalizeAssistantReply = (data) => {
+    const safe = { text: data?.text || "No response from assistant.", audio: data?.audio };
+    setReply(safe.text);
     setIsPendingReply(false);
-    appendMessage("assistant", text);
-    if (autoSpeak) {
-      SpeechRecognition.stopListening();
-      speakReply(text);
-    }
+    appendMessage("assistant", safe);
+    if (autoSpeak) speakReply(safe);
   };
 
+
   const openSocket = () => {
+    if (socketRef.current) return;
     closeSocket();
     setConnectionStatus("Connecting");
     socketRef.current = io(WS_URL || API_BASE_URL, {
-      transports: ["websocket", "polling"],
+      transports: ["polling","websocket"],
     });
     socketRef.current.on("connect", () => setConnectionStatus("Connected"));
     socketRef.current.on("disconnect", () => setConnectionStatus("Disconnected"));
     socketRef.current.on("connect_error", () => setConnectionStatus("HTTP fallback"));
     socketRef.current.on("ai_response", (data) => {
-      finalizeAssistantReply(data?.text || "No response from assistant.");
+      finalizeAssistantReply(data);
     });
   };
 
@@ -179,13 +184,12 @@ function AiSpeech() {
 
   const sendViaHttp = async (text) => {
     const response = await ChatAPI.fetchAssistantResponse(text);
-    finalizeAssistantReply(response.reply || "No response from assistant.");
-    setvoices(response.audio_b64||"");
+    finalizeAssistantReply({ text: response.reply, audio: response.audio_b64 });
   };
 
   const sendTurn = async (text) => {
     if (!text.trim() || isPendingReply) return;
-    appendMessage("user", text);
+    appendMessage("user", { text }); 
     resetTranscript();
     setDraftTranscript("");
     setIsPendingReply(true);

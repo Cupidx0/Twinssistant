@@ -651,7 +651,23 @@ def get_ai_response(user_text):
 def handle_voice(data):
     user_text = data.get('text', '')
     ai_response = get_ai_response(user_text)
-    emit('ai_response', {'text': ai_response})
+    audio_b64 = None
+    try:
+            audio_bytes = asyncio.run(text_to_speech_ws_streaming(
+                    voice_id="JBFqnCBsd6RMkjVDRZzb",
+                    model_id="eleven_flash_v2_5",
+                    text=ai_response,
+            ))
+    except Exception:
+        try:
+            audio_bytes = text_to_speech_sync(ai_response)
+        except Exception as e2:
+            print(f"gTTS also failed: {e2}")
+            audio_bytes = None
+    if audio_bytes:
+        audio_b64 = base64.b64encode(audio_bytes).decode()
+        
+    emit('ai_response', {'text': ai_response, 'audio': audio_b64})
 def text_to_speech_sync(text: str) -> bytes:
     tts = gTTS(text=text, lang='en')
     buf = io.BytesIO()
