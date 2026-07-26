@@ -631,7 +631,7 @@ def intent_classifier(user_text):
     return intent, confidence
 def get_ai_response(user_text):
     try:
-        namer = "Tavily"
+        namer = "Ashen"
         today = datetime.now().strftime("%Y-%m-%d")
         time = datetime.now().strftime("%H:%M:%S")
         response = create_gemini_completion(
@@ -666,7 +666,7 @@ def handle_voice(data):
             audio_bytes = None
     if audio_bytes:
         audio_b64 = base64.b64encode(audio_bytes).decode()
-        
+
     emit('ai_response', {'text': ai_response, 'audio': audio_b64})
 def text_to_speech_sync(text: str) -> bytes:
     tts = gTTS(text=text, lang='en')
