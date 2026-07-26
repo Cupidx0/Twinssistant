@@ -46,8 +46,8 @@ export default function Calendar_g(){
         };
 return(
 <div className="flex flex-col gap-4">
-        <section className="block flex-col md:flex-row md:h-auto w-auto p-2 rounded-md border border-border/50 bg-card !overflow-auto">
-        <Card sx={{ p: 4, borderRadius: "16px", boxShadow: 3,height:"auto", maxHeight:450, width: 300, maxWidth: "600px", overflow: "hidden" }}>
+        <section className="flex flex-col lg:flex-row gap-4 p-2 rounded-md border border-border/50 bg-card">
+        <Card sx={{ p: 2, borderRadius: "16px", boxShadow: 3,color:"white", flex: 2, minWidth: 0 }}>
                 <CardContent >
                 <Typography variant="h6" gutterBottom>
                         📅 My Calendar
@@ -57,6 +57,7 @@ return(
                         localizer={localizer}
                         date={date}
                         view={view}
+                        style={{ height: 500 ,color:"white"}}  
                         onNavigate={setDate}             // ← makes back/next/today work
                         onView={setView}
                         events={events.map(ev => ({
@@ -66,7 +67,7 @@ return(
                         }))}
                         startAccessor="start"
                         endAccessor="end"
-                        style={{ height: 300,width: 200, margin: "10px 0" }}
+                        //style={{ height: 300,width: 200, margin: "10px 0" }}
                         selectable
                         onSelectSlot={(slot) => {
                                 console.log("Selected slot:", slot);

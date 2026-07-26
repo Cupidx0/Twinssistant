@@ -496,7 +496,7 @@ def getWeather():
         return jsonify({"error": "Sorry, I could not fetch the weather right now."}), 404
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e)}), 500  
 @app.route('/outfit',methods=['POST'])
 @require_auth
 def outfit():
