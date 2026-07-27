@@ -260,7 +260,7 @@ function Home() {
       console.error("Error fetching assistant response:", error);
       setMessages((current) => [
         ...current,
-        makeMessage("assistant", "Sorry — I couldn't get a reply. Check that the backend is running and you're logged in."),
+        makeMessage("assistant", "Sorry I couldn't get a reply. Check that the backend is running and you're logged in."),
       ]);
       toast.error("Failed to get response from assistant.");
     } finally {
