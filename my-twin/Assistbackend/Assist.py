@@ -668,6 +668,27 @@ def handle_voice(data):
         audio_b64 = base64.b64encode(audio_bytes).decode()
 
     emit('ai_response', {'text': ai_response, 'audio': audio_b64})
+@app.route('/api/voice_repeat', methods=['POST'])
+@require_auth
+def voice_repeat():
+    data = get_request_json()
+    user_text = data.get('text',"")
+    audio_b64 = None
+    try:
+        audio_bytes = asyncio.run(text_to_speech_ws_streaming(
+                voice_id="JBFqnCBsd6RMkjVDRZzb",
+                model_id="eleven_flash_v2_5",
+                text=user_text,
+        ))
+    except Exception:
+        try:
+            audio_bytes = text_to_speech_sync(user_text)
+        except Exception as e2:
+            print(f"gTTS also failed: {e2}")
+            audio_bytes = None
+    if audio_bytes:
+        audio_b64 = base64.b64encode(audio_bytes).decode()
+    return jsonify({'text': user_text, 'audio': audio_b64})
 def text_to_speech_sync(text: str) -> bytes:
     tts = gTTS(text=text, lang='en')
     buf = io.BytesIO()

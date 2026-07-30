@@ -7,6 +7,7 @@ import remarkGfm from "remark-gfm";
 import Weather_cv from "./page_connect/Weather_cv";
 import Calendar_g from "./page_connect/Calendar";
 import Study from "./page_connect/Study";
+import { ElevenLabsClient, play } from "@elevenlabs/elevenlabs-js";
 import Outfit_of_day from "./page_connect/Outfit_of_day";
 import {
   Anchor,
@@ -273,15 +274,33 @@ function Home() {
     if (lastUser) handleSend(lastUser.text);
   };
 
-  const handleSpeak = (text) => {
-    try {
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
-    } catch (error) {
-      console.warn("Speech synthesis failed:", error);
-    }
-  };
+  const audioRef = useRef(null);
+  const requestIdRef = useRef(0);
+  const handleSpeak = async (text) => {
+        const id = ++requestIdRef.current;
+        try {
+                // stop current audio
+                if (audioRef.current) {
+                        audioRef.current.pause();
+                        audioRef.current = null;
+                }
+                const response = await ChatAPI.fetchRepeatResponse(text);
+                if (id !== requestIdRef.current) return; // newer click won, drop this one
 
+                if (response.audio) {
+                        const audio = new Audio("data:audio/mpeg;base64," + response.audio);
+                        audioRef.current = audio;
+                        audio.onended = () => {
+                                if (audioRef.current === audio) audioRef.current = null;
+                        };
+                        audio.play().catch((err) => console.warn("Audio playback failed:", err));
+                } else {
+                        toast.error("No audio response from assistant.");
+                }
+        } catch (error) {
+                console.warn("Speech synthesis failed:", error);
+        }
+   };
   const handleCopy = (text) => {
     navigator.clipboard.writeText(text).then(
       () => toast.success("Copied"),
