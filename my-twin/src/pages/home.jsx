@@ -250,10 +250,10 @@ function Home() {
       const reply = response.reply || "No response from assistant.";
       const sources = Array.isArray(response.sources) ? response.sources : [];
       setMessages((current) => [...current, makeMessage("assistant", reply, sources)]);
-      if (response.audio) {
+      /*if (response.audio) {
         const audio = new Audio("data:audio/mpeg;base64," + response.audio);
         audio.play().catch((err) => console.warn("Audio playback failed:", err));
-      }
+      }*/
       if (reply.toLowerCase().includes("chat history is too long")) {
         setOpenConfirm(true);
       }
