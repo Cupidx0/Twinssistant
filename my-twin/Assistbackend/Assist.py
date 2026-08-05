@@ -707,7 +707,12 @@ def smart_chat_history(history_text, recent=6):
     recent_turns = turns[-recent:]
     summary = f"Earlier in conversation: {' | '.join(t[:50] for t in old)}"
     return summary + "\n" + "\n\n".join(recent_turns)
-
+def episodic_memory(history_text, max_exchanges=40):
+    """Keep the last `max_exchanges` exchanges verbatim and discard older ones."""
+    turns = [t for t in history_text.split("\n\n") if t.strip()]
+    if len(turns) <= max_exchanges:
+        return history_text
+    return "\n\n".join(turns[-max_exchanges:])
 @app.route('/api/chat', methods=['POST'])
 @require_auth
 def chat():
@@ -729,6 +734,7 @@ def chat():
         #prompt
         creatorname = "Godwin Alamu"
         history = smart_chat_history(read_chat_history())
+        episodic = episodic_memory(read_chat_history())
         if history.count("User:") > 40:  # 20 exchanges
             return jsonify({"reply": "Your chat history is too long. Do you want to clear it (Y/N)?"})
         #tavily response
@@ -770,7 +776,7 @@ def chat():
             Context available to you:
             - Web search results: {web_context if web_context else 'None'}
             - Calendar events: {calevent if calevent else 'None'}
-            - Conversation history: {history if history else 'None'}
+            - Conversation history: {history if history else {episodic} if episodic else 'None'}
             - Current message: {message}
             Respond to this directly and specifically. Do not get distracted by context unless it
             How to behave:
