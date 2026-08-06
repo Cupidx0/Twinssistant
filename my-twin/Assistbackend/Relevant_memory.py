@@ -23,4 +23,4 @@ def memory_search(text):
                     if keyword in t:
                         return t
     return None
-def hit_match():
+#def hit_match():
