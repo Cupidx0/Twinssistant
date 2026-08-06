@@ -18,8 +18,9 @@ def keywords():
 def memory_search(text):
     for keyword in keywords():
         if re.search(rf"\b{keyword}\b", text, re.IGNORECASE):
-            intent, confidence = find_pattern(text)
-            if intent and confidence:
-                return intent, confidence
-    return None, None
-    
+            with open(user_chat_history, "r") as f:
+                for t in f:
+                    if keyword in t:
+                        return t
+    return None
+def hit_match():
