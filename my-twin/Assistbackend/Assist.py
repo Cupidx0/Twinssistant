@@ -16,6 +16,7 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from gtts import gTTS
+from Relevant_memory import memory_search
 from Routing import create_chat_completion, extract_function_call, create_anthropic_completion, extract_message_content, create_gemini_completion
 import io
 import re
@@ -707,12 +708,13 @@ def smart_chat_history(history_text, recent=6):
     recent_turns = turns[-recent:]
     summary = f"Earlier in conversation: {' | '.join(t[:50] for t in old)}"
     return summary + "\n" + "\n\n".join(recent_turns)
-def episodic_memory(history_text, max_exchanges=40):
-    """Keep the last `max_exchanges` exchanges verbatim and discard older ones."""
-    turns = [t for t in history_text.split("\n\n") if t.strip()]
-    if len(turns) <= max_exchanges:
-        return history_text
-    return "\n\n".join(turns[-max_exchanges:])
+def episodic_memory_search(user_text):
+    """Search for relevant past conversations in chat history."""
+    try:
+        return memory_search(user_text)
+    except Exception as e:
+        print(f"Episodic memory search failed: {e}")
+        return None
 @app.route('/api/chat', methods=['POST'])
 @require_auth
 def chat():
@@ -734,7 +736,8 @@ def chat():
         #prompt
         creatorname = "Godwin Alamu"
         history = smart_chat_history(read_chat_history())
-        episodic = episodic_memory(read_chat_history())
+        episodic = episodic_memory_search(message)
+        print(f"episodic memory search result: {episodic}")
         if history.count("User:") > 40:  # 20 exchanges
             return jsonify({"reply": "Your chat history is too long. Do you want to clear it (Y/N)?"})
         #tavily response

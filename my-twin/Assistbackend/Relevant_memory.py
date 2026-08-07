@@ -1,26 +1,62 @@
 import os
 import re
-from Assist import chat
+from datetime import datetime
+#from Assist import keyword_classify
 from Routing import create_chat_completion
 from dotenv import load_dotenv
 from Pinecone_vec import get_embedding, find_pattern, save_pattern
 load_dotenv()
 user_chat_history = os.path.join(os.path.dirname(__file__), "chat_history.txt")
-def keywords():
-    """Return a list of keywords to look for in user input."""
-    return [
-        "weather", "news", "calendar", "reminder", "joke", "quote",
-        "translate", "define", "synonym", "antonym", "math", "time",
-        "date", "alarm", "timer", "music", "video", "image",
-        "search", "map", "location", "direction", "flight",
-        "hotel", "restaurant", "recipe"
+
+# Matches one full turn block, tolerant of the leading space before Source/Timestamp
+ENTRY_PATTERN = re.compile(
+    r"User:\s*(?P<user>.*?)\n"
+    r"Assistant:\s*(?P<assistant>.*?)\n"
+    r"\s*Source:\s*(?P<source>.*?)\n"
+    r"\s*Timestamp:\s*(?P<timestamp>.*?)(?=\nUser:|\Z)",
+    re.DOTALL
+)
+
+def _load_entries():
+    if not os.path.exists(user_chat_history):
+        return []
+    with open(user_chat_history, "r", encoding="utf-8") as f:
+        content = f.read()
+    entries = []
+    for m in ENTRY_PATTERN.finditer(content):
+        entries.append({
+            "user": m.group("user").strip(),
+            "assistant": m.group("assistant").strip(),
+            "source": m.group("source").strip(),
+            "timestamp": m.group("timestamp").strip(),
+        })
+    return entries
+
+def memory_search(text, max_results=3):
+    from Assist import keyword_classify
+    """Keyword-based episodic memory filter.
+    Returns recent matching turns (dicts), most recent first.
+    None if nothing matches (caller should escalate to Pinecone)."""
+    keywords = lambda: keyword_classify(text)  # Lazy evaluation to avoid unnecessary calls
+    matched_keywords = [
+        kw for kw in keywords()
+        if re.search(rf"\b{kw}\b", text, re.IGNORECASE)
     ]
-def memory_search(text):
-    for keyword in keywords():
-        if re.search(rf"\b{keyword}\b", text, re.IGNORECASE):
-            with open(user_chat_history, "r") as f:
-                for t in f:
-                    if keyword in t:
-                        return t
-    return None
-#def hit_match():
+    if not matched_keywords:
+        return None
+
+    pattern = re.compile(
+        r"\b(" + "|".join(re.escape(kw) for kw in matched_keywords) + r")\b",
+        re.IGNORECASE
+    )
+
+    entries = _load_entries()
+    hits = []
+    for entry in reversed(entries):  # most recent block last in file
+        haystack = entry["user"] + " " + entry["assistant"]
+        if pattern.search(haystack):
+            hits.append(entry)
+            if len(hits) >= max_results:
+                break
+
+    return hits or None
