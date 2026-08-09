@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
-from firebase_admin import credentials, firestore, initialize_app
+from firebase_admin import credentials, firestore, get_app, initialize_app
 from google.cloud.firestore_v1.base_query import FieldFilter
 import requests
 from dateutil import parser
@@ -41,10 +41,18 @@ api_key = os.getenv("OPENWEATHER_API_KEY")
 city = "horley"
 tavilyclient = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
-# Initialize Firebase properly
-cred = credentials.Certificate(os.path.join(BASE_DIR, "tw.json"))  # 👈 your Firebase service account JSON
-firebase_app = initialize_app(cred)
-db = firestore.client()
+def init_firebase():
+    """Initialize the default Firebase app once and reuse it across reloads."""
+    cred = credentials.Certificate(os.path.join(BASE_DIR, "tw.json"))
+    try:
+        firebase_app = get_app()
+    except ValueError:
+        firebase_app = initialize_app(cred)
+    return firebase_app, firestore.client(app=firebase_app)
+
+
+firebase_app, db = init_firebase()
+
 # Flask app
 app = Flask(__name__)
 app.register_blueprint(cv_bp)

@@ -1,7 +1,6 @@
 import os
 import re
 from datetime import datetime
-#from Assist import keyword_classify
 from Routing import create_chat_completion
 from dotenv import load_dotenv
 from Pinecone_vec import get_embedding, find_pattern, save_pattern
@@ -9,6 +8,58 @@ load_dotenv()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CHAT_DIR = os.path.join(BASE_DIR, "chat")
 user_chat_history = os.path.join(CHAT_DIR, "chat_history.txt")
+
+
+def has_word(text, words):
+    """Match whole words/phrases, not substrings ('hi' should not match 'this')."""
+    return any(re.search(rf"\b{re.escape(w)}\b", text) for w in words)
+
+
+WEB_SEARCH_KEYWORDS = [
+    "latest", "news", "search", "youtube", "today", "current", "year", "lyrics", "video", "videos", "google", "bing", "duckduckgo", "search engine",
+    "music", "song", "songs", "weather", "sports", "football", "cricket", "president",
+    "prime minister", "capital of", "country", "countries", "who is", "what is",
+    "when is", "where is", "how to", "define"
+]
+
+
+def keyword_classify(user_text):
+    text = user_text.lower()
+
+    if has_word(text, [
+        "good morning", "good afternoon", "good evening", "hello", "hi", "hey", "how are you"
+    ]):
+        return "greeting"
+
+    if has_word(text, [
+        "what are you", "who made you", "your name"
+    ]):
+        return "identity"
+
+    if has_word(text, [
+        "calendar", "schedule", "remind", "meeting", "event", "appointment", "book"
+    ]):
+        return "calendar"
+
+    if has_word(text, [
+        "cv", "resume", "cover letter", "job application", "rewrite my cv"
+    ]):
+        return "cv"
+
+    if has_word(text, [
+        "open", "launch", "play", "spotify", "file", "folder", "close", "quit"
+    ]):
+        return "mac_control"
+
+    if has_word(text, [
+        "code", "debug", "error", "function", "python", "react", "flask", "bug", "fix"
+    ]):
+        return "code"
+
+    if has_word(text, WEB_SEARCH_KEYWORDS):
+        return "web_search"
+
+    return "casual"
 
 # Matches one full turn block, tolerant of the leading space before Source/Timestamp
 ENTRY_PATTERN = re.compile(
@@ -35,7 +86,6 @@ def _load_entries():
     return entries
 
 def memory_search(text, max_results=3):
-    from Assist import keyword_classify
     """Keyword-based episodic memory filter.
     Returns recent matching turns (dicts), most recent first.
     None if nothing matches (caller should escalate to Pinecone)."""
