@@ -6,7 +6,9 @@ from Routing import create_chat_completion
 from dotenv import load_dotenv
 from Pinecone_vec import get_embedding, find_pattern, save_pattern
 load_dotenv()
-user_chat_history = os.path.join(os.path.dirname(__file__), "chat_history.txt")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CHAT_DIR = os.path.join(BASE_DIR, "chat")
+user_chat_history = os.path.join(CHAT_DIR, "chat_history.txt")
 
 # Matches one full turn block, tolerant of the leading space before Source/Timestamp
 ENTRY_PATTERN = re.compile(

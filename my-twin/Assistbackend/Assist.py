@@ -16,7 +16,6 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from gtts import gTTS
-from Relevant_memory import memory_search
 from Routing import create_chat_completion, extract_function_call, create_anthropic_completion, extract_message_content, create_gemini_completion
 import io
 import re
@@ -26,6 +25,7 @@ from flask_socketio import SocketIO, emit
 from cv_route import cv_bp
 from Pinecone_vec import save_pattern, find_pattern
 from auth_utils import require_auth
+from Relevant_memory import memory_search
 try:
     import holidays as holidays_lib
 except ImportError:
