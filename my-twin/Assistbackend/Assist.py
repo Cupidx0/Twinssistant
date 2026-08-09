@@ -513,14 +513,24 @@ def outfit():
         data = request.get_json()
         message = data.get("fit", "").strip()
         user_time = datetime.now()
-        city = "Horley"
-        weather = fetch_weather(city)
+        user_info ={
+            "city": "horley",
+            "height": 5.11 or "",
+            "weight": 70 or "",
+            "skin_tone": "black" or "",
+            "sex": "male" or "",
+            "body_type": "lean_athletic" or "",
+            "age": 21 or "",
+        }
+        weather = fetch_weather(user_info["city"])
         if not message:
             return jsonify({"error": "Please provide a question."}), 400
         prompt =( 
                   f"User request: {message}\n Suggest outfit for user based on the weather and the {user_time} time."
                   "based on if its morning ,afternoon and night.\n"
-                  f"use the {weather} to decide which outfit to recommend to the user and also for the {city}location.\n"
+                  f"use the {weather} to decide which outfit to recommend to the user and also for the {user_info['city']}location.\n"
+                  f"personalize the outfit based on the user info: {user_info}."
+                  "think creatively and provide a unique outfit idea for the user based on the weather and the time of day and current fashion trends.\n"
                   "output the weather info to the user before the outfit idea. \n"
                   "start with a friendly greeting and confirm actions."
                    )
@@ -719,7 +729,24 @@ def smart_chat_history(history_text, recent=6):
 def episodic_memory_search(user_text):
     """Search for relevant past conversations in chat history."""
     try:
-        return memory_search(user_text)
+        memoir = memory_search(user_text)
+        response = create_gemini_completion(
+                model="gemini-3.1-flash-lite",
+                messages=[
+                    {"role": "system", "content": (
+                        "You are a helpful assistant that searches for relevant past conversations. "
+                        "focus more on the users info and not assistant info,if its based on users needs and wants, and if the user has asked for something similar in the past, you should return that info to the user. "
+                        "strip out the answer instead of a sentence use e.g 21 years old for age or 5.11 for height and 70kg for weight, and if the user has asked for something similar in the past, you should return that info to the user. "
+                        "Return a concise summary of any relevant past exchanges."
+                    )},
+                    {"role": "user", "content": f"Search for relevant past conversations from{memoir} related to: '{user_text}'"}
+                ],
+                max_tokens=2048,
+                temperature=0.7
+            )
+        memory_searcher = extract_message_content(response).strip()
+        return { "result": memory_searcher,
+                "data":memoir}
     except Exception as e:
         print(f"Episodic memory search failed: {e}")
         return None
@@ -745,11 +772,12 @@ def chat():
         creatorname = "Godwin Alamu"
         history = smart_chat_history(read_chat_history())
         episodic = episodic_memory_search(message)
+        epi = episodic.get("result") if episodic else None
         print(f"episodic memory search result: {episodic}")
         if history.count("User:") > 40:  # 20 exchanges
             return jsonify({"reply": "Your chat history is too long. Do you want to clear it (Y/N)?"})
         #tavily response
-        fit_check = "if the user asks for outfit suggestion or fashion advice,check if the users sex,age,height,weight,skin tone is in the history if not ask the user for the details ."
+        fit_check = f"if the user asks for outfit suggestion or fashion advice,check {epi} if the users sex,age,height,weight,skin tone is in the history if not ask the user for the details ."
         # Latest CV review feedback, if one exists
         cv_info = None
         cv_info_json = os.path.join(CV_INFO_FILE, "review_Software_Engineer.json")
@@ -787,7 +815,7 @@ def chat():
             Context available to you:
             - Web search results: {web_context if web_context else 'None'}
             - Calendar events: {calevent if calevent else 'None'}
-            - Conversation history: {history if history else {episodic} if episodic else 'None'}
+            - Conversation history: {history if history else {epi} if epi else 'None'}
             - Current message: {message}
             Respond to this directly and specifically. Do not get distracted by context unless it
             How to behave:
@@ -799,6 +827,7 @@ def chat():
             - If it's technical, be precise and concise
             - If it's emotional or personal, be empathetic and grounded
             - For code, format it cleanly with a brief explanation
+            - Always review Conversation history and episodic memory for relevant info, but don't repeat it unless it strengthens your response
             - For CV questions, use the uploaded CV and give concrete specific feedback. Latest CV review: {cv_info if cv_info else 'none available — ask him to upload a CV first'}
             - For calendar, use the events provided and confirm when adding or deleting
             - In voice mode, respond in natural spoken sentences — no bullet points, no markdown
@@ -811,6 +840,7 @@ def chat():
             - Career: CV feedback, cover letters, interview prep
             - Learning: explain Python, React, DSA step by step, build study plans
             - Productivity: plan tasks, manage time, suggest routines
+            - Personal_info: use {epi} and Conversational history to remember user's age, height, weight, skin tone, sex, body
             - Personal: be empathetic and motivational when needed
             - Fun: jokes, trivia, light content when the mood calls for it
             - Web: search and provide relevant links when useful
