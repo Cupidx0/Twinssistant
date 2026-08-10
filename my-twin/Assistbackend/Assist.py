@@ -25,7 +25,7 @@ from flask_socketio import SocketIO, emit
 from cv_route import cv_bp
 from Pinecone_vec import save_pattern, find_pattern
 from auth_utils import require_auth
-from Relevant_memory import memory_search
+from Relevant_memory import memory_search, memo_gpt
 try:
     import holidays as holidays_lib
 except ImportError:
@@ -729,24 +729,10 @@ def smart_chat_history(history_text, recent=6):
 def episodic_memory_search(user_text):
     """Search for relevant past conversations in chat history."""
     try:
-        memoir = memory_search(user_text)
-        response = create_gemini_completion(
-                model="gemini-3.1-flash-lite",
-                messages=[
-                    {"role": "system", "content": (
-                        "You are a helpful assistant that searches for relevant past conversations. "
-                        "focus more on the users info and not assistant info,if its based on users needs and wants, and if the user has asked for something similar in the past, you should return that info to the user. "
-                        "strip out the answer instead of a sentence use e.g 21 years old for age or 5.11 for height and 70kg for weight, and if the user has asked for something similar in the past, you should return that info to the user. "
-                        "Return a concise summary of any relevant past exchanges."
-                    )},
-                    {"role": "user", "content": f"Search for relevant past conversations from{memoir} related to: '{user_text}'"}
-                ],
-                max_tokens=2048,
-                temperature=0.7
-            )
-        memory_searcher = extract_message_content(response).strip()
-        return { "result": memory_searcher,
-                "data":memoir}
+        return {"memoran":memory_search(user_text),
+                "grant":memo_gpt(user_text)
+        }
+
     except Exception as e:
         print(f"Episodic memory search failed: {e}")
         return None
@@ -771,13 +757,15 @@ def chat():
         #prompt
         creatorname = "Godwin Alamu"
         history = smart_chat_history(read_chat_history())
-        episodic = episodic_memory_search(message)
-        epi = episodic.get("result") if episodic else None
+        epi = episodic_memory_search(message)
+        ep = epi.get("memoran")
+        episodic = epi.get("grant")
         print(f"episodic memory search result: {episodic}")
+        print(f"data memo:{ep}")
         if history.count("User:") > 40:  # 20 exchanges
             return jsonify({"reply": "Your chat history is too long. Do you want to clear it (Y/N)?"})
         #tavily response
-        fit_check = f"if the user asks for outfit suggestion or fashion advice,check {epi} if the users sex,age,height,weight,skin tone is in the history if not ask the user for the details ."
+        fit_check = f"if the user asks for outfit suggestion or fashion advice,check {episodic} if the users sex,age,height,weight,skin tone is in the history if not ask the user for the details ."
         # Latest CV review feedback, if one exists
         cv_info = None
         cv_info_json = os.path.join(CV_INFO_FILE, "review_Software_Engineer.json")
@@ -815,7 +803,7 @@ def chat():
             Context available to you:
             - Web search results: {web_context if web_context else 'None'}
             - Calendar events: {calevent if calevent else 'None'}
-            - Conversation history: {history if history else {epi} if epi else 'None'}
+            - Conversation history: {history if history else {episodic} if episodic else 'None'}
             - Current message: {message}
             Respond to this directly and specifically. Do not get distracted by context unless it
             How to behave:
@@ -840,7 +828,7 @@ def chat():
             - Career: CV feedback, cover letters, interview prep
             - Learning: explain Python, React, DSA step by step, build study plans
             - Productivity: plan tasks, manage time, suggest routines
-            - Personal_info: use {epi} and Conversational history to remember user's age, height, weight, skin tone, sex, body
+            - Personal_info: use {episodic} and Conversational history to remember user's age, height, weight, skin tone, sex, body
             - Personal: be empathetic and motivational when needed
             - Fun: jokes, trivia, light content when the mood calls for it
             - Web: search and provide relevant links when useful

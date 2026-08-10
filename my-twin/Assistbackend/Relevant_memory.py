@@ -1,7 +1,7 @@
 import os
 import re
 from datetime import datetime
-from Routing import create_chat_completion
+from Routing import create_chat_completion, create_gemini_completion, extract_message_content
 from dotenv import load_dotenv
 from Pinecone_vec import get_embedding, find_pattern, save_pattern
 load_dotenv()
@@ -90,7 +90,7 @@ def _load_entries():
         })
     return entries
 
-def memory_search(text, max_results=3):
+def memory_search(text, max_results=5):
     """Keyword-based episodic memory filter.
     Returns recent matching turns (dicts), most recent first.
     None if nothing matches (caller should escalate to Pinecone)."""
@@ -113,10 +113,30 @@ def memory_search(text, max_results=3):
     entries = _load_entries()
     hits = []
     for entry in reversed(entries):  # most recent block last in file
-         haystack = f"{entry['user']} {entry['assistant']}"
+         haystack = f"{entry['user']} {entry['assistant']} {entry['timestamp']}"
          if pattern.search(haystack):
             hits.append(entry)
             if len(hits) >= max_results:
                 break
 
     return hits or None
+def memo_gpt(text):
+    """Search for relevant past conversations in chat history and return a concise summary."""
+    memoir = memory_search(text)
+    response = create_gemini_completion(
+            model="gemini-3.1-flash-lite",
+            messages=[
+                {"role": "system", "content": (
+                        "You are a helpful assistant that searches for relevant past conversations. "
+                        "focus more on the users info and not assistant info,if its based on users needs and wants, and if the user has asked for something similar in the past, you should return that info to the user. "
+                        "strip out the answer instead of a sentence use e.g 21 years old for age or 5.11 for height and 70kg for weight, and if the user has asked for something similar in the past, you should return that info to the user. "
+                        "Return a concise summary of any relevant past exchanges."
+                        f"Use information from the following past conversations: {memoir if memoir else 'None'}"
+                )},
+                {"role": "user", "content": f"Search for relevant past conversations from{memoir} related to: '{text}'"}
+            ],
+            max_tokens=2048,
+            temperature=0.7
+        )
+    memory_searcher = extract_message_content(response).strip()
+    return memory_searcher
