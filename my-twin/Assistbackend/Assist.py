@@ -920,10 +920,17 @@ def chat():
         except Exception:
             audio_bytes = text_to_speech_sync(speech_text)
         audio_b64 = base64.b64encode(audio_bytes).decode()
+        if memo_gpt:
+            info = "recalled from episodic memory"
+        elif tavilyclient:
+            info = "surfing the web"
+        else:
+            info = "relying on internal knowledge"
         return jsonify({
             "reply": reply,
             "sources": sources,
-            "audio": audio_b64
+            "audio": audio_b64,
+            "info":info
         }), 200
 
     except Exception as e:

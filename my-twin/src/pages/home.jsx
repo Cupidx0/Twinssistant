@@ -72,7 +72,6 @@ const quickActions = [
   { label: "Suggest an outfit", icon: <Checkroom fontSize="inherit" />, prompt: "Suggest an outfit" },
   { label: "Plan my day", icon: <CalendarMonth fontSize="inherit" />, prompt: "Plan my day" },
 ];
-
 function SourceChips({ sources }) {
   if (!sources?.length) return null;
   return (
@@ -122,8 +121,16 @@ function ThinkingSteps() {
           Understanding your request
         </div>
         <div className="flex items-center gap-3 py-1.5 text-[13.5px] font-semibold text-foreground">
-          <AutorenewOutlined className="animate-spin text-primary" sx={{ fontSize: 18 }} />
+          <AutorenewOutlined className="animate-spin text-primary" sx={{ fontSize: 18}} />
           Gathering context &amp; composing…
+        </div>
+        <div className="flex items-center gap-3 py-1.5 text-[13.5px] font-semibold text-foreground">
+          <AutorenewOutlined className="animate-spin text-primary" sx={{ fontSize: 18 }} />
+          Checking my memory…
+        </div>
+        <div className="flex items-center gap-3 py-1.5 text-[13.5px] font-semibold text-foreground">
+          <AutorenewOutlined className="animate-spin text-primary" sx={{ fontSize: 18 }} />
+          Recollecting relevant past conversations…
         </div>
       </div>
       <div className="mt-4 space-y-2">
@@ -249,7 +256,8 @@ function Home() {
       const response = await ChatAPI.fetchAssistantResponse(text);
       const reply = response.reply || "No response from assistant.";
       const sources = Array.isArray(response.sources) ? response.sources : [];
-      setMessages((current) => [...current, makeMessage("assistant", reply, sources)]);
+      const info = response.info || "No additional info.";
+      setMessages((current) => [...current, makeMessage("assistant", reply, sources, info)]);
       /*if (response.audio) {
         const audio = new Audio("data:audio/mpeg;base64," + response.audio);
         audio.play().catch((err) => console.warn("Audio playback failed:", err));
