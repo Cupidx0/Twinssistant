@@ -107,6 +107,15 @@ def review():
 
     try:
         prompt = f"""
+        You are reviewing my CV as a strict, honest recruiter for junior backend/AI developer roles. Do NOT rewrite anything yet.
+        Go section by section and flag:
+        1. Any bullet that is vague, generic, or could apply to any candidate ("hardworking," "fast-paced environment," "team player") — quote it and explain why it's weak.
+        2. Any claim that sounds inflated or uses jargon heavier than the underlying work supports.
+        3. Formatting problems: page length over 1 page, missing bullet points, inconsistent structure, wasted whitespace.
+        4. Missing information a recruiter would want (numbers, outcomes, tech stack specifics) that I have elsewhere in the document but isn't being used.
+        5. Anything repeated or redundant across sections.
+
+        Give me a numbered list of issues, worst first. Do not soften the feedback. Do not rewrite anything — just diagnose.
         Review this CV for {target}. Return plain text only:
 
         {{
@@ -180,10 +189,23 @@ def rewrite():
                         - Skills: Python, React, Flask, Firebase, Firestore, REST APIs, WebSockets, Anthropic/OpenAI/Gemini APIs
                         """
         prompt = f"""
-                    Rewrite this CV for {target}.
+                    Rewrite this CV for {target} using the exact structure below. Do not add sections, do not remove sections, do not turn bullets into paragraphs..
                     Use the userdetails{user_context},and {review_data} and {chat_history} as feedback to improve the CV. Focus on addressing weaknesses and missing sections, while maintaining strengths.
+
+                        Structure to preserve:
+                        Name / Title / Contact line
+                        PROFILE — max 3 sentences, no line breaks between them
+                        TECHNICAL SKILLS — grouped by category, one line per category
+                        PROJECTS — for each project: title/role/dates line, then 3-5 bullets
+                        EDUCATION — institution/dates line, then up to 2 bullets
+
+                        Hard rules:
+                        - Every bullet must contain a concrete detail: a number, a specific tool/technology, or a specific outcome. If you can't find one, cut the bullet rather than pad it.
+                        - No generic soft-skill language anywhere ("hardworking," "team player," "fast-paced environment," "demonstrates strong work ethic").
+                        - Don't upgrade verbs beyond what's true — use "built," "integrated," "wrote," not "architected" or "engineered" unless the source material already implies that scale.
+                        - Total output must fit on ONE page at standard 11pt font with normal margins. If content doesn't fit, cut the weakest bullets — do not shrink font or margins to force a fit.
+                        - Keep all real dates, numbers, and stats exactly as given — never invent or round them.
                         - Keep all real experience
-                        - Achievement-focused bullet points
                         - Strong action verbs
                         - Remove filler
                         - Do not add any em-dashes or emojis
@@ -191,7 +213,7 @@ def rewrite():
                         - Take what the user has and expand on it, do not remove content unless it's clearly weak or irrelevant
                         - If experience is very thin, creatively expand on it to make it more substantial, but do not fabricate any new experience. For example, if they have a one-line experience about "built a website", you could expand that into multiple bullet points about the technologies used, the features of the website, the impact it had, etc. Just be creative with how you describe and expand on the existing experience.
                         - If a section is missing, add it with placeholder content based on what you know about the user from the CV and the target role. For example, if they have no "Skills" section but mention various technologies in their experience, you could create a "Skills" section that lists those technologies.
-                        - Use concise language, avoid fluff
+                        Here is the CV to rewrite:
                         - Use the best cv examples online as reference, but do not copy any phrasing or formatting, make it original
                         Return plain text only, ready to copy.
 
