@@ -32,8 +32,12 @@ Assistbackend/credentials.json
 # Python
 Assistbackend/venv/
 Assistbackend/__pycache__/
+venv/
+venv311/
+venv312/
+__pycache__/
 *.pyc
-
+node_modules/
 # Runtime data
 Assistbackend/Cv_docs/
 Assistbackend/chat/
