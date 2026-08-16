@@ -2730,3 +2730,8 @@ Assistant: It was quite the spectacle. By all accounts, it lived up to the hypeâ
 [5] 2026 total solar eclipse: See photos from the Aug 12 event and where it is visible - ABC News: https://abcnews.com/GMA/Living/august-2026-total-solar-eclipse-us/story?id=134723486
  Timestamp: 2026-08-14T08:22:32.292572
 
+User: Review my CV
+Assistant: I can help you review your CV, but I need you to upload the document first. Once I have it, I can give you specific feedback based on the current state of your CV.
+ Source: no web search results available.
+ Timestamp: 2026-08-15T21:34:04.524015
+

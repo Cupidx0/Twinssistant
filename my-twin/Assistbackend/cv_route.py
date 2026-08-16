@@ -215,6 +215,7 @@ def rewrite():
                         - If a section is missing, add it with placeholder content based on what you know about the user from the CV and the target role. For example, if they have no "Skills" section but mention various technologies in their experience, you could create a "Skills" section that lists those technologies.
                         Here is the CV to rewrite:
                         - Use the best cv examples online as reference, but do not copy any phrasing or formatting, make it original
+                        - AND KEEP EVERYTHING IN JUST ONE PAGE!!!
                         Return plain text only, ready to copy.
 
                         CV:
