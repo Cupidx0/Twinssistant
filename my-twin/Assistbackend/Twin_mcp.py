@@ -1,7 +1,7 @@
-from mcp.server.fastmcp import FastMCP
+from mcp.server import MCPServer
 import subprocess, pyautogui
 
-mcp = FastMCP("system-control")
+mcp = MCPServer("system-control")
 
 @mcp.tool()
 def run_shell(command: str) -> str:

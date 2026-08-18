@@ -9,7 +9,10 @@
 # Python
 venv/
 __pycache__/
+venv311/
+venv312/
 *.pyc
+node_modules/
 
 # Runtime data (user uploads, chat logs, generated files)
 **/Assistbackend/Cv_docs/
