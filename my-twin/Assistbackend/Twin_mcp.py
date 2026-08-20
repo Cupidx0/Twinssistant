@@ -1,3 +1,4 @@
+import os
 from mcp.server import MCPServer
 import subprocess, pyautogui
 
