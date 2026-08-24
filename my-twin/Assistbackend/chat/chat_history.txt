@@ -2740,3 +2740,35 @@ Assistant: What’s on your mind?
  Source: no web search results available.
  Timestamp: 2026-08-23T23:42:55.254632
 
+User: What is the treatment of an land and building with a carrying amount of 300K and is revalued at year end to 500K.
+Assistant: When you revalue an asset like land and buildings upward, the accounting treatment depends on whether there have been previous revaluations or impairments [3, 4].
+
+Since your carrying amount is 300K and the new value is 500K, you have a revaluation surplus of 200K. Here is how you handle it:
+
+1.  **Credit the Revaluation Surplus:** The 200K gain is recognized in Other Comprehensive Income (OCI) and accumulated in equity under the heading of "Revaluation Surplus" [2]. It does not go through the income statement unless it is reversing a previous impairment loss that was recognized in profit or loss [4].
+2.  **Adjust the Asset:** You increase the carrying amount of the land and building on your balance sheet from 300K to 500K [3].
+
+If you had previously recorded a revaluation decrease (a loss) for this same asset that went through your income statement, you would first credit the current gain to the income statement to the extent of that previous loss, and then put the remainder into the Revaluation Surplus [1, 2]. 
+
+Are you tracking this for a specific project or just brushing up on your accounting standards?
+ Source: Web search results:
+[1] How to Adjust the Carrying Amount and Calculate Recognized Losses of Assets Held for Sale – SuperfastCPA CPA Review: https://www.superfastcpa.com/how-to-adjust-the-carrying-amount-and-calculate-recognized-losses-of-assets-held-for-sale
+[2] Solved An entity owns a property which was revalued to: https://www.chegg.com/homework-help/questions-and-answers/entity-owns-property-revalued-500-000-31-march-20x3-revaluation-gain-200-000-recognised-co-q91823116
+[3] Accounting for Market Value Changes of Fixed Assets: https://www.investopedia.com/ask/answers/041615/how-do-you-account-changes-market-value-various-fixed-assets.asp
+[4] Auditing Asset Revaluation Under IAS 16: Common Issues and Solutions | Nzekwe John Kelechi, ACA,MBA (In-View) posted on the topic | LinkedIn: https://www.linkedin.com/posts/nzekwe-john-kelechi-aca-mba-in-view-6b7210139_auditing-asset-revaluation-getting-it-right-activity-7387386414281207810-yDW3
+[5] Asset Revaluation Explained #fblifestyle #highlight ...: https://www.facebook.com/100063850221972/videos/asset-revaluation-explained-fblifestyle-highlight-accounting/981919441157884
+ Timestamp: 2026-08-24T17:53:00.938766
+
+User: explain it
+Assistant: When you revalue an asset like land and buildings, here's how the accounting treatment works:
+
+1. **Revaluation Surplus:** Since your asset's carrying amount increased from 300K to 500K, you have a revaluation surplus of 200K. This surplus is recognized in Other Comprehensive Income (OCI) and added to equity under "Revaluation Surplus." It doesn't impact your income statement unless it offsets a previous impairment loss.
+
+2. **Adjust Carrying Amount:** You update the carrying amount of the asset on your balance sheet to reflect the new value of 500K.
+
+So, your balance sheet will show the land and buildings at 500K, and the revaluation surplus of 200K will be recorded in equity. If you previously had a loss on this asset recorded in the income statement, you'd first apply the current gain to offset that loss before recording the excess in the revaluation surplus.
+
+Does that clarify things for you?
+ Source: no web search results available.
+ Timestamp: 2026-08-24T18:05:57.038261
+

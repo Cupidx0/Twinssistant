@@ -1,3 +1,5 @@
+import uuid
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
@@ -567,6 +569,10 @@ WEB_SEARCH_KEYWORDS = [
     "when is", "where is", "how to", "define"
 ]
 
+"""def pull_frm_db():
+    try:
+        doc_ref = db.collection("conversations").stream()
+"""
 def keyword_classify(user_text):
     text = user_text.lower()
 
@@ -736,12 +742,30 @@ def episodic_memory_search(user_text):
     except Exception as e:
         print(f"Episodic memory search failed: {e}")
         return None
+def push_to_db(user_id, user_text, ai_response,conversation_id):
+    """Store the conversation in Firestore."""
+    try:
+        doc_ref = db.collection('conversations').document(conversation_id)
+        message_ref = doc_ref.collection('messages').document()
+        message_ref.set({
+            "userId": user_id,
+            "user": user_text,
+            "assistant": ai_response,
+            "category": "transmigration",
+            "source": None,
+            "clienttimestamp": datetime.now().isoformat(),
+            "conversationId": conversation_id,
+            "Servertimestamp": firestore.SERVER_TIMESTAMP
+        })
+    except Exception as e:
+        print(f"Failed to push to DB: {e}")
 @app.route('/api/chat', methods=['POST'])
 @require_auth
 def chat():
     try:
         data = get_request_json()
         message = data.get("question", "").strip()
+        user_id = request.user["uid"]
         if not message:
             return jsonify({"error": "Please provide a question."}), 400
         intent, confidence = intent_classifier(message)
@@ -907,10 +931,15 @@ def chat():
         # Plain-text version for TTS so markdown/citation markers aren't read aloud
         speech_text = re.sub(r"\[\d+\]", "", reply)
         speech_text = re.sub(r"[*_#`]", "", speech_text)
-         # Save chat to local file
-        os.makedirs(CHAT_DIR, exist_ok=True)
-        with open(CHAT_HISTORY_FILE, "a", encoding="utf-8") as f:
-            f.write(f"User: {message}\nAssistant: {reply}\n Source: {source}\n Timestamp: {datetime.now().isoformat()}\n\n")
+        try:
+            push_to_db(user_id, message, reply, conversation_id=('imported_conv_1'))
+        except Exception as e:
+            print(f"Error occurred while pushing to DB: {e}")
+            print("Continuing without saving to DB ,saved locally.")
+            # Save chat to local file
+            os.makedirs(CHAT_DIR, exist_ok=True)
+            with open(CHAT_HISTORY_FILE, "a", encoding="utf-8") as f:
+                f.write(f"User: {message}\nAssistant: {reply}\n Source: {source}\n Timestamp: {datetime.now().isoformat()}\n\n")
         try:
             audio_bytes = asyncio.run(text_to_speech_ws_streaming(
                     voice_id="JBFqnCBsd6RMkjVDRZzb",

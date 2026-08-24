@@ -1,6 +1,10 @@
 import os
 import re
 from datetime import datetime
+import firebase_admin
+from firebase_admin import credentials, firestore
+from auth_utils import require_auth
+from firebase_admin import firestore
 from Routing import create_chat_completion, create_gemini_completion, extract_message_content
 from dotenv import load_dotenv
 from Pinecone_vec import get_embedding, find_pattern, save_pattern
@@ -8,7 +12,9 @@ load_dotenv()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CHAT_DIR = os.path.join(BASE_DIR, "chat")
 user_chat_history = os.path.join(CHAT_DIR, "chat_history.txt")
-
+cred = credentials.Certificate("tw.json")
+firebase_admin.initialize_app(cred)
+db = firestore.client()
 
 def has_word(text, words):
     """Match whole words/phrases, not substrings ('hi' should not match 'this')."""
@@ -75,19 +81,47 @@ def extract_keywords(text):
     # remove stopwords and short words
     stopwords = {"the", "a", "an", "is", "it", "to", "of", "in", "on", "for", "what", "who", "how", "do", "you", "your", "me", "my", "his", "her"}
     return [w for w in words if len(w) > 2 and w not in stopwords] 
+
+def get_conversation(conversation_id):
+    messages_ref = db.collection('conversations').document(conversation_id) \
+                      .collection('messages') \
+                      .order_by('clienttimestamp')  # or 'clientTimestamp' if you trust that more
+
+    messages = []
+    for doc in messages_ref.stream():
+        data = doc.to_dict()
+        data['id'] = doc.id
+        messages.append(data)
+
+    return messages
+
 def _load_entries():
-    if not os.path.exists(user_chat_history):
-        return []
-    with open(user_chat_history, "r", encoding="utf-8") as f:
-        content = f.read()
-    entries = []
-    for m in ENTRY_PATTERN.finditer(content):
-        entries.append({
-            "user": m.group("user"),
-            "assistant": m.group("assistant"),
-            "source": m.group("source"),
-            "timestamp": m.group("timestamp"),
-        })
+    try:
+        history = get_conversation('imported_conv_1')
+        for msg in history:
+            print(f"{msg['user']}: {msg['assistant']} (Source: {msg.get('source', 'N/A')}, Timestamp: {msg.get('clienttimestamp', 'N/A')})")
+        entries = []
+        for m in ENTRY_PATTERN.finditer('\n'.join([f"User: {msg['user']}\nAssistant: {msg['assistant']}\nSource: {msg.get('source', '')}\nTimestamp: {msg.get('clienttimestamp', '')}" for msg in history])):
+            entries.append({
+                "user": m.group("user"),
+                "assistant": m.group("assistant"),
+                "source": m.group("source"),
+                "timestamp": m.group("timestamp"),
+            })
+    except Exception as e:
+        print(f"Error loading conversation from Firestore: {e}")
+        if not os.path.exists(user_chat_history):
+            return []
+        with open(user_chat_history, "r", encoding="utf-8") as f:
+            content = f.read()
+        entries = []
+        for m in ENTRY_PATTERN.finditer(content ):
+            entries.append({
+                "user": m.group("user"),
+                "assistant": m.group("assistant"),
+                "source": m.group("source"),
+                "timestamp": m.group("timestamp"),
+            })
     return entries
 
 def memory_search(text, max_results=5):

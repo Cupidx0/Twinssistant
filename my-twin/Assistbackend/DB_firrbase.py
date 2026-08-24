@@ -2,7 +2,7 @@ import re
 import os
 import firebase_admin
 from firebase_admin import credentials, firestore
-
+from auth_utils import require_auth
 cred = credentials.Certificate("tw.json")
 firebase_admin.initialize_app(cred)
 db = firestore.client()
@@ -21,24 +21,19 @@ def parse_chat_txt(filepath):
         assistant_match = re.search(r'Assistant:\s*(.*?)(?=\n\s*Source:|\n\s*Timestamp:|\Z)', turn, re.DOTALL)
         source_match = re.search(r'Source:\s*(.*)', turn)
         timestamp_match = re.search(r'Timestamp:\s*(.*)', turn)
-
-        if user_match:
+        if user_match and assistant_match:
+            user_text = user_match.group(1).strip()
+            assistant_text = assistant_match.group(1).strip()
+            source = source_match.group(1).strip() if source_match else None
+            timestamp = timestamp_match.group(1).strip() if timestamp_match else None
             messages.append({
-                'role': 'user',
-                'content': user_match.group(1).strip(),
-                'source': None,
-                'clientTimestamp': None
-            })
-
-        if assistant_match:
-            messages.append({
-                'role': 'assistant',
-                'content': assistant_match.group(1).strip(),
-                'source': source_match.group(1).strip() if source_match else None,
-                'clientTimestamp': timestamp_match.group(1).strip() if timestamp_match else None
+                "user": user_text,
+                "assistant": assistant_text,
+                "category": "imported",
+                "source": source,
+                "clienttimestamp": timestamp
             })
     return messages
-
 def upload_to_firestore(conversation_id, messages):
     batch = db.batch()
     conv_ref = db.collection('conversations').document(conversation_id)
@@ -47,7 +42,9 @@ def upload_to_firestore(conversation_id, messages):
     for msg in messages:
         doc_ref = messages_ref.document()
         batch.set(doc_ref, {
+            "userId": None,
             **msg,
+            "conversationId": conversation_id,
             'serverTimestamp': firestore.SERVER_TIMESTAMP
         })
     batch.commit()
