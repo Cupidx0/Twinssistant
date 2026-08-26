@@ -3,6 +3,7 @@
 *.env.local
 *.env.*.local
 **/Assistbackend/tw.json
+**/Assistbackend/token_gmail.json
 **/Assistbackend/token.json
 **/Assistbackend/credentials.json
 
