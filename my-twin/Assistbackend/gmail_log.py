@@ -32,19 +32,6 @@ def main():
     # Save the credentials for the next run
     with open("token_gmail.json", "w") as token:
       token.write(creds.to_json())
-    try:
-      # Call the Gmail API
-      service = build("gmail", "v1", credentials=creds)
-      results = service.users().labels().list(userId="me").execute()
-      labels = results.get("labels", [])
-
-      if not labels:
-        print("No labels found.")
-        return
-      print("Labels:")
-      for label in labels:
-        print(label["name"])
-    except HttpError as error:
-      print(f"An error occurred: {error}")
+  return creds
 if __name__ == "__main__":
   main()
