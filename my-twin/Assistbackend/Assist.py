@@ -21,6 +21,7 @@ from gtts import gTTS
 from Routing import create_chat_completion, extract_function_call, create_anthropic_completion, extract_message_content, create_gemini_completion
 import io
 import re
+import base64
 import json
 import traceback
 from flask_socketio import SocketIO, emit
@@ -28,6 +29,7 @@ from cv_route import cv_bp
 from Pinecone_vec import save_pattern, find_pattern
 from auth_utils import require_auth
 from Relevant_memory import memory_search, memo_gpt
+from gmail_call import mail_box
 try:
     import holidays as holidays_lib
 except ImportError:
@@ -86,7 +88,21 @@ def get_creds():
         with open(token_path, "w") as token:
             token.write(creds.to_json())
     return creds
-
+def get_gmail_creds():
+    """
+    Load Gmail credentials from token_gmail.json and refresh if expired.
+    Raises error if not found, instructing to run login_gmail.py first.
+    """
+    from google.oauth2.credentials import Credentials
+    token_path = os.path.join(BASE_DIR, "token_gmail.json")
+    if not os.path.exists(token_path):
+        raise FileNotFoundError("token_gmail.json not found. Run login_gmail.py first.")
+    creds = Credentials.from_authorized_user_file(token_path, ["https://www.googleapis.com/auth/gmail.modify"])
+    if creds and not creds.valid and creds.expired and creds.refresh_token:
+        creds.refresh(Request())
+        with open(token_path, "w") as token:
+            token.write(creds.to_json())
+    return creds    
 def get_request_json():
     data = request.get_json(silent=True)
     return data if isinstance(data, dict) else {}
@@ -260,7 +276,60 @@ def add_event_to_calendar(summary, start_time, end_time):
     #return f"Event created: {created_event.get('htmlLink')}"
     return created_event
 
+def get_email_body(payload):
+    # Simple case: body directly on payload
+    if payload.get("body", {}).get("data"):
+        data = payload["body"]["data"]
+        return base64.urlsafe_b64decode(data).decode("utf-8", errors="ignore")
+    
+    # Multipart case: look through parts for text/plain
+    if "parts" in payload:
+        for part in payload["parts"]:
+            if part.get("mimeType") == "text/plain":
+                data = part.get("body", {}).get("data")
+                if data:
+                    return base64.urlsafe_b64decode(data).decode("utf-8", errors="ignore")
+            # Some emails nest parts inside parts (multipart/alternative inside multipart/mixed)
+            if "parts" in part:
+                nested = get_email_body(part)
+                if nested:
+                    return nested
+    
+    return "(no readable body found)"
+def summarize_email_body(body):
+    # Simple summarization: take the first 200 characters
+    summary = body.strip().replace("\n", " ")
+    #prompt = f"Summarize the following email content in a concise manner take out any unnecessary details and return the summarries as list:\n\n{summary}\n\nSummary:"
+    response = create_gemini_completion(
+        model="gemini-3.1-flash-lite",
+        messages=[
+            {"role": "system", "content": f"provide a concise summary of the email content, focusing on key points and actionable items,make the answer just text ,short and clear,using minimum words focusing more on just the subjects and return the summarries as list."},
+            {"role": "user", "content": f"{summary}"},
+        ],
+        max_tokens=2048,
+        temperature=0.7
+    )
+    response_text = extract_message_content(response).strip()
+    return response_text
+    
 
+@app.route('/mail/notice', methods=['POST'])
+@require_auth
+#send important mails to the user front end summary
+def mail_notice():
+    service = build("gmail", "v1", credentials=get_gmail_creds())
+    user_choice = request.json.get("choice", "IMPORTANT")
+    mail = mail_box(user_choice)
+    important_mails = []
+    if not mail:
+        return jsonify({"reply": "No important messages found."})
+    for message in mail[:5]:
+        msg = service.users().messages().get(userId="me", id=message["id"], format="full").execute()
+        body = get_email_body(msg["payload"])
+        summary = summarize_email_body(body)
+        print(f'  Subject: {summary}')
+        important_mails.append(summary.replace("**", " "))
+    return jsonify({"mail_reply": important_mails})
 @app.route('/calendar/add', methods=['POST'])
 @require_auth
 def calendar_add():

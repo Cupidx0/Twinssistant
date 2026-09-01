@@ -105,7 +105,12 @@ export const WeatherAPI = {
     return response.data;
   },
 };
-
+export const MailAPI = {
+  fetchEmails: async (IMPORTANT) => {
+    const response = await api.post("/mail/notice", { choice: "IMPORTANT" });
+    return response.data;
+  }
+};
 export const CalendarAPI = {
   addEvent: async (summary, dueDate) => {
     // Backend reads the field as "end" (ISO 8601); userId comes from the auth token

@@ -2,7 +2,7 @@ import React,{use, useEffect,useState} from "react";
 import {Card, CardContent, Typography,
   Button, TextField, Stack, Divider} from "@mui/material";
 import toast, { Toaster } from "react-hot-toast";
-import { WeatherAPI,ConvertTextAPI} from "../../Utils/Assistant";
+import { WeatherAPI,ConvertTextAPI,MailAPI} from "../../Utils/Assistant";
 import { useAuth } from "../AuthContext";
 import {Link, replace} from "react-router-dom";
 /* Updated upstream*/
@@ -14,6 +14,7 @@ export default function Weather_cv() {
     const [weather, setWeather] = useState(null);
     const [events, setEvents] = useState([]);
     const [cvFile, setCvFile] = useState(null);
+    const [mail, setMail] = useState([]);
     const [role, setRole] = useState("")
     const [preview, setPreview] = useState("")
     const [review, setReview] = useState(null)
@@ -39,6 +40,11 @@ export default function Weather_cv() {
             //cv file upload listener
         }
     }, [isLoggedIn]); 
+    useEffect(()=>{
+        handleMailFetch()
+        const interval = setInterval(handleMailFetch, 1800000);
+        return ()=> clearInterval(interval);
+    }, []);
     const handleFileChange = (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -69,7 +75,24 @@ export default function Weather_cv() {
                 toast.error("Error converting file to text");
             });
     };
-
+    const handleMailFetch = async () => {
+        if (!isLoggedIn) {
+            toast.error("Please log in to fetch emails.");
+            return;
+        }
+        try {
+            const response = await MailAPI.fetchEmails("IMPORTANT");
+            if (response.mail_reply) {
+                setMail(response.mail_reply);
+                toast.success("Emails fetched successfully!");
+            } else {
+                toast.error("Failed to fetch emails");
+            }
+        } catch (error) {
+            console.error("Error fetching emails:", error);
+            toast.error("Error fetching emails");
+        }
+    };
     const getReview = async () => {
         const role = "Software Engineer";
         if (!cvFile) {
@@ -153,13 +176,26 @@ export default function Weather_cv() {
                                 ))
                                 ) : (
                                 <li className="rounded-md border border-border bg-card p-5 text-center font-bold text-card-foreground">
-                                    no summary
+                                    {/*no summary
                                     <br/><span className="font-normal text-muted-foreground">summary should contain the following:</span>
                                     <br/>coursera completed courses and left,
                                     <br/>projects done,
                                     <br/>calendar events,
                                     <br/>leetcode problems solved,
-                                    <br/>github contributions
+                                    <br/>github contributions*/}
+                                    {mail.length > 0 && (
+                                        <div className="mt-4">
+                                            <h3 className="text-lg font-semibold text-card-foreground">Important Emails:</h3>
+                                            <ul className="list-disc list-inside text-card-foreground">
+                                                {/* xo_mail is used to display each mail snippet in the list of mails , any words can be used instead of xo_mail */}
+                                                {mail.map((xo_mail, index) => (
+                                                    <li key={index}>
+                                                        {xo_mail ? xo_mail : "No snippet available"}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
                                 </li>
                             )}
             </ul>
