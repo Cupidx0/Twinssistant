@@ -8,7 +8,8 @@ import {Link, replace} from "react-router-dom";
 /* Updated upstream*/
 import {Anchor,Delete,SmartToy,Inventory,MusicNote,
         Settings,CalendarMonth,Inventory2,Cloud,
-        Upload,Work,Code,ArrowUpwardTwoTone} from "@mui/icons-material";
+        Upload,Work,Code,ArrowUpwardTwoTone,
+        DryOutlined} from "@mui/icons-material";
 import { serverTimestamp } from "firebase/firestore";
 export default function Weather_cv() {
     const [weather, setWeather] = useState(null);
@@ -20,6 +21,7 @@ export default function Weather_cv() {
     const [review, setReview] = useState(null)
     const [rewrite, setRewrite] = useState("")
     const [loading, setLoading] = useState("")
+    const [showDropdown, setShowDropdown] = useState(false);
 
     const { isLoggedIn } = useAuth();
     useEffect(() => {
@@ -185,15 +187,21 @@ export default function Weather_cv() {
                                     <br/>github contributions*/}
                                     {mail.length > 0 && (
                                         <div className="mt-4">
-                                            <h3 className="text-lg font-semibold text-card-foreground">Important Emails:</h3>
-                                            <ul className="list-disc list-inside text-card-foreground">
-                                                {/* xo_mail is used to display each mail snippet in the list of mails , any words can be used instead of xo_mail */}
-                                                {mail.map((xo_mail, index) => (
-                                                    <li key={index}>
-                                                        {xo_mail ? xo_mail : "No snippet available"}
-                                                    </li>
-                                                ))}
-                                            </ul>
+                                            <div className="dropdown">
+                                                <button className="btn btn-primary" onClick={() => setShowDropdown(!showDropdown)}>
+                                                    View Important Emails
+                                                </button><br/>
+                                                <button className="btn btn-primary" onClick={() => setShowDropdown(!showDropdown)}>
+                                                    View Inbox Emails
+                                                </button>
+                                                {showDropdown && (
+                                                    <ul className="dropdown-menu">
+                                                        {mail.map((email, index) => (
+                                                            <li key={index}>{email}</li>
+                                                        ))}
+                                                    </ul>
+                                                )}
+                                            </div>
                                         </div>
                                     )}
                                 </li>
