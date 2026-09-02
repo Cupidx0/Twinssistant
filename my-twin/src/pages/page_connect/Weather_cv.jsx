@@ -42,7 +42,7 @@ export default function Weather_cv() {
     }, [isLoggedIn]); 
     useEffect(()=>{
         handleMailFetch()
-        const interval = setInterval(handleMailFetch, 1800000);
+        const interval = setInterval(handleMailFetch, 3600000);
         return ()=> clearInterval(interval);
     }, []);
     const handleFileChange = (e) => {

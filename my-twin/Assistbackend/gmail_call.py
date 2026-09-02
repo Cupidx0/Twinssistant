@@ -25,7 +25,7 @@ def mail_box(user_choice="IMPORTANT"):
         # Call the Gmail API
         service = build("gmail", "v1", credentials=x)
         results = (
-            service.users().messages().list(userId="me", labelIds=[user_choice]).execute()
+            service.users().messages().list(userId="me", labelIds=[user_choice,"UNREAD"]).execute()
         )
         messages = results.get("messages", [])
 
