@@ -318,7 +318,7 @@ def summarize_email_body(body):
 #send important mails to the user front end summary
 def mail_notice():
     service = build("gmail", "v1", credentials=get_gmail_creds())
-    user_choice = request.json.get("choice", "IMPORTANT")
+    user_choice = request.json.get("choice")
     mail = mail_box(user_choice)
     important_mails = []
     if not mail:

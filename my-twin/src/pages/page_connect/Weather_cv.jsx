@@ -1,5 +1,5 @@
 import React,{use, useEffect,useState} from "react";
-import {Card, CardContent, Typography,
+import {Card, CardContent, Typography,FormControl,MenuItem,Select,
   Button, TextField, Stack, Divider} from "@mui/material";
 import toast, { Toaster } from "react-hot-toast";
 import { WeatherAPI,ConvertTextAPI,MailAPI} from "../../Utils/Assistant";
@@ -21,8 +21,8 @@ export default function Weather_cv() {
     const [review, setReview] = useState(null)
     const [rewrite, setRewrite] = useState("")
     const [loading, setLoading] = useState("")
-    const [showDropdown, setShowDropdown] = useState(false);
-
+    const [showDropdown, setShowDropdown] = useState("");
+    const [showDropdownve, setShowDropdownve] = useState(false);
     const { isLoggedIn } = useAuth();
     useEffect(() => {
         if (isLoggedIn) {
@@ -77,13 +77,15 @@ export default function Weather_cv() {
                 toast.error("Error converting file to text");
             });
     };
-    const handleMailFetch = async () => {
+    const handleMailFetch = async (choice) => {
         if (!isLoggedIn) {
             toast.error("Please log in to fetch emails.");
             return;
         }
+        if (!choice) return; // guard against empty label
+
         try {
-            const response = await MailAPI.fetchEmails("IMPORTANT");
+            const response = await MailAPI.fetchEmails(choice);
             if (response.mail_reply) {
                 setMail(response.mail_reply);
                 toast.success("Emails fetched successfully!");
@@ -185,15 +187,57 @@ export default function Weather_cv() {
                                     <br/>calendar events,
                                     <br/>leetcode problems solved,
                                     <br/>github contributions*/}
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <FormControl fullWidth>
+                                            <Typography variant="caption" className="text-muted-foreground mb-1">
+                                                mail status
+                                            </Typography>
+                                            <Select
+                                                //value= ""
+                                                //onChange={(e) =>
+                                                    //setSettings((prev) => ({ ...prev, theme: e.target.value }))
+                                                //}
+                                                value={showDropdownve}
+                                                onChange={(e) => setShowDropdownve(e.target.value)}
+                                                style={{color:"white"}}
+                                                    size="small"
+                                                    className="bg-input text-foreground"
+                                                  >
+                                                    <MenuItem value="READ">Read</MenuItem>
+                                                    <MenuItem value="UNREAD">Unread</MenuItem>
+                                            </Select>
+                                        </FormControl>
+                                        <FormControl fullWidth onSubmit={handleMailFetch}>
+                                                <Typography variant="caption" className="text-muted-foreground mb-1">
+                                                Mail Labels
+                                                </Typography>
+                                                  <Select
+                                                    //value={settings.language}
+                                                    //onChange={(e) =>
+                                                     //</FormControl> setSettings((prev) => ({
+                                                      //  ...prev,
+                                                      //  language: e.target.value,
+                                                      //}))
+                                                    //}
+                                                    value={showDropdown}
+                                                    onChange={(e) => {
+                                                        const choice = e.target.value;
+                                                        setShowDropdown(choice);
+                                                        handleMailFetch(choice);
+                                                    }}
+                                                    style={{ color:"white" }}
+                                                    size="small"
+                                                    className="bg-input text-foreground"
+                                                  >
+                                                    <MenuItem value="IMPORTANT">Important</MenuItem>
+                                                    <MenuItem value="INBOX">Inbox</MenuItem>
+                                                    <MenuItem value="SENT">Sent</MenuItem>
+                                                  </Select>
+                                            </FormControl>
+                                    </div>
                                     {mail.length > 0 && (
                                         <div className="mt-4">
                                             <div className="dropdown">
-                                                <button className="btn btn-primary" onClick={() => setShowDropdown(!showDropdown)}>
-                                                    View Important Emails
-                                                </button><br/>
-                                                <button className="btn btn-primary" onClick={() => setShowDropdown(!showDropdown)}>
-                                                    View Inbox Emails
-                                                </button>
                                                 {showDropdown && (
                                                     <ul className="dropdown-menu">
                                                         {mail.map((email, index) => (

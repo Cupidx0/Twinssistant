@@ -106,8 +106,8 @@ export const WeatherAPI = {
   },
 };
 export const MailAPI = {
-  fetchEmails: async (IMPORTANT) => {
-    const response = await api.post("/mail/notice", { choice: "IMPORTANT" });
+  fetchEmails: async (choice) => {
+    const response = await api.post("/mail/notice", { choice });
     return response.data;
   }
 };

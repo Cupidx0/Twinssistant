@@ -20,12 +20,12 @@ def labels():
             print(label["name"])
     except HttpError as error:
           print(f"An error occurred: {error}")
-def mail_box(user_choice="IMPORTANT"):
+def mail_box(user_choice):
     try:
-        # Call the Gmail API
         service = build("gmail", "v1", credentials=x)
+        label_ids = [label for label in [user_choice, "UNREAD"] if label]
         results = (
-            service.users().messages().list(userId="me", labelIds=[user_choice,"UNREAD"]).execute()
+            service.users().messages().list(userId="me", labelIds=label_ids).execute()
         )
         messages = results.get("messages", [])
 
@@ -37,13 +37,13 @@ def mail_box(user_choice="IMPORTANT"):
         for message in messages[:3]:
             print(f'Message ID: {message["id"]}')
             msg = (
-                service.users().messages().get(userId="me", id=message["id"],format='full').execute()
+                service.users().messages().get(userId="me", id=message["id"], format='full').execute()
             )
             print(f'  Subject: {msg["snippet"]}')
         return messages
     except HttpError as error:
-        # TODO(developer) - Handle errors from gmail API.
         print(f"An error occurred: {error}")
+        return []
 if __name__ == "__main__":
     labels()
     mail_box()
