@@ -20,10 +20,10 @@ def labels():
             print(label["name"])
     except HttpError as error:
           print(f"An error occurred: {error}")
-def mail_box(user_choice):
+def mail_box(user_status,user_choice):
     try:
         service = build("gmail", "v1", credentials=x)
-        label_ids = [label for label in [user_choice, "UNREAD"] if label]
+        label_ids = [label for label in [user_status, user_choice] if label]
         results = (
             service.users().messages().list(userId="me", labelIds=label_ids).execute()
         )

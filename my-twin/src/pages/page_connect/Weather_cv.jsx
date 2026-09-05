@@ -22,7 +22,7 @@ export default function Weather_cv() {
     const [rewrite, setRewrite] = useState("")
     const [loading, setLoading] = useState("")
     const [showDropdown, setShowDropdown] = useState("");
-    const [showDropdownve, setShowDropdownve] = useState(false);
+    const [showStats, setShowStats] = useState("");
     const { isLoggedIn } = useAuth();
     useEffect(() => {
         if (isLoggedIn) {
@@ -44,7 +44,7 @@ export default function Weather_cv() {
     }, [isLoggedIn]); 
     useEffect(()=>{
         handleMailFetch()
-        const interval = setInterval(handleMailFetch, 3600000);
+        const interval = setInterval(handleMailFetch, 1800000);
         return ()=> clearInterval(interval);
     }, []);
     const handleFileChange = (e) => {
@@ -77,15 +77,14 @@ export default function Weather_cv() {
                 toast.error("Error converting file to text");
             });
     };
-    const handleMailFetch = async (choice) => {
+    const handleMailFetch = async (stat,choice) => {
         if (!isLoggedIn) {
             toast.error("Please log in to fetch emails.");
             return;
         }
-        if (!choice) return; // guard against empty label
-
+        if (!choice|| !stat) return; // guard against empty label
         try {
-            const response = await MailAPI.fetchEmails(choice);
+            const response = await MailAPI.fetchEmails(stat, choice);
             if (response.mail_reply) {
                 setMail(response.mail_reply);
                 toast.success("Emails fetched successfully!");
@@ -197,8 +196,12 @@ export default function Weather_cv() {
                                                 //onChange={(e) =>
                                                     //setSettings((prev) => ({ ...prev, theme: e.target.value }))
                                                 //}
-                                                value={showDropdownve}
-                                                onChange={(e) => setShowDropdownve(e.target.value)}
+                                                value={showStats}
+                                                onChange={(e) => {
+                                                    const stat = e.target.value;
+                                                    setShowStats(stat);
+                                                    handleMailFetch(stat,showDropdown);
+                                                }}
                                                 style={{color:"white"}}
                                                     size="small"
                                                     className="bg-input text-foreground"
@@ -223,7 +226,7 @@ export default function Weather_cv() {
                                                     onChange={(e) => {
                                                         const choice = e.target.value;
                                                         setShowDropdown(choice);
-                                                        handleMailFetch(choice);
+                                                        handleMailFetch(showStats,choice);
                                                     }}
                                                     style={{ color:"white" }}
                                                     size="small"

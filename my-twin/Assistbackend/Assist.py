@@ -319,7 +319,8 @@ def summarize_email_body(body):
 def mail_notice():
     service = build("gmail", "v1", credentials=get_gmail_creds())
     user_choice = request.json.get("choice")
-    mail = mail_box(user_choice)
+    user_status = request.json.get("stat")
+    mail = mail_box(user_status,user_choice)
     important_mails = []
     if not mail:
         return jsonify({"reply": "No important messages found."})
