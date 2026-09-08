@@ -61,7 +61,7 @@ firebase_app, db = init_firebase()
 app = Flask(__name__)
 app.register_blueprint(cv_bp)
 CORS(app, supports_credentials=True, origins=["http://localhost:5173"])
-socketio = SocketIO(app, cors_allowed_origins="http://localhost:5173", async_mode='threading')
+socketio = SocketIO(app, cors_allowed_origins="http://localhost:5173", async_mode='threading',engineio_logger=True, logger=True)
 @app.route('/')
 def home():
     return "Welcome to the Assistant API!"
@@ -729,6 +729,11 @@ def get_ai_response(user_text):
         namer = "Ashen"
         today = datetime.now().strftime("%Y-%m-%d")
         time = datetime.now().strftime("%H:%M:%S")
+    #"""Generator — yields text chunks as Gemini produces them."""
+    #model = genai.GenerativeModel(
+     #   "gemini-3.1-flash-lite",
+     #   system_instruction=f"You are a helpful assistant named Ashen. Current date {today}, time {time_now}."
+    #)
         response = create_gemini_completion(
                     model="gemini-3.1-flash-lite",
                     messages=[
@@ -736,54 +741,62 @@ def get_ai_response(user_text):
                         {"role": "user", "content": user_text}
                     ],
                     max_tokens=2048,
+                    stream=True,
                     temperature=0.7
                 )
-        response_text = extract_message_content(response).strip()
-        return response_text
+        for chunk in response:
+                if chunk.text:
+                    yield chunk.text
+    
+        #response_text = extract_message_content(response).strip()
+        #return response_text
     except Exception as e:
         return f"Error generating response: {str(e)}"
+import re
+SENTENCE_END_RE = re.compile(r'(?<=[.!?])\s+')
+
 @socketio.on('voice_message')
 def handle_voice(data):
-    user_text = data.get('text', '')
-    ai_response = get_ai_response(user_text)
-    audio_b64 = None
-    try:
-            audio_bytes = asyncio.run(text_to_speech_ws_streaming(
-                    voice_id="JBFqnCBsd6RMkjVDRZzb",
-                    model_id="eleven_flash_v2_5",
-                    text=ai_response,
-            ))
-    except Exception:
-        try:
-            audio_bytes = text_to_speech_sync(ai_response)
-        except Exception as e2:
-            print(f"gTTS also failed: {e2}")
-            audio_bytes = None
-    if audio_bytes:
-        audio_b64 = base64.b64encode(audio_bytes).decode()
+    user_text = data.get('text', '').strip()
+    if not user_text:
+        return
 
-    emit('ai_response', {'text': ai_response, 'audio': audio_b64})
-@app.route('/api/voice_repeat', methods=['POST'])
-@require_auth
-def voice_repeat():
-    data = get_request_json()
-    user_text = data.get('text',"")
-    audio_b64 = None
+    buffer = ""
+    full_text = ""
+
+    for text_chunk in get_ai_response(user_text):
+        full_text += text_chunk
+        buffer += text_chunk
+        emit('ai_response', {"type": "text", 'text': text_chunk})  # live text, immediately
+
+        parts = SENTENCE_END_RE.split(buffer)
+        if len(parts) > 1:
+            *complete, buffer = parts  # last part is an incomplete trailing sentence
+            for sentence in complete:
+                _synthesize_and_emit(sentence)
+
+    if buffer.strip():
+        _synthesize_and_emit(buffer)
+
+    emit('ai_response', {'type': 'done', 'text': full_text})
+
+#@app.route('/api/voice_repeat', methods=['POST'])
+#@require_auth
+def _synthesize_and_emit(sentence):
+    audio_bytes = None
     try:
         audio_bytes = asyncio.run(text_to_speech_ws_streaming(
-                voice_id="JBFqnCBsd6RMkjVDRZzb",
-                model_id="eleven_flash_v2_5",
-                text=user_text,
+            voice_id="JBFqnCBsd6RMkjVDRZzb",
+            model_id="eleven_flash_v2_5",
+            text=sentence,
         ))
     except Exception:
         try:
-            audio_bytes = text_to_speech_sync(user_text)
+            audio_bytes = text_to_speech_sync(sentence)
         except Exception as e2:
             print(f"gTTS also failed: {e2}")
-            audio_bytes = None
-    if audio_bytes:
-        audio_b64 = base64.b64encode(audio_bytes).decode()
-    return jsonify({'text': user_text, 'audio': audio_b64})
+    audio_b64 = base64.b64encode(audio_bytes).decode() if audio_bytes else None
+    emit('ai_response',{'type': 'audio', 'text': sentence, 'audio': audio_b64})
 def text_to_speech_sync(text: str) -> bytes:
     tts = gTTS(text=text, lang='en')
     buf = io.BytesIO()

@@ -53,7 +53,7 @@ def create_anthropic_completion(model, messages, functions=None, function_call=N
 
 def create_gemini_completion(model, messages, functions=None, function_call=None, **kwargs):
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-
+    stream = kwargs.pop("stream", False)
     # Convert OpenAI-style messages → Gemini contents
     contents = []
     system_instruction = None
@@ -100,10 +100,19 @@ def create_gemini_completion(model, messages, functions=None, function_call=None
 
     config = types.GenerateContentConfig(**config_kwargs)
 
+    if stream:
+        def generate():
+            yield from client.models.generate_content_stream(
+                model=model,
+                contents=contents,
+                config=config,
+            )
+        return generate()
+
     return client.models.generate_content(
         model=model,
         contents=contents,
-        config=config
+        config=config,
     )
 
 

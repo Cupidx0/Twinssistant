@@ -39,6 +39,9 @@ function AiSpeech() {
   const transcriptTimerRef = useRef(null);
   const transcriptEndRef = useRef(null);
   const socketRef = useRef(null);
+  const audioQueueRef = useRef([]);
+  const isPlayingAudioRef = useRef(false);
+  const assistantDoneRef = useRef(false);
   const [messages, setMessages] = useState([]);
   const [draftTranscript, setDraftTranscript] = useState("");
   const [reply, setReply] = useState("");
@@ -113,6 +116,15 @@ function AiSpeech() {
     if (!data?.text?.trim()) return;
     setMessages((current) => [...current, makeMessage(role, data)]);
   };
+  const resumeListeningIfReplyFinished = () => {
+    if (assistantDoneRef.current && audioQueueRef.current.length === 0) {
+      setIsSpeaking(false);
+      SpeechRecognition.startListening({
+        continuous: true,
+        language: "en-GB",
+      });
+    }
+  };
   const speakReply = (data) => {
     if (!data?.text?.trim()) return;
     window.speechSynthesis.cancel();
@@ -124,7 +136,7 @@ function AiSpeech() {
       SpeechRecognition.stopListening();
       audio.onended = () => {
         setIsSpeaking(false);
-        SpeechRecognition.startListening({ continuous: true, language: "en-GB" });
+        resumeListeningIfReplyFinished();
       };
       audio.onerror = audio.onended;
       audio.play().catch((err) => {
@@ -142,7 +154,7 @@ function AiSpeech() {
     utterance.onstart = () => { setIsSpeaking(true); SpeechRecognition.stopListening(); };
     utterance.onend = () => {
       setIsSpeaking(false);
-      SpeechRecognition.startListening({ continuous: true, language: "en-GB" });
+      resumeListeningIfReplyFinished();
     };
     utterance.onerror = utterance.onend;
     window.speechSynthesis.speak(utterance);
@@ -152,7 +164,35 @@ function AiSpeech() {
     window.speechSynthesis?.cancel?.();
     setIsSpeaking(false);
   };
+  const playNextAudio = () => {
+    if (isPlayingAudioRef.current) return;
 
+    const audioB64 = audioQueueRef.current.shift();
+
+    if (!audioB64) {
+      resumeListeningIfReplyFinished();
+      return;
+    }
+
+    isPlayingAudioRef.current = true;
+    setIsSpeaking(true);
+    SpeechRecognition.stopListening();
+
+    const audio = new Audio(`data:audio/mpeg;base64,${audioB64}`);
+
+    const finish = () => {
+      isPlayingAudioRef.current = false;
+      playNextAudio();
+    };
+
+    audio.onended = finish;
+    audio.onerror = finish;
+
+    audio.play().catch((error) => {
+      console.warn("Audio playback failed:", error);
+      finish();
+    });
+  };
   const finalizeAssistantReply = (data) => {
     const safe = { text: data?.text || "No response from assistant.", audio: data?.audio };
     setReply(safe.text);
@@ -173,7 +213,24 @@ function AiSpeech() {
     socketRef.current.on("disconnect", () => setConnectionStatus("Disconnected"));
     socketRef.current.on("connect_error", () => setConnectionStatus("HTTP fallback"));
     socketRef.current.on("ai_response", (data) => {
-      finalizeAssistantReply(data);
+      if (data.type === "text") {
+        setReply((current) => current + data.text);
+        return; // display only — do not speak it
+      }
+
+      if (data.type === "audio" && data.audio) {
+        audioQueueRef.current.push(data.audio);
+        playNextAudio();
+        return;
+      }
+
+      if (data.type === "done") {
+        assistantDoneRef.current = true;
+        setReply(data.text);
+        setIsPendingReply(false);
+        appendMessage("assistant", { text: data.text });
+        resumeListeningIfReplyFinished();
+      }
     });
   };
 
@@ -184,10 +241,12 @@ function AiSpeech() {
 
   const sendViaHttp = async (text) => {
     const response = await ChatAPI.fetchAssistantResponse(text);
-    finalizeAssistantReply({ text: response.reply, audio: response.audio_b64 });
+    finalizeAssistantReply({ text: response.reply, audio: response.audio });
   };
 
   const sendTurn = async (text) => {
+    assistantDoneRef.current = false;
+    SpeechRecognition.stopListening();
     if (!text.trim() || isPendingReply) return;
     appendMessage("user", { text }); 
     resetTranscript();
