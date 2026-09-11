@@ -751,7 +751,7 @@ def get_ai_response(user_text):
         #response_text = extract_message_content(response).strip()
         #return response_text
     except Exception as e:
-        return f"Error generating response: {str(e)}"
+        yield f"Error generating response: {str(e)}"
 import re
 SENTENCE_END_RE = re.compile(r'(?<=[.!?])\s+')
 
@@ -867,6 +867,7 @@ def chat():
         epi = episodic_memory_search(message)
         ep = epi.get("memoran")
         episodic = epi.get("grant")
+        memory_was_used = bool(ep) or bool(episodic)
         print(f"episodic memory search result: {episodic}")
         print(f"data memo:{ep}")
         if history.count("User:") > 40:  # 20 exchanges
@@ -901,6 +902,7 @@ def chat():
                 web_context = f"(Tavily search failed: {e})"
             print(f"web_context: {web_context}")
         source = f"Web search results:\n{web_context}" if web_context else "no web search results available."
+        web_search_was_used = bool(web_context)
         prompt = (
             f"""
             You are Godwin's personal AI assistant. You are sharp, intelligent, and adaptive — not just a coding assistant. Most conversations will be personal, practical, or conversational.
@@ -1032,12 +1034,12 @@ def chat():
         except Exception:
             audio_bytes = text_to_speech_sync(speech_text)
         audio_b64 = base64.b64encode(audio_bytes).decode()
-        if memo_gpt:
+        info = "relying on internal knowledge"  # default
+        if memo_gpt and memory_was_used:  # set this True inside your memory-lookup branch
             info = "recalled from episodic memory"
-        elif tavilyclient:
+        elif tavilyclient and web_search_was_used:  # set this True inside your search branch
             info = "surfing the web"
-        else:
-            info = "relying on internal knowledge"
+
         return jsonify({
             "reply": reply,
             "sources": sources,

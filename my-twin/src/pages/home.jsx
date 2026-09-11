@@ -58,11 +58,12 @@ const readStoredThread = () => {
   }
 };
 
-const makeMessage = (role, text, sources = []) => ({
+const makeMessage = (role, text, sources,info = []) => ({
   id: `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
   role,
   text,
   sources,
+  info,
   ts: Date.now(),
 });
 
@@ -106,7 +107,7 @@ function SourceChips({ sources }) {
   );
 }
 
-function ThinkingSteps() {
+function ThinkingSteps({info}) {
   return (
     <div className="mb-6">
       <div className="mb-2 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
@@ -126,11 +127,11 @@ function ThinkingSteps() {
         </div>
         <div className="flex items-center gap-3 py-1.5 text-[13.5px] font-semibold text-foreground">
           <AutorenewOutlined className="animate-spin text-primary" sx={{ fontSize: 18 }} />
-          Checking my memory…
+            {info?.length > 0 ? "Analyzing & reasoning through the information" : "Analyzing & reasoning through the information…"}
         </div>
         <div className="flex items-center gap-3 py-1.5 text-[13.5px] font-semibold text-foreground">
           <AutorenewOutlined className="animate-spin text-primary" sx={{ fontSize: 18 }} />
-          Recollecting relevant past conversations…
+          {info}
         </div>
       </div>
       <div className="mt-4 space-y-2">

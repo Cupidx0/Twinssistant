@@ -42,6 +42,7 @@ function AiSpeech() {
   const audioQueueRef = useRef([]);
   const isPlayingAudioRef = useRef(false);
   const assistantDoneRef = useRef(false);
+  const currentAudioRef = useRef(null);
   const [messages, setMessages] = useState([]);
   const [draftTranscript, setDraftTranscript] = useState("");
   const [reply, setReply] = useState("");
@@ -117,7 +118,7 @@ function AiSpeech() {
     setMessages((current) => [...current, makeMessage(role, data)]);
   };
   const resumeListeningIfReplyFinished = () => {
-    if (assistantDoneRef.current && audioQueueRef.current.length === 0) {
+    if (assistantDoneRef.current && audioQueueRef.current.length === 0 && !isPlayingAudioRef.current) {
       setIsSpeaking(false);
       SpeechRecognition.startListening({
         continuous: true,
@@ -161,7 +162,23 @@ function AiSpeech() {
   };
 
   const stopSpeaking = () => {
-    window.speechSynthesis?.cancel?.();
+  // Stop browser speech fallback.
+  window.speechSynthesis?.cancel?.();
+
+  // Stop the active ElevenLabs clip immediately.
+  const currentAudio = currentAudioRef.current;
+    if (currentAudio) {
+      currentAudio.onended = null;
+      currentAudio.onerror = null;
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+      currentAudioRef.current = null;
+    }
+
+    // Do not play remaining assistant sentences.
+    audioQueueRef.current = [];
+    isPlayingAudioRef.current = false;
+    assistantDoneRef.current = false;
     setIsSpeaking(false);
   };
   const playNextAudio = () => {
@@ -179,7 +196,7 @@ function AiSpeech() {
     SpeechRecognition.stopListening();
 
     const audio = new Audio(`data:audio/mpeg;base64,${audioB64}`);
-
+    currentAudioRef.current = audio;
     const finish = () => {
       isPlayingAudioRef.current = false;
       playNextAudio();
@@ -245,9 +262,9 @@ function AiSpeech() {
   };
 
   const sendTurn = async (text) => {
+    if (!text.trim() || isPendingReply) return;
     assistantDoneRef.current = false;
     SpeechRecognition.stopListening();
-    if (!text.trim() || isPendingReply) return;
     appendMessage("user", { text }); 
     resetTranscript();
     setDraftTranscript("");
