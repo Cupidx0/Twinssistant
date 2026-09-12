@@ -50,8 +50,8 @@ export const ChatAPI = {
     const response = await api.post("/api/chat", { question });
     return response.data;
   },
-  fetchRepeatResponse: async (text) => {
-    const response = await api.post("/api/voice_repeat", { text });
+  fetchRepeatResponse: async (text,want_audio) => {
+    const response = await api.post("/api/voice_repeat", { text,want_audio });
     return response.data;
   },
   fetchFit: async (fit) => {

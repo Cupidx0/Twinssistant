@@ -842,121 +842,136 @@ def push_to_db(user_id, user_text, ai_response,conversation_id):
         })
     except Exception as e:
         print(f"Failed to push to DB: {e}")
+def chat_prompt(message, user_id, data):
+    intent, confidence = intent_classifier(message)
+    calevent = None
+    if intent == "calendar":
+        calevent = safe_get_calendar_events(data, user_id)  # also: was request.user["uid"] — wrong for a helper meant to work for both transports, see #5
+
+    if "weather" in message.lower():
+        city = get_user_city(user_id,"horley")  # default to "horley" if not found
+        weather = fetch_weather(city)
+        reply = (f"The current weather in {weather['city']} is {weather['temperature']}°C "
+                  f"with {weather['description']}.") if weather else "Sorry, I could not fetch the weather right now."
+        return {"early_reply": reply}
+
+    creatorname = "Godwin Alamu"
+    history = smart_chat_history(read_chat_history())
+    epi = episodic_memory_search(message)
+    ep = epi.get("memoran")
+    episodic = epi.get("grant")
+    memory_was_used = bool(ep) or bool(episodic)
+
+    if history.count("User:") > 40:
+        return {"early_reply": "Your chat history is too long. Do you want to clear it (Y/N)?"}
+
+    fit_check = f"if the user asks for outfit suggestion or fashion advice, check {episodic} if the user's sex, age, height, weight, skin tone is in the history — if not, ask the user for the details."
+
+    cv_info = None
+    cv_info_json = os.path.join(CV_INFO_FILE, "review_Software_Engineer.json")
+    if intent == "cv" and os.path.exists(cv_info_json):
+        with open(cv_info_json, "r") as f:
+            cv_info = json.load(f)
+
+    web_context, sources = "", []
+    if intent == "web_search" or has_word(message.lower(), WEB_SEARCH_KEYWORDS):
+        try:
+            results = tavilyclient.search(query=message, include_answer="advanced",
+                                          search_depth="advanced", include_raw_content="text", max_results=5)
+            items = results.get("results", []) if isinstance(results, dict) else results
+            sources = [{"title": r.get("title", "Untitled"), "url": r.get("url", "")} for r in items[:5]]
+            web_context = "\n".join(f"[{i}] {s['title']}: {s['url']}" for i, s in enumerate(sources, start=1))
+        except Exception as e:
+            web_context = f"(Tavily search failed: {e})"
+    web_search_was_used = bool(web_context)
+
+    today = datetime.now().strftime("%Y-%m-%d")
+    time = datetime.now().strftime("%H:%M:%S")
+
+    prompt = (
+                f"""
+                You are Godwin's personal AI assistant. You are sharp, intelligent, and adaptive — not just a coding assistant. Most conversations will be personal, practical, or conversational.
+    
+                Today is {today}, current time is {time}.
+    
+                Context available to you:
+                - Web search results: {web_context if web_context else 'None'}
+                - Calendar events: {calevent if calevent else 'None'}
+                - Conversation history: {history if history else {episodic} if episodic else 'None'}
+                - Current message: {message}
+                Respond to this directly and specifically. Do not get distracted by context unless it
+                How to behave:
+                - Prioritise web context over your training knowledge for anything current
+                - When you use a web result, cite it inline as [1], [2] matching the numbered list above
+                - Primary rule: Always respond directly to the current message first.
+                    Use context only if it strengthens the response.
+                - If it's casual, respond like a smart friend — no unnecessary structure
+                - If it's technical, be precise and concise
+                - If it's emotional or personal, be empathetic and grounded
+                - For code, format it cleanly with a brief explanation
+                - Always review Conversation history and episodic memory for relevant info, but don't repeat it unless it strengthens your response
+                - For CV questions, use the uploaded CV and give concrete specific feedback. Latest CV review: {cv_info if cv_info else 'none available — ask him to upload a CV first'}
+                - For calendar, use the events provided and confirm when adding or deleting
+                - In voice mode, respond in natural spoken sentences — no bullet points, no markdown
+                - Be direct. Don't over-explain. Don't pad responses
+                - Always respond in plain conversational language unless code or structure is specifically needed
+    
+                What you can handle:
+                - Weather: suggest outfits based on conditions, from closet if available
+                - Outfit: using {fit_check} suggest outfits based on conditions, from closet if available
+                - Career: CV feedback, cover letters, interview prep
+                - Learning: explain Python, React, DSA step by step, build study plans
+                - Productivity: plan tasks, manage time, suggest routines
+                - Personal_info: use {episodic} and Conversational history to remember user's age, height, weight, skin tone, sex, body
+                - Personal: be empathetic and motivational when needed
+                - Fun: jokes, trivia, light content when the mood calls for it
+                - Web: search and provide relevant links when useful
+                - Music: suggest songs or provide lyrics if asked
+                - Calendar: fetch, add, delete Google Calendar events
+                - Mac: you have access to Godwin's calendar, files, and Mac
+    
+                About Godwin:
+                - Developer learning Python, React, and DSA
+                - Targeting apprenticeships and junior roles
+                - Built you — so he knows how you work
+    
+                You are built by {creatorname} and still evolving.
+                """
+            )
+
+    assistantname = data.get("assistantname", "").strip()
+    namer = assistantname or "Ashen"
+    system_msg = f"You are a helpful assistant named {namer}. Current date is {today}, current time is {time}."
+
+    return {
+        "early_reply": None,
+        "prompt": prompt,
+        "system_msg": system_msg,
+        "intent": intent,
+        "sources": sources,
+        "memory_was_used": memory_was_used,
+        "web_search_was_used": web_search_was_used,
+        "calevent": calevent,
+    }
 @app.route('/api/chat', methods=['POST'])
 @require_auth
 def chat():
     try:
         data = get_request_json()
         message = data.get("question", "").strip()
+        audio_w = data.get("want_audio",True)
         user_id = request.user["uid"]
         if not message:
             return jsonify({"error": "Please provide a question."}), 400
-        intent, confidence = intent_classifier(message)
-        calevent = None
-        if intent == "calendar":
-            calevent = safe_get_calendar_events(data, request.user["uid"])
-        # Weather check
-        if "weather" in message.lower():
-            weather = fetch_weather(city)
-            if weather:
-                return jsonify({"reply": f"The current weather in {weather['city']} is {weather['temperature']}°C with {weather['description']}."})
-            return jsonify({"reply": "Sorry, I could not fetch the weather right now."})
-        #prompt
-        creatorname = "Godwin Alamu"
-        history = smart_chat_history(read_chat_history())
-        epi = episodic_memory_search(message)
-        ep = epi.get("memoran")
-        episodic = epi.get("grant")
-        memory_was_used = bool(ep) or bool(episodic)
-        print(f"episodic memory search result: {episodic}")
-        print(f"data memo:{ep}")
-        if history.count("User:") > 40:  # 20 exchanges
-            return jsonify({"reply": "Your chat history is too long. Do you want to clear it (Y/N)?"})
-        #tavily response
-        fit_check = f"if the user asks for outfit suggestion or fashion advice,check {episodic} if the users sex,age,height,weight,skin tone is in the history if not ask the user for the details ."
-        # Latest CV review feedback, if one exists
-        cv_info = None
-        cv_info_json = os.path.join(CV_INFO_FILE, "review_Software_Engineer.json")
-        if intent == "cv" and os.path.exists(cv_info_json):
-            with open(cv_info_json, "r") as f:
-                cv_info = json.load(f)
-        today = datetime.now().strftime("%Y-%m-%d")
-        time = datetime.now().strftime("%H:%M:%S")
-        web_context = ""
-        sources = []
-        if intent == "web_search" or has_word(message.lower(), WEB_SEARCH_KEYWORDS):
-            try:
-                results = tavilyclient.search(query=message,include_answer="advanced",
-                                              search_depth="advanced",include_raw_content="text", max_results=5)
-                items = results.get("results", []) if isinstance(results, dict) else results
-                # Structured list for the frontend source chips…
-                sources = [
-                    {"title": r.get("title", "Untitled"), "url": r.get("url", "")}
-                    for r in items[:5]
-                ]
-                # …and a numbered string for the prompt, so the model can cite [1], [2]
-                web_context = "\n".join(
-                    f"[{i}] {s['title']}: {s['url']}" for i, s in enumerate(sources, start=1)
-                )
-            except Exception as e:
-                web_context = f"(Tavily search failed: {e})"
-            print(f"web_context: {web_context}")
-        source = f"Web search results:\n{web_context}" if web_context else "no web search results available."
-        web_search_was_used = bool(web_context)
-        prompt = (
-            f"""
-            You are Godwin's personal AI assistant. You are sharp, intelligent, and adaptive — not just a coding assistant. Most conversations will be personal, practical, or conversational.
-
-            Today is {today}, current time is {time}.
-
-            Context available to you:
-            - Web search results: {web_context if web_context else 'None'}
-            - Calendar events: {calevent if calevent else 'None'}
-            - Conversation history: {history if history else {episodic} if episodic else 'None'}
-            - Current message: {message}
-            Respond to this directly and specifically. Do not get distracted by context unless it
-            How to behave:
-            - Prioritise web context over your training knowledge for anything current
-            - When you use a web result, cite it inline as [1], [2] matching the numbered list above
-            - Primary rule: Always respond directly to the current message first.
-                Use context only if it strengthens the response.
-            - If it's casual, respond like a smart friend — no unnecessary structure
-            - If it's technical, be precise and concise
-            - If it's emotional or personal, be empathetic and grounded
-            - For code, format it cleanly with a brief explanation
-            - Always review Conversation history and episodic memory for relevant info, but don't repeat it unless it strengthens your response
-            - For CV questions, use the uploaded CV and give concrete specific feedback. Latest CV review: {cv_info if cv_info else 'none available — ask him to upload a CV first'}
-            - For calendar, use the events provided and confirm when adding or deleting
-            - In voice mode, respond in natural spoken sentences — no bullet points, no markdown
-            - Be direct. Don't over-explain. Don't pad responses
-            - Always respond in plain conversational language unless code or structure is specifically needed
-
-            What you can handle:
-            - Weather: suggest outfits based on conditions, from closet if available
-            - Outfit: using {fit_check} suggest outfits based on conditions, from closet if available
-            - Career: CV feedback, cover letters, interview prep
-            - Learning: explain Python, React, DSA step by step, build study plans
-            - Productivity: plan tasks, manage time, suggest routines
-            - Personal_info: use {episodic} and Conversational history to remember user's age, height, weight, skin tone, sex, body
-            - Personal: be empathetic and motivational when needed
-            - Fun: jokes, trivia, light content when the mood calls for it
-            - Web: search and provide relevant links when useful
-            - Music: suggest songs or provide lyrics if asked
-            - Calendar: fetch, add, delete Google Calendar events
-            - Mac: you have access to Godwin's calendar, files, and Mac
-
-            About Godwin:
-            - Developer learning Python, React, and DSA
-            - Targeting apprenticeships and junior roles
-            - Built you — so he knows how you work
-
-            You are built by {creatorname} and still evolving.
-            """
-        )
-        # assistant name
-        assistantname = data.get("assistantname", "").strip()
-        namer = assistantname or "Ashen"
-        system_msg = f"You are a helpful assistant named {namer}. Current date is {today}, current time is {time}."
+        prompter = chat_prompt(message, user_id, data)
+        if prompter.get("early_reply"):
+            return jsonify({"reply": prompter["early_reply"]}), 200
+        prompt = prompter.get("prompt")
+        system_msg = prompter.get("system_msg")
+        intent = prompter.get("intent")
+        source = prompter.get("sources")
+        memory_was_used = prompter.get("memory_was_used")
+        web_search_was_used = prompter.get("web_search_was_used")
         #choose model based on intent
         reply = None
         if intent == "calendar":
@@ -1033,23 +1048,25 @@ def chat():
             ))
         except Exception:
             audio_bytes = text_to_speech_sync(speech_text)
-        audio_b64 = base64.b64encode(audio_bytes).decode()
-        info = "relying on internal knowledge"  # default
-        if memo_gpt and memory_was_used:  # set this True inside your memory-lookup branch
+
+        audio_b64 = base64.b64encode(audio_bytes).decode() if audio_w else None
+
+        info = "relying on internal knowledge"
+        if memo_gpt and memory_was_used:
             info = "recalled from episodic memory"
-        elif tavilyclient and web_search_was_used:  # set this True inside your search branch
+        elif tavilyclient and web_search_was_used:
             info = "surfing the web"
 
         return jsonify({
             "reply": reply,
-            "sources": sources,
+            "sources": source,
             "audio": audio_b64,
-            "info":info
+            "info": info
         }), 200
-
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+
 def read_chat_history(n=10):
     if os.path.exists(CHAT_HISTORY_FILE):
         with open(CHAT_HISTORY_FILE, "r", encoding="utf-8") as f:

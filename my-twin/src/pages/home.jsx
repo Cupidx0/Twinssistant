@@ -285,7 +285,7 @@ function Home() {
 
   const audioRef = useRef(null);
   const requestIdRef = useRef(0);
-  const handleSpeak = async (text) => {
+  const handleSpeak = async (text,want_audio) => {
         const id = ++requestIdRef.current;
         try {
                 // stop current audio
@@ -293,7 +293,7 @@ function Home() {
                         audioRef.current.pause();
                         audioRef.current = null;
                 }
-                const response = await ChatAPI.fetchRepeatResponse(text);
+                const response = await ChatAPI.fetchRepeatResponse(text,want_audio);
                 if (id !== requestIdRef.current) return; // newer click won, drop this one
 
                 if (response.audio) {
