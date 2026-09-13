@@ -973,120 +973,137 @@ def chat_prompt(message, user_id, data):
         "web_search_was_used": web_search_was_used,
         "calevent": calevent,
     }
+def process_chat_message(message, user_id, data):
+    """
+    Runs the full chat pipeline: intent routing, model call, DB/local persistence.
+    Returns (reply, source, info). Raises on unrecoverable errors , caller decides
+    how to surface them (jsonify vs emit).
+    """
+    prompter = chat_prompt(message, user_id, data)
+    if prompter.get("early_reply"):
+        return prompter["early_reply"], None, None  # caller checks for this case
+
+    prompt = prompter.get("prompt")
+    system_msg = prompter.get("system_msg")
+    intent = prompter.get("intent")
+    source = prompter.get("sources")
+    memory_was_used = prompter.get("memory_was_used")
+    web_search_was_used = prompter.get("web_search_was_used")
+
+    reply = None
+    if intent == "calendar":
+        response = create_anthropic_completion(
+            model="claude-sonnet-4-6",
+            system=system_msg,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=2048,
+            temperature=0.7,
+            functions=calendar_functions,
+            function_call="auto"
+        )
+        fn = extract_function_call(response)
+        if fn:
+            fn_name = fn["name"]
+            raw_args = fn.get("arguments") or {}
+            args = raw_args if isinstance(raw_args, dict) else json.loads(raw_args or "{}")
+
+            if fn_name == "add_calendar_event":
+                end_time = parse_natural_datetime(args.get("end"))
+                if not end_time:
+                    reply = "Sorry, I couldn't work out the date/time for that event — could you be more specific?"
+                else:
+                    end_time_obj = datetime.fromisoformat(end_time)
+                    start_time = end_time_obj - timedelta(hours=1)
+                    add_event_to_calendar(args.get("summary"), start_time.isoformat(), end_time_obj.isoformat())
+                    reply = f"Done — added \"{args.get('summary')}\" to your calendar for {end_time_obj.strftime('%A %d %b, %H:%M')}."
+
+            elif fn_name == "get_calendar_events":
+                calevent = safe_get_calendar_events(args, user_id)
+                reply = f"Here's what's on your calendar: {calevent}"
+
+    elif intent in ("weather", "web_search") or any(k in message.lower() for k in ["weather", "outfit", "logic", "jokes"]):
+        response = create_gemini_completion(
+            model="gemini-3.1-flash-lite",
+            messages=[
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=2048,
+            temperature=0.7
+        )
+        if reply is None:
+            reply = extract_message_content(response).strip()
+    else:
+        response = create_chat_completion(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=2048,
+            temperature=0.7
+        )
+        if reply is None:
+            reply = extract_message_content(response).strip()
+
+    try:
+        push_to_db(user_id, message, reply, conversation_id='imported_conv_1')
+    except Exception as e:
+        print(f"Error occurred while pushing to DB: {e}")
+        print("Continuing without saving to DB, saved locally.")
+        os.makedirs(CHAT_DIR, exist_ok=True)
+        with open(CHAT_HISTORY_FILE, "a", encoding="utf-8") as f:
+            f.write(f"User: {message}\nAssistant: {reply}\n Source: {source}\n Timestamp: {datetime.now().isoformat()}\n\n")
+
+    info = "relying on internal knowledge"
+    if memo_gpt and memory_was_used:
+        info = "recalled from episodic memory"
+    elif tavilyclient and web_search_was_used:
+        info = "surfing the web"
+
+    return reply, source, info
+
+
 @app.route('/api/chat', methods=['POST'])
 @require_auth
 def chat():
     try:
         data = get_request_json()
         message = data.get("question", "").strip()
-        #audio_w = data.get("want_audio",True)
         user_id = request.user["uid"]
         if not message:
             return jsonify({"error": "Please provide a question."}), 400
-        prompter = chat_prompt(message, user_id, data)
-        if prompter.get("early_reply"):
-            return jsonify({"reply": prompter["early_reply"]}), 200
-        prompt = prompter.get("prompt")
-        system_msg = prompter.get("system_msg")
-        intent = prompter.get("intent")
-        source = prompter.get("sources")
-        memory_was_used = prompter.get("memory_was_used")
-        web_search_was_used = prompter.get("web_search_was_used")
-        #choose model based on intent
-        reply = None
-        if intent == "calendar":
-            # Anthropic takes the system prompt as a separate parameter, not a message
-            response = create_anthropic_completion(
-                model="claude-sonnet-4-6",
-                system=system_msg,
-                messages=[
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=2048,
-                temperature=0.7,
-                functions=calendar_functions,
-                function_call="auto"
-            )
-            fn = extract_function_call(response)
-            if fn:
-                fn_name = fn["name"]
-                raw_args = fn.get("arguments") or {}
-                args = raw_args if isinstance(raw_args, dict) else json.loads(raw_args or "{}")
 
-                if fn_name == "add_calendar_event":
-                    end_time = parse_natural_datetime(args.get("end"))
-                    if not end_time:
-                        reply = "Sorry, I couldn't work out the date/time for that event — could you be more specific?"
-                    else:
-                        end_time_obj = datetime.fromisoformat(end_time)
-                        start_time = end_time_obj - timedelta(hours=1)
-                        add_event_to_calendar(args.get("summary"), start_time.isoformat(), end_time_obj.isoformat())
-                        reply = f"Done — added \"{args.get('summary')}\" to your calendar for {end_time_obj.strftime('%A %d %b, %H:%M')}."
+        reply, source, info = process_chat_message(message, user_id, data)
+        if source is None and info is None:
+            # early_reply case
+            return jsonify({"reply": reply}), 200
 
-                elif fn_name == "get_calendar_events":
-                    calevent = safe_get_calendar_events(args, request.user["uid"])
-                    reply = f"Here's what's on your calendar: {calevent}"
-        elif intent in ("weather", "web_search") or any(k in message.lower() for k in ["weather", "outfit", "logic", "jokes"]):
-            response = create_gemini_completion(
-                model="gemini-3.1-flash-lite",
-                messages=[
-                    {"role": "system", "content": system_msg},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=2048,
-                temperature=0.7
-            )
-        else:
-            response = create_chat_completion(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": system_msg},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=2048,
-                temperature=0.7
-            )
-        if reply is None:
-            reply = extract_message_content(response).strip()
-        # Plain-text version for TTS so markdown/citation markers aren't read aloud
-        speech_text = re.sub(r"\[\d+\]", "", reply)
-        speech_text = re.sub(r"[*_#`]", "", speech_text)
-        try:
-            push_to_db(user_id, message, reply, conversation_id=('imported_conv_1'))
-        except Exception as e:
-            print(f"Error occurred while pushing to DB: {e}")
-            print("Continuing without saving to DB ,saved locally.")
-            # Save chat to local file
-            os.makedirs(CHAT_DIR, exist_ok=True)
-            with open(CHAT_HISTORY_FILE, "a", encoding="utf-8") as f:
-                f.write(f"User: {message}\nAssistant: {reply}\n Source: {source}\n Timestamp: {datetime.now().isoformat()}\n\n")
-        """try:
-           audio_bytes = asyncio.run(text_to_speech_ws_streaming(
-                    voice_id="JBFqnCBsd6RMkjVDRZzb",
-                    model_id="eleven_flash_v2_5",
-                    text=speech_text,
-            ))
-        except Exception:
-            audio_bytes = text_to_speech_sync(speech_text)
-
-        audio_b64 = base64.b64encode(audio_bytes).decode()"""
-
-        info = "relying on internal knowledge"
-        if memo_gpt and memory_was_used:
-            info = "recalled from episodic memory"
-        elif tavilyclient and web_search_was_used:
-            info = "surfing the web"
-
-        return jsonify({
-            "reply": reply,
-            "sources": source,
-            #"audio": audio_b64,
-            "info": info
-        }), 200
+        return jsonify({"reply": reply, "sources": source, "info": info}), 200
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
+
+@socketio.on('stream_chat')
+def ws_stream_chat():
+    try:
+        data = get_request_json()
+        message = data.get("question", "").strip()
+        user_id = request.user["uid"]  # see auth note below
+        if not message:
+            emit('ai_response', {"error": "Please provide a question."})
+            return
+
+        reply, source, info = process_chat_message(message, user_id, data)
+        if source is None and info is None:
+            emit('ai_response', {"reply": reply})
+            return
+
+        emit('ai_response', {"reply": reply, "sources": source, "info": info})
+    except Exception as e:
+        traceback.print_exc()
+        emit('ai_response', {"error": str(e)})
 def read_chat_history(n=10):
     if os.path.exists(CHAT_HISTORY_FILE):
         with open(CHAT_HISTORY_FILE, "r", encoding="utf-8") as f:
