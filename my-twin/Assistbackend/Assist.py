@@ -780,8 +780,28 @@ def handle_voice(data):
 
     emit('ai_response', {'type': 'done', 'text': full_text})
 
-#@app.route('/api/voice_repeat', methods=['POST'])
-#@require_auth
+@app.route('/api/voice_repeat', methods=['POST'])
+@require_auth
+def voice_repeat():
+    audio_text = request.json.get('text').strip()
+    audio_request = request.json.get('want_audio', True)
+    audio_bytes = None
+    if audio_request:
+        if not audio_text:
+            return jsonify({"error": "No text provided"}), 400
+        try:
+            audio_bytes = asyncio.run(text_to_speech_ws_streaming(
+                        voice_id="JBFqnCBsd6RMkjVDRZzb",
+                        model_id="eleven_flash_v2_5",
+                        text=audio_text,
+                    ))
+        except Exception:
+            try:
+                audio_bytes = text_to_speech_sync(audio_text)
+            except Exception as e2:
+                return jsonify({"error": f"Text-to-speech failed: {e2}"}), 500
+    audio_b64 = base64.b64encode(audio_bytes).decode() if audio_bytes else None
+    return jsonify({'type': 'audio', 'text': audio_text, 'audio': audio_b64})
 def _synthesize_and_emit(sentence):
     audio_bytes = None
     try:
@@ -959,7 +979,7 @@ def chat():
     try:
         data = get_request_json()
         message = data.get("question", "").strip()
-        audio_w = data.get("want_audio",True)
+        #audio_w = data.get("want_audio",True)
         user_id = request.user["uid"]
         if not message:
             return jsonify({"error": "Please provide a question."}), 400
@@ -1040,8 +1060,8 @@ def chat():
             os.makedirs(CHAT_DIR, exist_ok=True)
             with open(CHAT_HISTORY_FILE, "a", encoding="utf-8") as f:
                 f.write(f"User: {message}\nAssistant: {reply}\n Source: {source}\n Timestamp: {datetime.now().isoformat()}\n\n")
-        try:
-            audio_bytes = asyncio.run(text_to_speech_ws_streaming(
+        """try:
+           audio_bytes = asyncio.run(text_to_speech_ws_streaming(
                     voice_id="JBFqnCBsd6RMkjVDRZzb",
                     model_id="eleven_flash_v2_5",
                     text=speech_text,
@@ -1049,7 +1069,7 @@ def chat():
         except Exception:
             audio_bytes = text_to_speech_sync(speech_text)
 
-        audio_b64 = base64.b64encode(audio_bytes).decode() if audio_w else None
+        audio_b64 = base64.b64encode(audio_bytes).decode()"""
 
         info = "relying on internal knowledge"
         if memo_gpt and memory_was_used:
@@ -1060,7 +1080,7 @@ def chat():
         return jsonify({
             "reply": reply,
             "sources": source,
-            "audio": audio_b64,
+            #"audio": audio_b64,
             "info": info
         }), 200
     except Exception as e:
