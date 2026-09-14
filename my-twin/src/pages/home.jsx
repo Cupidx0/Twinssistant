@@ -37,7 +37,9 @@ import { ChatAPI, WeatherAPI, CalendarAPI } from "../Utils/Assistant";
 import { useAuth } from "./AuthContext";
 import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition";
 import "react-big-calendar/lib/css/react-big-calendar.css";
+import { io } from "socket.io-client";
 
+const WS_URL = import.meta.env.VITE_AI_SPEECH_WS_URL || "http://localhost:5000";
 const readStoredValue = (key, fallback = "") => {
   try {
     const value = localStorage.getItem(key);
@@ -239,20 +241,56 @@ function Home() {
       setMicError("Microphone access is blocked. Allow mic permission in your browser settings.");
     }
   }, [isMicrophoneAvailable]);
+  useEffect(() => {
+    if (!user) return;
+    openSocket();
+    return () => closeSocket();
+  }, [user]);
+  const socketRef = useRef(null);
+  const [connectionStatus, setConnectionStatus] = useState("Disconnected");
 
-  const handleSend = async (overrideQuestion) => {
-    const text = (overrideQuestion ?? question).trim();
-    if (!text) {
-      toast.error("Please enter a question.");
-      return;
-    }
-    if (pending) return;
+  const openSocket = async () => {
+    if (socketRef.current) return;
+    setConnectionStatus("Connecting");
+    const token = await user.getIdToken();
+    socketRef.current = io(WS_URL, {
+      transports: ["polling", "websocket"],
+      auth: { token },
+    });
+      // ...rest unchanged
+    socketRef.current.on("connect", () => setConnectionStatus("Connected"));
+    socketRef.current.on("disconnect", () => setConnectionStatus("Disconnected"));
+    socketRef.current.on("connect_error", () => setConnectionStatus("HTTP fallback"));
 
-    setMessages((current) => [...current, makeMessage("user", text)]);
-    setQuestion("");
-    localStorage.setItem("userQuestion", text);
-    resetTranscript();
-    setPending(true);
+    socketRef.current.on("ai_response", (data) => {
+      if (data.type === "error") {
+        setMessages((current) => [
+          ...current,
+          makeMessage("assistant", data.error || "Something went wrong."),
+        ]);
+        toast.error(data.error || "Failed to get response from assistant.");
+        setPending(false);
+        return;
+      }
+
+      if (data.type === "done") {
+        setMessages((current) => [
+          ...current,
+          makeMessage("assistant", data.reply, data.sources, data.info),
+        ]);
+        if (data.reply?.toLowerCase().includes("chat history is too long")) {
+          setOpenConfirm(true);
+        }
+        setPending(false);
+      }
+    });
+  };
+
+  const closeSocket = () => {
+    socketRef.current?.disconnect();
+    socketRef.current = null;
+  };
+  const RecieveViaHttp = async (text) => {
     try {
       const response = await ChatAPI.fetchAssistantResponse(text);
       const reply = response.reply || "No response from assistant.";
@@ -278,6 +316,31 @@ function Home() {
     }
   };
 
+  const handleSend = async (overrideQuestion) => {
+    const text = (overrideQuestion ?? question).trim();
+    if (!text) {
+      toast.error("Please enter a question.");
+      return;
+    }
+    if (pending) return;
+
+    setMessages((current) => [...current, makeMessage("user", text)]);
+    setQuestion("");
+    localStorage.setItem("userQuestion", text);
+    resetTranscript();
+    setPending(true);
+    try {
+      const socket = socketRef.current;
+      if (socket?.connected) {
+        socket.emit("stream_chat", { question: text });
+        return;
+      }
+      await RecieveViaHttp(text);
+    } catch (error) {
+      console.error("Error sending message:", error);
+      setPending(false);
+    }
+  };
   const handleRetry = () => {
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
     if (lastUser) handleSend(lastUser.text);

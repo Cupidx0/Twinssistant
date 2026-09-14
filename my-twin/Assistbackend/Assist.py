@@ -5,6 +5,7 @@ from flask_cors import CORS
 import os
 from dotenv import load_dotenv
 from firebase_admin import credentials, firestore, get_app, initialize_app
+from firebase_admin import auth as fb_auth
 from google.cloud.firestore_v1.base_query import FieldFilter
 import requests
 from dateutil import parser
@@ -25,6 +26,8 @@ import base64
 import json
 import traceback
 from flask_socketio import SocketIO, emit
+from flask import session
+from flask_socketio import disconnect
 from cv_route import cv_bp
 from Pinecone_vec import save_pattern, find_pattern
 from auth_utils import require_auth
@@ -1085,25 +1088,41 @@ def chat():
         return jsonify({"error": str(e)}), 500
 
 
-@socketio.on('stream_chat')
-def ws_stream_chat():
+@socketio.on('connect')
+def handle_connect(auth):
+    token = (auth or {}).get("token", "")
+    if not token:
+        disconnect()
+        return False
     try:
-        data = get_request_json()
-        message = data.get("question", "").strip()
-        user_id = request.user["uid"]  # see auth note below
-        if not message:
-            emit('ai_response', {"error": "Please provide a question."})
+        decoded = fb_auth.verify_id_token(token)
+    except Exception:
+        disconnect()
+        return False
+    session['uid'] = decoded["uid"]
+
+
+@socketio.on('stream_chat')
+def ws_stream_chat(data):
+    try:
+        user_id = session.get('uid')
+        if not user_id:
+            emit('ai_response', {"type": "error", "error": "Not authenticated."})
             return
 
+        message = (data or {}).get("question", "").strip()
+        if not message:
+            emit('ai_response', {"type": "error", "error": "Please provide a question."})
+            return
         reply, source, info = process_chat_message(message, user_id, data)
         if source is None and info is None:
-            emit('ai_response', {"reply": reply})
+            emit('ai_response', {"type":"done", "reply": reply})
             return
 
-        emit('ai_response', {"reply": reply, "sources": source, "info": info})
+        emit('ai_response', {"type":"done", "reply": reply, "sources": source, "info": info})
     except Exception as e:
         traceback.print_exc()
-        emit('ai_response', {"error": str(e)})
+        emit('ai_response', {"type":"error", "error": str(e)})
 def read_chat_history(n=10):
     if os.path.exists(CHAT_HISTORY_FILE):
         with open(CHAT_HISTORY_FILE, "r", encoding="utf-8") as f:
