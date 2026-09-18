@@ -109,7 +109,8 @@ function SourceChips({ sources }) {
   );
 }
 
-function ThinkingSteps({info}) {
+function ThinkingSteps({ info = [] }) {
+  const latest = info[info.length - 1];
   return (
     <div className="mb-6">
       <div className="mb-2 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
@@ -133,7 +134,7 @@ function ThinkingSteps({info}) {
         </div>
         <div className="flex items-center gap-3 py-1.5 text-[13.5px] font-semibold text-foreground">
           <AutorenewOutlined className="animate-spin text-primary" sx={{ fontSize: 18 }} />
-          {info}
+          {latest ? latest : "Finalizing the response…"}
         </div>
       </div>
       <div className="mt-4 space-y-2">
@@ -158,6 +159,7 @@ function Home() {
   const [openConfirm, setOpenConfirm] = useState(false);
   const [weather, setWeather] = useState(null);
   const [events, setEvents] = useState([]);
+  const [liveInfo, setLiveInfo] = useState([]);
   const [now, setNow] = useState(new Date());
   const bottomRef = useRef(null);
 
@@ -272,7 +274,10 @@ function Home() {
         setPending(false);
         return;
       }
-
+      if (data.type === "info") {
+        setLiveInfo((current) => [...current, data.info]);
+        return;
+      }
       if (data.type === "done") {
         setMessages((current) => [
           ...current,
@@ -282,6 +287,7 @@ function Home() {
           setOpenConfirm(true);
         }
         setPending(false);
+        setLiveInfo([]);
       }
     });
   };
@@ -329,6 +335,7 @@ function Home() {
     localStorage.setItem("userQuestion", text);
     resetTranscript();
     setPending(true);
+    setLiveInfo([]);
     try {
       const socket = socketRef.current;
       if (socket?.connected) {
@@ -575,7 +582,7 @@ function Home() {
                 ),
               )}
 
-              {pending ? <ThinkingSteps /> : null}
+              {pending ? <ThinkingSteps info={liveInfo} /> : null}
               <div ref={bottomRef} />
             </div>
           </div>

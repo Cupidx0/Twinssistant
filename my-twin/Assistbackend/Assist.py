@@ -1061,7 +1061,7 @@ def process_chat_message(message, user_id, data):
     info = "relying on internal knowledge"
     if memo_gpt and memory_was_used:
         info = "recalled from episodic memory"
-    elif tavilyclient and web_search_was_used:
+    elif intent == "web_search" and web_search_was_used:
         info = "surfing the web"
 
     return reply, source, info
@@ -1118,7 +1118,8 @@ def ws_stream_chat(data):
         if source is None and info is None:
             emit('ai_response', {"type":"done", "reply": reply})
             return
-
+        if info:
+            emit('ai_response', {"type":"info", "info": info})
         emit('ai_response', {"type":"done", "reply": reply, "sources": source, "info": info})
     except Exception as e:
         traceback.print_exc()
