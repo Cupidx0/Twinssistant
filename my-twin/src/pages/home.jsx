@@ -558,6 +558,10 @@ function Home() {
                 ) : (
                   <div key={m.id} className="mb-6">
                     <div className="mb-2 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
+                        {m.info||""}
+                    </div>
+                  <div key={m.id} className="mb-6">
+                    <div className="mb-2 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
                       <span className="grid h-[18px] w-[18px] place-items-center rounded-md bg-gradient-primary text-primary-foreground">
                         <GraphicEq sx={{ fontSize: 11 }} />
                       </span>
@@ -579,6 +583,7 @@ function Home() {
                       </button>
                     </div>
                   </div>
+                  </div>
                 ),
               )}
 
@@ -586,6 +591,7 @@ function Home() {
               <div ref={bottomRef} />
             </div>
           </div>
+
 
           {/* Input dock */}
           <div className="flex justify-center px-6 pb-4 pt-2">

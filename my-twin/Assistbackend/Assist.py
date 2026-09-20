@@ -865,6 +865,21 @@ def push_to_db(user_id, user_text, ai_response,conversation_id):
         })
     except Exception as e:
         print(f"Failed to push to DB: {e}")
+def tavily_search(query, max_results=5):
+    """Perform a web search using Tavily and return results."""
+    try:
+        results = tavilyclient.search(
+            query=query,
+            include_answer="advanced",
+            search_depth="advanced",
+            include_raw_content="text",
+            max_results=max_results
+        )
+        items = results.get("results", []) if isinstance(results, dict) else results
+        return [{"title": r.get("title", "Untitled"), "url": r.get("url", "")} for r in items[:max_results]]
+    except Exception as e:
+        print(f"Tavily search failed: {e}")
+        return []
 def chat_prompt(message, user_id, data):
     intent, confidence = intent_classifier(message)
     calevent = None
@@ -899,14 +914,12 @@ def chat_prompt(message, user_id, data):
     web_context, sources = "", []
     if intent == "web_search" or has_word(message.lower(), WEB_SEARCH_KEYWORDS):
         try:
-            results = tavilyclient.search(query=message, include_answer="advanced",
-                                          search_depth="advanced", include_raw_content="text", max_results=5)
-            items = results.get("results", []) if isinstance(results, dict) else results
-            sources = [{"title": r.get("title", "Untitled"), "url": r.get("url", "")} for r in items[:5]]
+            results = tavily_search(message, max_results=5)
+            sources = [{"title": r.get("title", "Untitled"), "url": r.get("url", "")} for r in results]
             web_context = "\n".join(f"[{i}] {s['title']}: {s['url']}" for i, s in enumerate(sources, start=1))
         except Exception as e:
             web_context = f"(Tavily search failed: {e})"
-    web_search_was_used = bool(web_context)
+    web_search_was_used = bool(intent == "web_search") or bool(has_word(message.lower(), WEB_SEARCH_KEYWORDS))
 
     today = datetime.now().strftime("%Y-%m-%d")
     time = datetime.now().strftime("%H:%M:%S")
@@ -1061,7 +1074,7 @@ def process_chat_message(message, user_id, data):
     info = "relying on internal knowledge"
     if memo_gpt and memory_was_used:
         info = "recalled from episodic memory"
-    elif intent == "web_search" and web_search_was_used:
+    if intent_classifier and web_search_was_used:
         info = "surfing the web"
 
     return reply, source, info
