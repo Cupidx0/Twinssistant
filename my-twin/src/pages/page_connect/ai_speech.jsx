@@ -13,9 +13,9 @@ import {
   MicOff,
   Stop,
 } from "@mui/icons-material";
+import { useAuth } from "../AuthContext";
 import { API_BASE_URL, ChatAPI } from "../../Utils/Assistant";
 import { io } from "socket.io-client";
-
 const WS_URL = import.meta.env.VITE_AI_SPEECH_WS_URL || "http://localhost:5000";
 const AUTO_SEND_DELAY_MS = 1400;
 
@@ -35,7 +35,7 @@ function AiSpeech() {
     browserSupportsSpeechRecognition,
     isMicrophoneAvailable,
   } = useSpeechRecognition();
-
+  const { user } = useAuth();
   const transcriptTimerRef = useRef(null);
   const transcriptEndRef = useRef(null);
   const socketRef = useRef(null);
@@ -106,12 +106,13 @@ function AiSpeech() {
   }, [transcript, listening, isPendingReply]);
 
   useEffect(() => {
+    if (!user) return;
     openSocket();
     return () => {
       clearTimeout(transcriptTimerRef.current);
       closeSocket();
     };
-  }, []);
+  }, [user]);
 
   const appendMessage = (role, data) => {
     if (!data?.text?.trim()) return;
@@ -219,12 +220,13 @@ function AiSpeech() {
   };
 
 
-  const openSocket = () => {
+  const openSocket = async () => {
     if (socketRef.current) return;
-    closeSocket();
     setConnectionStatus("Connecting");
-    socketRef.current = io(WS_URL || API_BASE_URL, {
-      transports: ["polling","websocket"],
+    const token = await user.getIdToken();
+    socketRef.current = io(WS_URL, {
+      transports: ["polling", "websocket"],
+      auth: { token },
     });
     socketRef.current.on("connect", () => setConnectionStatus("Connected"));
     socketRef.current.on("disconnect", () => setConnectionStatus("Disconnected"));

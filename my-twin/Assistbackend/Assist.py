@@ -757,10 +757,25 @@ def get_ai_response(user_text):
         yield f"Error generating response: {str(e)}"
 import re
 SENTENCE_END_RE = re.compile(r'(?<=[.!?])\s+')
-
+@socketio.on('connect')
+def handle_connect(auth):
+    token = (auth or {}).get("token", "")
+    if not token:
+        disconnect()
+        return False
+    try:
+        decoded = fb_auth.verify_id_token(token)
+    except Exception:
+        disconnect()
+        return False
+    session['uid'] = decoded["uid"]
 @socketio.on('voice_message')
 def handle_voice(data):
     user_text = data.get('text', '').strip()
+    user_id = session.get('uid')
+    if not user_id:
+        emit('ai_response', {"type": "error", "error": "Not authenticated."})
+        return
     if not user_text:
         return
 
@@ -938,7 +953,6 @@ def chat_prompt(message, user_id, data):
                 Respond to this directly and specifically. Do not get distracted by context unless it
                 How to behave:
                 - Prioritise web context over your training knowledge for anything current
-                - When you use a web result, cite it inline as [1], [2] matching the numbered list above
                 - Primary rule: Always respond directly to the current message first.
                     Use context only if it strengthens the response.
                 - If it's casual, respond like a smart friend — no unnecessary structure
@@ -1099,21 +1113,6 @@ def chat():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
-
-
-@socketio.on('connect')
-def handle_connect(auth):
-    token = (auth or {}).get("token", "")
-    if not token:
-        disconnect()
-        return False
-    try:
-        decoded = fb_auth.verify_id_token(token)
-    except Exception:
-        disconnect()
-        return False
-    session['uid'] = decoded["uid"]
-
 
 @socketio.on('stream_chat')
 def ws_stream_chat(data):
