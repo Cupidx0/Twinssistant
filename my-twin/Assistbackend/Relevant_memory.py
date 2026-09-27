@@ -7,6 +7,7 @@ from auth_utils import require_auth
 from firebase_admin import firestore
 from Routing import create_chat_completion, create_gemini_completion, extract_message_content
 from dotenv import load_dotenv
+from pc_connect import open_app, list_files, read_file, get_system_info
 from Pinecone_vec import get_embedding, find_pattern, save_pattern
 load_dotenv()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -27,8 +28,20 @@ WEB_SEARCH_KEYWORDS = [
     "prime minister", "capital of", "country", "countries", "who is", "what is",
     "when is", "where is", "how to", "define"
 ]
-
-
+def resolve_and_run_laptop_tool(user_text: str):
+    # crude first pass — swap for GPT function-calling once you're ready
+    if "open" in user_text.lower():
+        app_name = user_text.lower().split("open", 1)[1].strip()
+        return handle_laptop_tool_intent("open_app", app_name=app_name)
+    if "list files" in user_text.lower():
+        return handle_laptop_tool_intent("list_files", directory="~")
+    return {"success": False, "error": "Could not resolve laptop tool intent"}
+TOOL_MAP = {
+        "open_app": open_app,
+        "list_files": list_files,
+        "read_file": read_file,
+        "system_info": get_system_info,
+    }
 def keyword_classify(user_text):
     text = user_text.lower()
 
@@ -154,6 +167,12 @@ def memory_search(text, max_results=5):
                 break
 
     return hits or None
+
+def handle_laptop_tool_intent(tool_name: str, **kwargs):
+    fn = TOOL_MAP.get(tool_name)
+    if not fn:
+        return {"success": False, "error": f"Unknown tool: {tool_name}"}
+    return fn(**kwargs)
 def memo_gpt(text):
     """Search for relevant past conversations in chat history and return a concise summary."""
     memoir = memory_search(text)
