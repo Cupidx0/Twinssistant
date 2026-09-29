@@ -1,12 +1,17 @@
 import subprocess
 import platform
 import os
-
+Alias_Names = {
+    "camera": "Photo Booth"
+}
 def open_app(app_name: str) -> dict:
     """Launch a Mac application by name."""
     try:
-        subprocess.run(["open", "-a", app_name], check=True)
-        return {"success": True, "message": f"Opened {app_name}"}
+        real_app_name = Alias_Names.get(app_name.lower(), app_name)
+        result = subprocess.run(["open", "-a", real_app_name], check=True)
+        if result.returncode == 0:
+            return {"success": True, "message": f"Opened {real_app_name}"}
+        return {"success": False, "error": f"Failed to open {real_app_name}"}
     except subprocess.CalledProcessError as e:
         return {"success": False, "error": str(e)}
 
@@ -17,6 +22,13 @@ def list_files(directory: str) -> dict:
         return {"success": True, "files": entries}
     except FileNotFoundError as e:
         return {"success": False, "error": str(e)}
+    
+def open_url(url: str) -> dict:
+    """Open a URL in the default web browser."""
+    result = subprocess.run(["open", url], capture_output=True, text=True)
+    if result.returncode == 0:
+        return {"success": True, "message": f"Opened {url}"}
+    return {"success": False, "error": f"Couldn't open {url}"}
 
 def read_file(path: str, max_chars: int = 5000) -> dict:
     """Read a text file's content, capped for safety."""

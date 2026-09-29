@@ -31,7 +31,7 @@ from flask_socketio import disconnect
 from cv_route import cv_bp
 from Pinecone_vec import save_pattern, find_pattern
 from auth_utils import require_auth
-from Relevant_memory import memory_search, memo_gpt
+from Relevant_memory import memory_search, memo_gpt, resolve_and_run_laptop_tool, keyword_classify
 from gmail_call import mail_box
 try:
     import holidays as holidays_lib
@@ -672,7 +672,7 @@ def keyword_classify(user_text):
     if has_word(text, [
         "open", "launch", "play", "spotify", "file", "folder", "close", "quit"
     ]):
-        return "mac_control"
+        return "mac_tool"
 
     if has_word(text, [
         "code", "debug", "error", "function", "python", "react", "flask", "bug", "fix"
@@ -684,7 +684,7 @@ def keyword_classify(user_text):
 
     return "casual"
 
-INTENT_NAMES = ["calendar", "cv", "mac_control", "code", "greeting", "web_search", "identity", "casual"]
+INTENT_NAMES = ["calendar", "cv", "mac_tool", "code", "greeting", "web_search", "identity", "casual"]
 
 def intent_classifier(user_text):
     try:
@@ -1063,6 +1063,12 @@ def process_chat_message(message, user_id, data):
         )
         if reply is None:
             reply = extract_message_content(response).strip()
+    elif intent =="mac_tool":
+        result = resolve_and_run_laptop_tool(message)
+        if result.get("success"):
+            reply = result.get("message") or "Done."
+        else:
+            reply = f"Couldn't do that — {result.get('error', 'unknown error')}"
     else:
         response = create_chat_completion(
             model="gpt-4o-mini",

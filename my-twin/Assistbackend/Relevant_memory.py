@@ -1,5 +1,6 @@
 import os
 import re
+import json
 from datetime import datetime
 import firebase_admin
 from firebase_admin import credentials, firestore
@@ -7,7 +8,7 @@ from auth_utils import require_auth
 from firebase_admin import firestore
 from Routing import create_chat_completion, create_gemini_completion, extract_message_content
 from dotenv import load_dotenv
-from pc_connect import open_app, list_files, read_file, get_system_info
+from pc_connect import close_app, open_app, list_files, read_file, get_system_info ,open_url
 from Pinecone_vec import get_embedding, find_pattern, save_pattern
 load_dotenv()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -28,19 +29,121 @@ WEB_SEARCH_KEYWORDS = [
     "prime minister", "capital of", "country", "countries", "who is", "what is",
     "when is", "where is", "how to", "define"
 ]
+LAPTOP_TOOL_SCHEMA = [
+    {
+        "type": "function",
+        "function": {
+            "name": "open_app",
+            "description": "Open/launch an application on the user's Mac. Note: the camera app is 'Photo Booth'.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "app_name": {"type": "string", "description": "Name of the app, e.g. 'Spotify', 'Safari'"}
+                },
+                "required": ["app_name"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "close_app",
+            "description": "Close/quit an application on the user's Mac.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "app_name": {"type": "string", "description": "Name of the app to close"}
+                },
+                "required": ["app_name"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_files",
+            "description": "List files in a directory on the user's Mac.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "directory": {"type": "string", "description": "Path, e.g. '~/Downloads'"}
+                },
+                "required": ["directory"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "read_file",
+            "description": "Read the text content of a file on the user's Mac.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "Full or ~-relative path to the file"}
+                },
+                "required": ["path"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "open_url",
+            "description": "Open a URL in the default web browser on the user's Mac.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "url": {"type": "string", "description": "The URL to open, e.g. 'https://www.example.com'"}
+                },
+                "required": ["url"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "system_info",
+            "description": "Get basic system/platform info about the user's Mac.",
+            "parameters": {"type": "object", "properties": {}}
+        }
+    }
+]
 def resolve_and_run_laptop_tool(user_text: str):
-    # crude first pass — swap for GPT function-calling once you're ready
-    if "open" in user_text.lower():
-        app_name = user_text.lower().split("open", 1)[1].strip()
-        return handle_laptop_tool_intent("open_app", app_name=app_name)
-    if "list files" in user_text.lower():
-        return handle_laptop_tool_intent("list_files", directory="~")
-    return {"success": False, "error": "Could not resolve laptop tool intent"}
+    response = create_chat_completion(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": (
+                "You are a helpful assistant that can perform tasks on the user's Mac. "
+                "Based on the user's request, determine which tool to use and provide the necessary arguments. "
+                "If you cannot determine a tool, respond with an error message."
+            )},
+            {"role": "user", "content": user_text}
+        ],
+        tools=LAPTOP_TOOL_SCHEMA,
+        tool_choice="auto",
+        temperature=0.2,
+    )
+
+    message = response.choices[0].message
+    if not message.tool_calls:
+        return {"success": False, "error": "Could not resolve laptop tool intent"}
+
+    call = message.tool_calls[0]
+    tool_name = call.function.name
+    try:
+        args = json.loads(call.function.arguments)
+    except json.JSONDecodeError:
+        args = {}
+
+    return handle_laptop_tool_intent(tool_name, **args)
 TOOL_MAP = {
         "open_app": open_app,
         "list_files": list_files,
         "read_file": read_file,
+        "open_url": open_url,
         "system_info": get_system_info,
+        "close_app": close_app
     }
 def keyword_classify(user_text):
     text = user_text.lower()
@@ -66,9 +169,9 @@ def keyword_classify(user_text):
         return "cv"
 
     if has_word(text, [
-        "open", "launch", "play", "spotify", "file", "folder", "close", "quit"
+        "open", "open calendar","launch", "play", "spotify", "file", "folder", "close", "quit"
     ]):
-        return "mac_control"
+        return "mac_tool"
 
     if has_word(text, [
         "code", "debug", "error", "function", "python", "react", "flask", "bug", "fix"
