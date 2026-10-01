@@ -13,6 +13,7 @@ def create_chat_completion(model, messages, functions=None, function_call=None, 
     if not hasattr(openai, "OpenAI"):
         raise RuntimeError("OpenAI client is not available.")
     client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    stream = kwargs.pop("stream", False)
     if functions is not None:
         tools = [{"type": "function", "function": fn} for fn in functions]
         tool_choice = "auto" if function_call in (None, "auto") else {"type": "function", "function": {"name": function_call}}
@@ -23,6 +24,11 @@ def create_chat_completion(model, messages, functions=None, function_call=None, 
             tool_choice=tool_choice,
             **kwargs
         )
+    if stream :
+        def generate(model, messages, **kwargs):
+            with client.chat.completions.stream(model=model, messages=messages, **kwargs) as stream:
+                yield from stream.text_stream
+        return generate(model, messages, **kwargs)
     return client.chat.completions.create(model=model, messages=messages, **kwargs)
 
 

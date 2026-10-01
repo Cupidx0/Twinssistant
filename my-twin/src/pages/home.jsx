@@ -7,6 +7,7 @@ import remarkGfm from "remark-gfm";
 import Weather_cv from "./page_connect/Weather_cv";
 import Calendar_g from "./page_connect/Calendar";
 import Study from "./page_connect/Study";
+import Notepad from "./page_connect/Notepad";
 import { ElevenLabsClient, play } from "@elevenlabs/elevenlabs-js";
 import Outfit_of_day from "./page_connect/Outfit_of_day";
 import {
@@ -17,6 +18,7 @@ import {
   CalendarMonth,
   MenuBook,
   MusicNote,
+  NoteAlt,
   Settings as SettingsIcon,
   AttachFile,
   MicNone,
@@ -434,7 +436,7 @@ function Home() {
     { key: "oot", label: "Outfit of the day", icon: <Checkroom sx={{ fontSize: 19 }} /> },
     { key: "cal", label: "Calendar", icon: <CalendarMonth sx={{ fontSize: 19 }} /> },
     { key: "studier", label: "Study", icon: <MenuBook sx={{ fontSize: 19 }} /> },
-    { key: "music", label: "Music — coming soon", icon: <MusicNote sx={{ fontSize: 19 }} />, disabled: true },
+    { key: "notepad", label: "Notepad", icon: <NoteAlt sx={{ fontSize: 19 }} /> },
   ];
 
   const timeLabel = now.toLocaleString("en-GB", {
@@ -661,6 +663,7 @@ function Home() {
           {section === "cal" && <Calendar_g />}
           {section === "oot" && <Outfit_of_day />}
           {section === "studier" && <Study />}
+          {section === "notepad" && <Notepad />}
         </section>
       )}
 
