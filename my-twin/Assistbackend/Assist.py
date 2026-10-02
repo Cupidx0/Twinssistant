@@ -4,7 +4,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
-from firebase_admin import credentials, firestore, get_app, initialize_app
+from firebase_admin import credentials, firestore, get_app
 from firebase_admin import auth as fb_auth
 from google.cloud.firestore_v1.base_query import FieldFilter
 import requests
@@ -19,6 +19,7 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from gtts import gTTS
+from Notepad_live import start_session, send_chunk, commit_and_get_transcript,close_session
 from Routing import create_chat_completion, extract_function_call, create_anthropic_completion, extract_message_content, create_gemini_completion
 import io
 import re
@@ -30,7 +31,7 @@ from flask import session
 from flask_socketio import disconnect
 from cv_route import cv_bp
 from Pinecone_vec import save_pattern, find_pattern
-from auth_utils import require_auth
+from auth_utils import require_auth, init_firebase
 from Relevant_memory import memory_search, memo_gpt, resolve_and_run_laptop_tool, keyword_classify
 from gmail_call import mail_box
 try:
@@ -48,15 +49,6 @@ api_key = os.getenv("OPENWEATHER_API_KEY")
 city = "horley"
 tavilyclient = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
-def init_firebase():
-    """Initialize the default Firebase app once and reuse it across reloads."""
-    cred = credentials.Certificate(os.path.join(BASE_DIR, "tw.json"))
-    try:
-        firebase_app = get_app()
-    except ValueError:
-        firebase_app = initialize_app(cred)
-    return firebase_app, firestore.client(app=firebase_app)
-
 
 firebase_app, db = init_firebase()
 
@@ -1119,7 +1111,35 @@ def chat():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+@socketio.on('notepad')
+def ws_notepad(data):
+    try:
+        user_id = session.get('uid')
+        if not user_id:
+            emit('ai_response', {"type": "error", "error": "Not authenticated."})
+            return
+        # file transcription and saving logic here
+        asyncio.run(start_session(user_id))
+        emit('ai_response', {"type": "started live transcription."})
+    except Exception as e:
+        traceback.print_exc()
+        emit('ai_response', {"type": "error", "error": str(e)})
 
+@socketio.on('live_audio_chunk')
+def handle_live_audio_chunk(data):
+    user_id = session.get('uid')
+    pcm_b64 = data.get('audio')
+    if user_id and pcm_b64:
+        asyncio.run(send_chunk(user_id, pcm_b64))
+
+@socketio.on('stop_live_transcription')
+def handle_stop_transcription():
+    user_id = session.get('uid')
+    if not user_id:
+        return
+    transcript = asyncio.run(commit_and_get_transcript(user_id))
+    emit('transcript_response', {"type": "done", "transcript": transcript})
+    asyncio.run(close_session(user_id))  
 @socketio.on('stream_chat')
 def ws_stream_chat(data):
     try:

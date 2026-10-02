@@ -24,55 +24,44 @@ firebase_admin.initialize_app(cred)
 db = firestore.client()
 openai_api_key = os.getenv("OPENAI_API_KEY")
 #api call to get live audio transcription from the microphone
-sampling_rate = 24000  # 16 kHz
-duration_sec = 5  # seconds
-def sample_recording(duration, rate):
-    print("Recording...")
-    recording = sd.rec(int(duration * rate), samplerate=rate, channels=1, dtype='int16')
-    sd.wait()  # Wait until recording is finished
-    print("Recording finished.")
-    return recording.tobytes()
-async def get_live_transcription(pcm_bytes):
+active_sessions = {}  # user_id -> websocket connection
+
+async def start_session(user_id):
     url = "wss://api.openai.com/v1/realtime?intent=transcription"
-    headers = {
-        "Authorization": f"Bearer {openai_api_key}",}
-    async with websockets.connect(url, extra_headers=headers) as ws:
-        # Send the PCM audio data to the server
-        await ws.send(json.dumps({
-            "type": "session.update",
-            "session": {
-                "type": "transcription",
-                "audio": {
-                    "input": {
-                        "format": {"type": "audio/pcm", "rate": sampling_rate},
-                        "transcription": {"model": "gpt-live-transcribe"},
-                        "turn_detection": None
-                    }
-                }
-            }
-        }))
-        chunk_size = 3200  # Number of bytes to send in each chunk
-        for i in range(0, len(pcm_bytes),chunk_size):
-            chunk = pcm_bytes[i:i + chunk_size]
-            await ws.send(json.dumps({
-                "type": "input_audio_buffer.append",
-                "audio": base64.b64encode(chunk).decode("utf-8")
-            }))
-        await ws.send(json.dumps({"type": "input_audio_buffer.commit"}))
-        transcript = ""
-        async for message in ws:
-            event = json.loads(message)
-            if event["type"] == "conversation.item.input_audio_transcription.delta":
-                print(event["delta"], end="", flush=True)
-                transcript += event["delta"]
-            elif event["type"] == "conversation.item.input_audio_transcription.completed":
-                transcript += event["transcript"]
-                break
-            elif event["type"] == "error":
-                print("\nError:", event)
-                break
-        return transcript
-if __name__ == "__main__":
-    pcm_bytes = sample_recording(duration_sec, sampling_rate)
-    transcription = asyncio.run(get_live_transcription(pcm_bytes))
-    print("Transcription:", transcription)
+    headers = {"Authorization": f"Bearer {openai_api_key}"}
+    ws = await websockets.connect(url, additional_headers=headers)
+    await ws.send(json.dumps({
+        "type": "session.update",
+        "session": {
+            "type": "transcription",
+            "audio": {"input": {
+                "format": {"type": "audio/pcm", "rate": 24000},
+                "transcription": {"model": "gpt-live-transcribe"},
+                "turn_detection": None
+            }}
+        }
+    }))
+    active_sessions[user_id] = ws
+    return ws
+
+async def send_chunk(user_id, pcm_b64):
+    ws = active_sessions.get(user_id)
+    if ws:
+        await ws.send(json.dumps({"type": "input_audio_buffer.append", "audio": pcm_b64}))
+
+async def commit_and_get_transcript(user_id):
+    ws = active_sessions.get(user_id)
+    if not ws:
+        return None
+    await ws.send(json.dumps({"type": "input_audio_buffer.commit"}))
+    async for message in ws:
+        event = json.loads(message)
+        if event["type"] == "conversation.item.input_audio_transcription.completed":
+            return event["transcript"]
+        if event["type"] == "error":
+            return f"Error: {event}"
+
+async def close_session(user_id):
+    ws = active_sessions.pop(user_id, None)
+    if ws:
+        await ws.close()
