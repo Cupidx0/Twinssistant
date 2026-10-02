@@ -25,10 +25,10 @@ db = firestore.client()
 openai_api_key = os.getenv("OPENAI_API_KEY")
 #api call to get live audio transcription from the microphone
 sampling_rate = 24000  # 16 kHz
-duration = 5  # seconds
-def sample_recording(sampling_rate, duration):
+duration_sec = 5  # seconds
+def sample_recording(duration, rate):
     print("Recording...")
-    recording = sd.rec(int(sampling_rate * duration), samplerate=sampling_rate, channels=1, dtype='float32')
+    recording = sd.rec(int(duration * rate), samplerate=rate, channels=1, dtype='int16')
     sd.wait()  # Wait until recording is finished
     print("Recording finished.")
     return recording.tobytes()
@@ -73,6 +73,6 @@ async def get_live_transcription(pcm_bytes):
                 break
         return transcript
 if __name__ == "__main__":
-    pcm_bytes = sample_recording(sampling_rate, duration)
+    pcm_bytes = sample_recording(duration_sec, sampling_rate)
     transcription = asyncio.run(get_live_transcription(pcm_bytes))
     print("Transcription:", transcription)
