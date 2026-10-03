@@ -19,7 +19,7 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from gtts import gTTS
-from Notepad_live import start_session, send_chunk, commit_and_get_transcript,close_session
+from Notepad_live import start_session, send_chunk, commit_and_get_transcript,close_session,run_coroutine
 from Routing import create_chat_completion, extract_function_call, create_anthropic_completion, extract_message_content, create_gemini_completion
 import io
 import re
@@ -1111,35 +1111,35 @@ def chat():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
-@socketio.on('notepad')
+@socketio.on('start_live_transcription')
 def ws_notepad(data):
     try:
         user_id = session.get('uid')
         if not user_id:
-            emit('ai_response', {"type": "error", "error": "Not authenticated."})
+            emit('transcript_response', {"type": "error", "error": "Not authenticated."})
             return
         # file transcription and saving logic here
-        asyncio.run(start_session(user_id))
-        emit('ai_response', {"type": "started live transcription."})
+        run_coroutine(start_session(user_id))
+        emit('transcript_response', {"type": "started"})
     except Exception as e:
         traceback.print_exc()
-        emit('ai_response', {"type": "error", "error": str(e)})
+        emit('transcript_response', {"type": "error", "error": str(e)})
 
 @socketio.on('live_audio_chunk')
 def handle_live_audio_chunk(data):
     user_id = session.get('uid')
     pcm_b64 = data.get('audio')
     if user_id and pcm_b64:
-        asyncio.run(send_chunk(user_id, pcm_b64))
+        run_coroutine(send_chunk(user_id, pcm_b64))
 
 @socketio.on('stop_live_transcription')
-def handle_stop_transcription():
+def handle_stop_transcription(data):
     user_id = session.get('uid')
     if not user_id:
         return
-    transcript = asyncio.run(commit_and_get_transcript(user_id))
+    transcript = run_coroutine(commit_and_get_transcript(user_id))
     emit('transcript_response', {"type": "done", "transcript": transcript})
-    asyncio.run(close_session(user_id))  
+    run_coroutine(close_session(user_id))
 @socketio.on('stream_chat')
 def ws_stream_chat(data):
     try:

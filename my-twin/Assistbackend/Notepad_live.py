@@ -12,6 +12,7 @@ from auth_utils import require_auth
 import sounddevice as sd
 import numpy as np
 import websockets
+import threading
 from firebase_admin import firestore
 from Routing import create_chat_completion, create_gemini_completion, extract_message_content
 from dotenv import load_dotenv
@@ -26,6 +27,15 @@ openai_api_key = os.getenv("OPENAI_API_KEY")
 #api call to get live audio transcription from the microphone
 active_sessions = {}  # user_id -> websocket connection
 
+# One event loop, running forever in its own thread
+_loop = asyncio.new_event_loop()
+_thread = threading.Thread(target=_loop.run_forever, daemon=True)
+_thread.start()
+
+def run_coroutine(coro):
+    """Schedule a coroutine on the persistent loop and wait for its result."""
+    future = asyncio.run_coroutine_threadsafe(coro, _loop)
+    return future.result()
 async def start_session(user_id):
     url = "wss://api.openai.com/v1/realtime?intent=transcription"
     headers = {"Authorization": f"Bearer {openai_api_key}"}

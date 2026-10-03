@@ -9,46 +9,48 @@ import { Anchor, Delete, SmartToy, Inventory, MusicNote, Settings, CalendarMonth
 import { io } from "socket.io-client";
 const WS_URL = import.meta.env.VITE_AI_SPEECH_WS_URL || "http://localhost:5000";
 export default function Notepad() {
-    const {
-        transcript,
-        listening,
-        resetTranscript,
-        browserSupportsSpeechRecognition,
-        isMicrophoneAvailable,
-    } = useSpeechRecognition();
+    const [transcript, setTranscript] = useState('');
     const [noteContent, setNoteContent] = useState('');
     const [noteTitle, setNoteTitle] = useState('');
-    const [mic, setMic] = useState("");
     const [isRecording, setIsRecording] = useState(false);
-    const [socket, setSocket] = useState(null);
-    const { isLoggedIn } = useAuth();
-    const { user } = useAuth();
-    const openSocketConnection = async () => {
-    if (!socket && user) {
+    const socketRef = useRef(null);
+    const mediaStreamRef = useRef(null);
+    const audioContextRef = useRef(null);
+    const processorRef = useRef(null);
+    const { isLoggedIn, user } = useAuth();
+
+    useEffect(() => {
+        if (!user) return;
+        let newSocket;
+
+        (async () => {
             const token = await user.getIdToken();
-            const newSocket = io(WS_URL, {
+            newSocket = io(WS_URL, {
                 transports: ['websocket'],
                 auth: { token }
             });
-            setSocket(newSocket);
-        }
-    };
+            socketRef.current = newSocket;
 
-    useEffect(() => {
-        openSocketConnection();
+            newSocket.on('connect', () => console.log('Connected to WebSocket server'));
+            newSocket.on('disconnect', () => console.log('Disconnected from WebSocket server'));
+            newSocket.on('transcript_response', (data) => {
+                if (data.type === 'done') {
+                    setTranscript(data.transcript || '');
+                    setNoteContent(data.transcript || '');
+                    setNoteTitle(data.title || 'Untitled');
+                    toast.success("Transcription completed.");
+                }
+            });
+        })();
+
         return () => {
-            if (socket) socket.disconnect();
+            if (newSocket) {
+                newSocket.off('transcript_response');
+                newSocket.disconnect();
+            }
         };
     }, [user]);
-    useEffect(() => {
-        if (listening)
-            setMic("");
-    }, [listening]);
-    useEffect(() => {
-        if(isMicrophoneAvailable === false){
-            setMic("Microphone not available. Please check your device settings.");
-        }
-    }, [isMicrophoneAvailable]);
+
     function floatTo16BitPCM(float32Array) {
         const pcm16 = new Int16Array(float32Array.length);
         for (let i = 0; i < float32Array.length; i++) {
@@ -66,13 +68,13 @@ export default function Notepad() {
         }
         return window.btoa(binary);
     }
+
     const handleStartRecording = () => {
         if (!isLoggedIn) {
             toast.error("Please log in to use the live transcription feature.");
             return;
         }
         setIsRecording(true);
-        SpeechRecognition.startListening({ continuous: true });
         startLiveTranscription();
     };
 
@@ -81,15 +83,10 @@ export default function Notepad() {
         stopLiveTranscription();
     };
 
-    const mediaStreamRef = useRef(null);
-    const audioContextRef = useRef(null);
-    const processorRef = useRef(null);
-
     const startLiveTranscription = async () => {
-        if (!socket) return;
+        if (!socketRef.current) return;
         try {
-            socket.emit('start_live_transcription', { userId: user.uid });
-            SpeechRecognition.startListening({ continuous: true });
+            socketRef.current.emit('start_live_transcription', { userId: user.uid });
             const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
             const audioContext = new AudioContext({ sampleRate: 24000 });
             const source = audioContext.createMediaStreamSource(mediaStream);
@@ -102,7 +99,7 @@ export default function Notepad() {
                 const float32 = e.inputBuffer.getChannelData(0);
                 const pcm16 = floatTo16BitPCM(float32);
                 const base64 = arrayBufferToBase64(pcm16.buffer);
-                socket.emit('live_audio_chunk', { audio: base64 });
+                socketRef.current.emit('live_audio_chunk', { audio: base64 });
             };
 
             mediaStreamRef.current = mediaStream;
@@ -116,35 +113,19 @@ export default function Notepad() {
     };
 
     const stopLiveTranscription = async () => {
-        if (!socket) return;
+        if (!socketRef.current) return;
         try {
             processorRef.current?.disconnect();
             audioContextRef.current?.close();
             mediaStreamRef.current?.getTracks().forEach(track => track.stop());
 
-            socket.emit('stop_live_transcription', { userId: user.uid });
+            socketRef.current.emit('stop_live_transcription', { userId: user.uid });
             toast.success("Live transcription stopped.");
         } catch (error) {
             console.error("Error stopping live transcription:", error);
             toast.error("Failed to stop live transcription.");
         }
     };
-
-    useEffect(() => {
-        if (!socket) return;
-
-        socket.on('transcript_response', (data) => {
-            if (data.type === 'done') {
-                // setTranscript(data.transcript);
-                setNoteContent(data.transcript);
-                toast.success("Transcription completed.");
-            }
-        });
-
-        return () => {
-            socket.off('transcript_response');
-        };
-    }, [socket]);
     return (
         <div className="flex flex-col gap-4">
             <section className="block flex-col md:flex-row md:h-auto w-auto p-2 rounded-md border border-slate-800 !overflow-auto">

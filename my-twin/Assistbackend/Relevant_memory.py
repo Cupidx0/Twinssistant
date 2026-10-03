@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 import firebase_admin
 from firebase_admin import credentials, firestore
-from auth_utils import require_auth
+from auth_utils import require_auth,init_firebase
 from firebase_admin import firestore
 from Routing import create_chat_completion, create_gemini_completion, extract_message_content
 from dotenv import load_dotenv
@@ -14,8 +14,7 @@ load_dotenv()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CHAT_DIR = os.path.join(BASE_DIR, "chat")
 user_chat_history = os.path.join(CHAT_DIR, "chat_history.txt")
-cred = credentials.Certificate("tw.json")
-firebase_admin.initialize_app(cred)
+firebase_app = init_firebase()
 db = firestore.client()
 
 def has_word(text, words):
