@@ -19,7 +19,7 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from gtts import gTTS
-from Notepad_live import start_session, send_chunk, commit_and_get_transcript,close_session,run_coroutine
+from Notepad_live import start_session, send_chunk, listen_for_transcripts, commit_and_get_transcript,close_session,run_coroutine
 from Routing import create_chat_completion, extract_function_call, create_anthropic_completion, extract_message_content, create_gemini_completion
 import io
 import re
@@ -1119,7 +1119,7 @@ def ws_notepad(data):
             emit('transcript_response', {"type": "error", "error": "Not authenticated."})
             return
         # file transcription and saving logic here
-        run_coroutine(start_session(user_id))
+        run_coroutine(start_session(user_id,request.sid))
         emit('transcript_response', {"type": "started"})
     except Exception as e:
         traceback.print_exc()
@@ -1131,7 +1131,6 @@ def handle_live_audio_chunk(data):
     pcm_b64 = data.get('audio')
     if user_id and pcm_b64:
         run_coroutine(send_chunk(user_id, pcm_b64))
-
 @socketio.on('stop_live_transcription')
 def handle_stop_transcription(data):
     user_id = session.get('uid')

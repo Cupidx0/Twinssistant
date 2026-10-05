@@ -35,10 +35,15 @@ export default function Notepad() {
             newSocket.on('disconnect', () => console.log('Disconnected from WebSocket server'));
             newSocket.on('transcript_response', (data) => {
                 if (data.type === 'done') {
-                    setTranscript(data.transcript || '');
-                    setNoteContent(data.transcript || '');
                     setNoteTitle(data.title || 'Untitled');
                     toast.success("Transcription completed.");
+                }
+                else if (data.type === 'delta') {
+                    //setTranscript(data.delta || '');
+                    setNoteContent(prev => prev + data.delta);
+                }
+                else if (data.type === 'error') {
+                    toast.error(`Error: ${data.error}`);
                 }
             });
         })();
@@ -111,14 +116,12 @@ export default function Notepad() {
             toast.error("Failed to start live transcription.");
         }
     };
-
     const stopLiveTranscription = async () => {
         if (!socketRef.current) return;
         try {
             processorRef.current?.disconnect();
             audioContextRef.current?.close();
             mediaStreamRef.current?.getTracks().forEach(track => track.stop());
-
             socketRef.current.emit('stop_live_transcription', { userId: user.uid });
             toast.success("Live transcription stopped.");
         } catch (error) {
