@@ -19,7 +19,7 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from gtts import gTTS
-from Notepad_live import start_session, send_chunk, listen_for_transcripts, commit_and_get_transcript,close_session,run_coroutine
+from Notepad_live import start_session, send_chunk, commit_and_get_transcript, close_session, run_coroutine
 from Routing import create_chat_completion, extract_function_call, create_anthropic_completion, extract_message_content, create_gemini_completion
 import io
 import re
@@ -33,7 +33,7 @@ from flask_socketio import disconnect
 from cv_route import cv_bp
 from Pinecone_vec import save_pattern, find_pattern
 from auth_utils import require_auth, init_firebase
-from Relevant_memory import memory_search, memo_gpt, resolve_and_run_laptop_tool, keyword_classify
+from Relevant_memory import memory_search, memo_gpt, resolve_and_run_laptop_tool, keyword_classify, is_laptop_command
 from gmail_call import mail_box
 try:
     import holidays as holidays_lib
@@ -642,49 +642,15 @@ WEB_SEARCH_KEYWORDS = [
     try:
         doc_ref = db.collection("conversations").stream()
 """
-def keyword_classify(user_text):
-    text = user_text.lower()
-
-    if has_word(text, [
-        "good morning", "good afternoon", "good evening", "hello", "hi", "hey", "how are you"
-    ]):
-        return "greeting"
-
-    if has_word(text, [
-        "what are you", "who made you", "your name"
-    ]):
-        return "identity"
-
-    if has_word(text, [
-        "calendar", "schedule", "remind", "meeting", "event", "appointment", "book"
-    ]):
-        return "calendar"
-
-    if has_word(text, [
-        "cv", "resume", "cover letter", "job application", "rewrite my cv"
-    ]):
-        return "cv"
-
-    if has_word(text, [
-        "open", "launch", "play", "spotify", "file", "folder", "close", "quit"
-    ]):
-        return "mac_tool"
-
-    if has_word(text, [
-        "code", "debug", "error", "function", "python", "react", "flask", "bug", "fix"
-    ]):
-        return "code"
-
-    if has_word(text, WEB_SEARCH_KEYWORDS):
-        return "web_search"
-
-    return "casual"
-
 INTENT_NAMES = ["calendar", "cv", "mac_tool", "code", "greeting", "web_search", "identity", "casual"]
 
 def intent_classifier(user_text):
     try:
         cached_intent, cached_confidence = find_pattern(user_text)
+        # Don't trust cached mac_tool hits: older cache entries came from a looser
+        # keyword rule that sent ordinary questions to laptop control.
+        if cached_intent == "mac_tool" and not is_laptop_command(user_text):
+            cached_intent = None
         if cached_intent:
             print(f"Found cached intent: {cached_intent} with confidence {cached_confidence}")
             return cached_intent, cached_confidence
@@ -1120,15 +1086,13 @@ def chat():
         return jsonify({"error": str(e)}), 500
 @socketio.on('start_live_transcription')
 def ws_notepad(data):
+    sid = request.sid
     try:
         user_id = session.get('uid')
-        sid = request.sid
         if not user_id:
             emit('transcript_response', {"type": "error", "error": "Not authenticated."}, room=sid)
             return
-        # file transcription and saving logic here
-        run_coroutine(start_session(user_id,sid))
-        #transcript = 
+        run_coroutine(start_session(sid))
         emit('transcript_response', {"type": "started"}, room=sid)
     except Exception as e:
         traceback.print_exc()
@@ -1136,17 +1100,22 @@ def ws_notepad(data):
 
 @socketio.on('live_audio_chunk')
 def handle_live_audio_chunk(data):
-    user_id = session.get('uid')
-    pcm_b64 = data.get('audio')
-    if user_id and pcm_b64:
-        run_coroutine(send_chunk(user_id, pcm_b64))
+    pcm_b64 = (data or {}).get('audio')
+    if session.get('uid') and pcm_b64:
+        run_coroutine(send_chunk(request.sid, pcm_b64))
 @socketio.on('stop_live_transcription')
 def handle_stop_transcription(data):
-    user_id = session.get('uid')
-    if not user_id:
+    if not session.get('uid'):
         return
     # Waits for the final transcript (emitted by the listener), then closes the OpenAI socket.
-    run_coroutine(commit_and_get_transcript(user_id))
+    run_coroutine(commit_and_get_transcript(request.sid))
+@socketio.on('disconnect')
+def handle_disconnect(*args):
+    # Tab closed / navigated away mid-recording: don't leave the OpenAI socket open.
+    try:
+        run_coroutine(close_session(request.sid))
+    except Exception:
+        traceback.print_exc()
 @socketio.on('stream_chat')
 def ws_stream_chat(data):
     try:

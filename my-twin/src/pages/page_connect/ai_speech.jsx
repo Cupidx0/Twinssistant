@@ -107,8 +107,10 @@ function AiSpeech() {
 
   useEffect(() => {
     if (!user) return;
-    openSocket();
+    let cancelled = false;
+    openSocket(() => cancelled);
     return () => {
+      cancelled = true;
       clearTimeout(transcriptTimerRef.current);
       closeSocket();
     };
@@ -220,10 +222,20 @@ function AiSpeech() {
   };
 
 
-  const openSocket = async () => {
+  const openSocket = async (isCancelled = () => false) => {
     if (socketRef.current) return;
     setConnectionStatus("Connecting");
-    const token = await user.getIdToken();
+    let token;
+    try {
+      token = await user.getIdToken();
+    } catch (error) {
+      console.error("Could not get auth token:", error);
+      setConnectionStatus("HTTP fallback");
+      return;
+    }
+    // StrictMode / fast unmount: cleanup already ran during the await, so don't
+    // create a socket nobody will ever close.
+    if (isCancelled() || socketRef.current) return;
     socketRef.current = io(WS_URL, {
       transports: ["polling", "websocket"],
       auth: { token },

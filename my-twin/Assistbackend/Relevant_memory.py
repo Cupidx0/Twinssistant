@@ -136,6 +136,34 @@ def resolve_and_run_laptop_tool(user_text: str):
         args = {}
 
     return handle_laptop_tool_intent(tool_name, **args)
+MAC_APP_NAMES = [
+    "spotify", "safari", "chrome", "google chrome", "firefox", "finder", "notes", "music",
+    "photo booth", "camera", "terminal", "slack", "discord", "whatsapp", "mail", "messages",
+    "facetime", "preview", "vs code", "visual studio code", "xcode", "word", "excel",
+    "powerpoint", "zoom", "teams", "photos", "app store", "system settings", "calculator",
+]
+_LAPTOP_VERB = r"(?:open|launch|start|close|quit|kill)"
+LAPTOP_PATTERNS = [
+    # "open spotify", "can you close the safari app"
+    rf"\b{_LAPTOP_VERB}\s+(?:up\s+)?(?:the\s+|my\s+)?(?:{'|'.join(re.escape(a) for a in MAC_APP_NAMES)})\b",
+    # "open the X app", "quit X application"
+    rf"\b{_LAPTOP_VERB}\s+(?:up\s+)?(?:the\s+|my\s+)?[\w .]{{1,30}}?\s+(?:app|application)\b",
+    # "open https://...", "open www.example.com"
+    r"\bopen\s+(?:https?://|www\.)",
+    # "list files in ~/Downloads", "show me my files", "what's in my downloads"
+    r"\b(?:list|show)\b(?:\s+\w+){0,3}?\s+(?:files|folders)\b",
+    r"\bwhat(?:'s| is)\s+in\s+(?:my\s+)?(?:~/\S*|downloads|documents|desktop|home folder)",
+    # "read the file notes.txt", "read ~/todo.md"
+    r"\b(?:read|open)\s+(?:the\s+|my\s+)?file\b",
+    r"\bread\s+~/",
+    r"\bsystem info(?:rmation)?\b",
+]
+_LAPTOP_RE = re.compile("|".join(LAPTOP_PATTERNS))
+
+def is_laptop_command(text):
+    """True only for explicit Mac-control commands."""
+    return bool(_LAPTOP_RE.search(text.lower()))
+
 TOOL_MAP = {
         "open_app": open_app,
         "list_files": list_files,
@@ -146,6 +174,11 @@ TOOL_MAP = {
     }
 def keyword_classify(user_text):
     text = user_text.lower()
+
+    # Checked first: the patterns only match explicit commands, so they can't
+    # swallow ordinary questions like "what file format should I use?".
+    if is_laptop_command(text):
+        return "mac_tool"
 
     if has_word(text, [
         "good morning", "good afternoon", "good evening", "hello", "hi", "hey", "how are you"
@@ -167,10 +200,6 @@ def keyword_classify(user_text):
     ]):
         return "cv"
 
-    if has_word(text, [
-        "open", "open calendar","launch", "play", "spotify", "file", "folder", "close", "quit"
-    ]):
-        return "mac_tool"
 
     if has_word(text, [
         "code", "debug", "error", "function", "python", "react", "flask", "bug", "fix"
@@ -270,14 +299,43 @@ def memory_search(text, max_results=5):
 
     return hits or None
 
+MAX_LISTED_FILES = 50
+
+def describe_laptop_tool_result(tool_name, result):
+    """Turn a tool's raw result dict into a reply the user can read."""
+    if result.get("message"):
+        return result["message"]
+    if tool_name == "list_files":
+        files = sorted(result.get("files", []), key=str.lower)
+        if not files:
+            return "That folder is empty."
+        shown = ", ".join(files[:MAX_LISTED_FILES])
+        extra = len(files) - MAX_LISTED_FILES
+        more = f", and {extra} more" if extra > 0 else ""
+        return f"{len(files)} item{'s' if len(files) != 1 else ''}: {shown}{more}."
+    if tool_name == "read_file":
+        content = result.get("content", "")
+        if not content.strip():
+            return "The file is empty."
+        return f"Here's the file:\n\n```\n{content}\n```"
+    if tool_name == "system_info":
+        return (f"System: {result.get('platform', 'unknown')} {result.get('release', '')}"
+                f" ({result.get('machine', 'unknown')}).")
+    return "Done."
+
 def handle_laptop_tool_intent(tool_name: str, **kwargs):
     fn = TOOL_MAP.get(tool_name)
     if not fn:
         return {"success": False, "error": f"Unknown tool: {tool_name}"}
     try:
-        return fn(**kwargs)
+        result = fn(**kwargs)
     except TypeError as e:  # model sent arguments the tool doesn't accept
         return {"success": False, "error": f"Bad arguments for {tool_name}: {e}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+    if result.get("success"):
+        result["message"] = describe_laptop_tool_result(tool_name, result)
+    return result
 def memo_gpt(text):
     """Search for relevant past conversations in chat history and return a concise summary."""
     memoir = memory_search(text)
