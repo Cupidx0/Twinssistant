@@ -91,7 +91,7 @@ export default function Notepad() {
     const startLiveTranscription = async () => {
         if (!socketRef.current) return;
         try {
-            socketRef.current.emit('start_live_transcription', { userId: user.uid });
+            socketRef.current.emit('start_live_transcription', { userId: user.uid, transcript: noteContent });
             const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
             const audioContext = new AudioContext({ sampleRate: 24000 });
             const source = audioContext.createMediaStreamSource(mediaStream);
@@ -122,7 +122,7 @@ export default function Notepad() {
             processorRef.current?.disconnect();
             audioContextRef.current?.close();
             mediaStreamRef.current?.getTracks().forEach(track => track.stop());
-            socketRef.current.emit('stop_live_transcription', { userId: user.uid });
+            socketRef.current.emit('stop_live_transcription', { userId: user.uid});
             toast.success("Live transcription stopped.");
         } catch (error) {
             console.error("Error stopping live transcription:", error);

@@ -28,6 +28,7 @@ import json
 import traceback
 from flask_socketio import SocketIO, emit
 from flask import session
+from  extensions import socketio
 from flask_socketio import disconnect
 from cv_route import cv_bp
 from Pinecone_vec import save_pattern, find_pattern
@@ -48,6 +49,9 @@ load_dotenv()
 api_key = os.getenv("OPENWEATHER_API_KEY")
 city = "horley"
 tavilyclient = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
+# Firebase UIDs allowed to control the host Mac (comma-separated in .env).
+# Registration is open, so nobody gets laptop control unless listed here.
+MAC_TOOL_UIDS = {u.strip() for u in os.getenv("MAC_TOOL_UIDS", "").split(",") if u.strip()}
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
 firebase_app, db = init_firebase()
@@ -56,7 +60,7 @@ firebase_app, db = init_firebase()
 app = Flask(__name__)
 app.register_blueprint(cv_bp)
 CORS(app, supports_credentials=True, origins=["http://localhost:5173"])
-socketio = SocketIO(app, cors_allowed_origins="http://localhost:5173", async_mode='threading',engineio_logger=True, logger=True)
+socketio.init_app(app, cors_allowed_origins="http://localhost:5173", async_mode='threading',engineio_logger=True, logger=True)
 @app.route('/')
 def home():
     return "Welcome to the Assistant API!"
@@ -1056,11 +1060,14 @@ def process_chat_message(message, user_id, data):
         if reply is None:
             reply = extract_message_content(response).strip()
     elif intent =="mac_tool":
-        result = resolve_and_run_laptop_tool(message)
-        if result.get("success"):
-            reply = result.get("message") or "Done."
+        if user_id not in MAC_TOOL_UIDS:
+            reply = "Sorry, laptop control isn't enabled for your account."
         else:
-            reply = f"Couldn't do that — {result.get('error', 'unknown error')}"
+            result = resolve_and_run_laptop_tool(message)
+            if result.get("success"):
+                reply = result.get("message") or "Done."
+            else:
+                reply = f"Couldn't do that — {result.get('error', 'unknown error')}"
     else:
         response = create_chat_completion(
             model="gpt-4o-mini",
@@ -1115,15 +1122,17 @@ def chat():
 def ws_notepad(data):
     try:
         user_id = session.get('uid')
+        sid = request.sid
         if not user_id:
-            emit('transcript_response', {"type": "error", "error": "Not authenticated."})
+            emit('transcript_response', {"type": "error", "error": "Not authenticated."}, room=sid)
             return
         # file transcription and saving logic here
-        run_coroutine(start_session(user_id,request.sid))
-        emit('transcript_response', {"type": "started"})
+        run_coroutine(start_session(user_id,sid))
+        #transcript = 
+        emit('transcript_response', {"type": "started"}, room=sid)
     except Exception as e:
         traceback.print_exc()
-        emit('transcript_response', {"type": "error", "error": str(e)})
+        emit('transcript_response', {"type": "error", "error": str(e)}, room=sid)
 
 @socketio.on('live_audio_chunk')
 def handle_live_audio_chunk(data):
@@ -1136,9 +1145,8 @@ def handle_stop_transcription(data):
     user_id = session.get('uid')
     if not user_id:
         return
-    transcript = run_coroutine(commit_and_get_transcript(user_id))
-    emit('transcript_response', {"type": "done", "transcript": transcript})
-    run_coroutine(close_session(user_id))
+    # Waits for the final transcript (emitted by the listener), then closes the OpenAI socket.
+    run_coroutine(commit_and_get_transcript(user_id))
 @socketio.on('stream_chat')
 def ws_stream_chat(data):
     try:

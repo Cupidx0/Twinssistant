@@ -274,7 +274,10 @@ def handle_laptop_tool_intent(tool_name: str, **kwargs):
     fn = TOOL_MAP.get(tool_name)
     if not fn:
         return {"success": False, "error": f"Unknown tool: {tool_name}"}
-    return fn(**kwargs)
+    try:
+        return fn(**kwargs)
+    except TypeError as e:  # model sent arguments the tool doesn't accept
+        return {"success": False, "error": f"Bad arguments for {tool_name}: {e}"}
 def memo_gpt(text):
     """Search for relevant past conversations in chat history and return a concise summary."""
     memoir = memory_search(text)
