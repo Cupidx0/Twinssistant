@@ -51,7 +51,7 @@ city = "horley"
 tavilyclient = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
 # Firebase UIDs allowed to control the host Mac (comma-separated in .env).
 # Registration is open, so nobody gets laptop control unless listed here.
-MAC_TOOL_UIDS = {u.strip() for u in os.getenv("MAC_TOOL_UIDS", "").split(",") if u.strip()}
+#MAC_TOOL_UIDS = {u.strip() for u in os.getenv("MAC_TOOL_UIDS", "").split(",") if u.strip()}
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
 firebase_app, db = init_firebase()
@@ -1026,14 +1026,14 @@ def process_chat_message(message, user_id, data):
         if reply is None:
             reply = extract_message_content(response).strip()
     elif intent =="mac_tool":
-        if user_id not in MAC_TOOL_UIDS:
+        """if user_id not in MAC_TOOL_UIDS:
             reply = "Sorry, laptop control isn't enabled for your account."
+        else:"""
+        result = resolve_and_run_laptop_tool(message)
+        if result.get("success"):
+            reply = result.get("message") or "Done."
         else:
-            result = resolve_and_run_laptop_tool(message)
-            if result.get("success"):
-                reply = result.get("message") or "Done."
-            else:
-                reply = f"Couldn't do that — {result.get('error', 'unknown error')}"
+            reply = f"Couldn't do that — {result.get('error', 'unknown error')}"
     else:
         response = create_chat_completion(
             model="gpt-4o-mini",
