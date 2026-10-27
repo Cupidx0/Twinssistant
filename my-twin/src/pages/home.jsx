@@ -41,7 +41,7 @@ import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognitio
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { io } from "socket.io-client";
 
-const WS_URL = import.meta.env.VITE_AI_SPEECH_WS_URL || "http://localhost:5000";
+const WS_URL = import.meta.env.VITE_AI_SPEECH_WS_URL || "http://localhost:5050";
 const readStoredValue = (key, fallback = "") => {
   try {
     const value = localStorage.getItem(key);

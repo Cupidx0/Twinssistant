@@ -3,7 +3,7 @@ import { Button, TextField, Divider } from '@mui/material';
 import toast from 'react-hot-toast';
 import { useAuth } from '../AuthContext';
 import { io } from "socket.io-client";
-const WS_URL = import.meta.env.VITE_AI_SPEECH_WS_URL || "http://localhost:5000";
+const WS_URL = import.meta.env.VITE_AI_SPEECH_WS_URL || "http://localhost:5050";
 const storageKey = (uid) => `twin_notepad_${uid}`;
 
 function loadNote(uid) {

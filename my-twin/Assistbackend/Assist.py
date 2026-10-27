@@ -15,8 +15,8 @@ app.register_blueprint(cv_bp)
 app.register_blueprint(calendar_bp)
 app.register_blueprint(weather_bp)
 app.register_blueprint(chat_bp)
-CORS(app, supports_credentials=True, origins=["http://localhost:5173"])
-socketio.init_app(app, cors_allowed_origins="http://localhost:5173", async_mode='threading',engineio_logger=True, logger=True)
+CORS(app, supports_credentials=True, origins=["http://localhost:5174"])
+socketio.init_app(app, cors_allowed_origins="http://localhost:5174", async_mode='threading',engineio_logger=True, logger=True)
 import socket_handlers  # noqa: E402,F401 — registers the @socketio.on handlers
 
 @app.route('/')
@@ -27,4 +27,4 @@ if __name__ == '__main__':
     if not os.path.exists(CHAT_DIR):
         os.makedirs(CHAT_DIR)
     #app.run(debug=True)
-    socketio.run(app, debug=True, port=5000, use_reloader=False)
+    socketio.run(app, debug=True, port=5050, use_reloader=False)

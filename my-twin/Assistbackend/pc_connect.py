@@ -3,6 +3,8 @@ import platform
 import os
 from pathlib import Path
 from urllib.parse import urlparse
+
+import requests
 Alias_Names = {
     "camera": "Photo Booth"
 }

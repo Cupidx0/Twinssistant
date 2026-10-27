@@ -22,6 +22,15 @@ def require_auth(f):
             return jsonify({"error": "Invalid or expired token"}), 401
         return f(*args, **kwargs)
     return wrapper
+OWNER_UIDS = {u.strip() for u in os.getenv("OWNER_UIDS", "").split(",") if u.strip()}
+
+def require_owner(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if request.user.get("uid") not in OWNER_UIDS:
+            return jsonify({"error": "This feature is only available to the owner."}), 403
+        return f(*args, **kwargs)
+    return wrapper
 def init_firebase():
     """Initialize the default Firebase app once and reuse it across reloads."""
     cred = credentials.Certificate(os.path.join(BASE_DIR, "tw.json"))

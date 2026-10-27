@@ -3,7 +3,7 @@ import { auth } from "./Firebase";
 
 const getBaseURL = () => {
   const envBaseUrl = import.meta.env.VITE_API_BASE_URL;
-  return envBaseUrl || "http://127.0.0.1:5000";
+  return envBaseUrl || "http://127.0.0.1:5050";
 };
 
 export const API_BASE_URL = getBaseURL();

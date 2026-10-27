@@ -9,6 +9,7 @@ from firebase_admin import firestore
 from Routing import create_chat_completion, create_gemini_completion, extract_message_content
 from dotenv import load_dotenv
 from pc_connect import close_app, open_app, list_files, read_file, get_system_info ,open_url
+from jobs import search_jobs
 from Pinecone_vec import get_embedding, find_pattern, save_pattern
 load_dotenv()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -106,6 +107,21 @@ LAPTOP_TOOL_SCHEMA = [
             "description": "Get basic system/platform info about the user's Mac.",
             "parameters": {"type": "object", "properties": {}}
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_jobs",
+            "description": "Search for job listings on Job Swipr",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Job title or keywords"},
+                    "location": {"type": "string"}
+                },
+                "required": ["query"]
+            }
+        }
     }
 ]
 def resolve_and_run_laptop_tool(user_text: str):
@@ -165,6 +181,7 @@ def is_laptop_command(text):
     return bool(_LAPTOP_RE.search(text.lower()))
 
 TOOL_MAP = {
+        "search_jobs": search_jobs,
         "open_app": open_app,
         "list_files": list_files,
         "read_file": read_file,
@@ -199,7 +216,8 @@ def keyword_classify(user_text):
         "cv", "resume", "cover letter", "job application", "rewrite my cv"
     ]):
         return "cv"
-
+    if has_word(text, ["jobs", "vacancies", "job search", "find me a job"]):
+        return "jobs"
 
     if has_word(text, [
         "code", "debug", "error", "function", "python", "react", "flask", "bug", "fix"
@@ -321,6 +339,16 @@ def describe_laptop_tool_result(tool_name, result):
     if tool_name == "system_info":
         return (f"System: {result.get('platform', 'unknown')} {result.get('release', '')}"
                 f" ({result.get('machine', 'unknown')}).")
+    if tool_name == "search_jobs":
+        jobs = result.get("jobs", [])
+        if not jobs:
+            return "No job listings found."
+        lines = [
+            f"{i}. {j.get('title')} at {j.get('company')} ({j.get('location')}) {j.get('url')}"
+            for i, j in enumerate(jobs[:10], 1)
+        ]
+        return f"Found {len(jobs)} jobs:\n\n" + "\n".join(lines)
+        
     return "Done."
 
 def handle_laptop_tool_intent(tool_name: str, **kwargs):
