@@ -17,7 +17,6 @@ CHAT_DIR = os.path.join(BASE_DIR, "chat")
 user_chat_history = os.path.join(CHAT_DIR, "chat_history.txt")
 firebase_app = init_firebase()
 db = firestore.client()
-
 def has_word(text, words):
     """Match whole words/phrases, not substrings ('hi' should not match 'this')."""
     return any(re.search(rf"\b{re.escape(w)}\b", text) for w in words)
@@ -256,10 +255,9 @@ def get_conversation(conversation_id):
         messages.append(data)
 
     return messages
-
-def _load_entries():
+def _load_entries(user_id):  # Assuming you have a way to get the current user's ID
     try:
-        history = get_conversation('imported_conv_1')
+        history = get_conversation(f"user_{user_id}")  # Use the user-specific conversation ID
         for msg in history:
             print(f"{msg['user']}: {msg['assistant']} (Source: {msg.get('source', 'N/A')}, Timestamp: {msg.get('clienttimestamp', 'N/A')})")
         entries = []

@@ -409,7 +409,7 @@ def process_chat_message(message, user_id, data):
             reply = extract_message_content(response).strip()
 
     try:
-        push_to_db(user_id, message, reply, conversation_id='imported_conv_1')
+        push_to_db(user_id, message, reply, conversation_id= """eligible for changes"""f"user_{user_id}")
     except Exception as e:
         print(f"Error occurred while pushing to DB: {e}")
         print("Continuing without saving to DB, saved locally.")
