@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from firebase_admin import firestore
 from flask import Blueprint, request, jsonify
 from gtts import gTTS
+import requests
 from tavily import TavilyClient
 from eleven import text_to_speech_ws_streaming
 from Routing import create_chat_completion, extract_function_call, create_anthropic_completion, extract_message_content, create_gemini_completion
@@ -162,11 +163,11 @@ def smart_chat_history(history_text, recent=6):
     recent_turns = turns[-recent:]
     summary = f"Earlier in conversation: {' | '.join(t[:50] for t in old)}"
     return summary + "\n" + "\n\n".join(recent_turns)
-def episodic_memory_search(user_text):
+def episodic_memory_search(user_text, user_id):
     """Search for relevant past conversations in chat history."""
     try:
-        return {"memoran":memory_search(user_text),
-                "grant":memo_gpt(user_text)
+        return {"memoran":memory_search(user_text, user_id),
+                "grant":memo_gpt(user_text, user_id)
         }
 
     except Exception as e:
@@ -195,7 +196,7 @@ def tavily_search(query, max_results=5):
         results = tavilyclient.search(
             query=query,
             include_answer="advanced",
-            search_depth="advanced",
+            search_depth="basic",
             include_raw_content="text",
             max_results=max_results
         )
@@ -211,7 +212,7 @@ def chat_prompt(message, user_id, data):
         calevent = safe_get_calendar_events(data, user_id)  # also: was request.user["uid"] — wrong for a helper meant to work for both transports, see #5
 
     if "weather" in message.lower():
-        city = get_user_city(user_id,"horley")  # default to "horley" if not found
+        city = "horley" # default to "horley" if not found
         weather = fetch_weather(city)
         reply = (f"The current weather in {weather['city']} is {weather['temperature']}°C "
                   f"with {weather['description']}.") if weather else "Sorry, I could not fetch the weather right now."
@@ -219,7 +220,7 @@ def chat_prompt(message, user_id, data):
 
     creatorname = "Godwin Alamu"
     history = smart_chat_history(read_chat_history())
-    epi = episodic_memory_search(message)
+    epi = episodic_memory_search(message, user_id) or {}
     ep = epi.get("memoran")
     episodic = epi.get("grant")
     memory_was_used = bool(ep) or bool(episodic)
@@ -371,7 +372,7 @@ def process_chat_message(message, user_id, data):
             temperature=0.7
         )
         if reply is None:
-            reply = extract_message_content(response).strip()
+            reply = extract_message_content(response).strip() or "I couldn't work that out,try giving me a date and time."
     elif intent == "mac_tool":
         if user_id not in MAC_TOOL_UIDS:
             reply = "Sorry, laptop control isn't enabled for your account."
