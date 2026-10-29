@@ -255,39 +255,36 @@ def get_conversation(conversation_id):
         messages.append(data)
 
     return messages
-def _entries_from_text(content):
-    return [
-        {
-            "user": m.group("user"),
-            "assistant": m.group("assistant"),
-            "source": m.group("source"),
-            "timestamp": m.group("timestamp"),
-        }
-        for m in ENTRY_PATTERN.finditer(content)
-    ]
-
-
-def _load_entries(user_id):
-    """Load this user's past turns from Firestore, falling back to the local chat file."""
+def _load_entries(user_id):  # Assuming you have a way to get the current user's ID
     try:
-        history = get_conversation(f"user_{user_id}")
-        return [
-            {
-                "user": msg.get("user", ""),
-                "assistant": msg.get("assistant", ""),
-                "source": msg.get("source") or "",
-                "timestamp": msg.get("clienttimestamp", ""),
-            }
-            for msg in history
-        ]
+        history = get_conversation(f"user_{user_id}")  # Use the user-specific conversation ID
+        for msg in history:
+            print(f"{msg['user']}: {msg['assistant']} (Source: {msg.get('source', 'N/A')}, Timestamp: {msg.get('clienttimestamp', 'N/A')})")
+        entries = []
+        for m in ENTRY_PATTERN.finditer('\n'.join([f"User: {msg['user']}\nAssistant: {msg['assistant']}\nSource: {msg.get('source', '')}\nTimestamp: {msg.get('clienttimestamp', '')}" for msg in history])):
+            entries.append({
+                "user": m.group("user"),
+                "assistant": m.group("assistant"),
+                "source": m.group("source"),
+                "timestamp": m.group("timestamp"),
+            })
     except Exception as e:
         print(f"Error loading conversation from Firestore: {e}")
         if not os.path.exists(user_chat_history):
             return []
         with open(user_chat_history, "r", encoding="utf-8") as f:
-            return _entries_from_text(f.read())
+            content = f.read()
+        entries = []
+        for m in ENTRY_PATTERN.finditer(content ):
+            entries.append({
+                "user": m.group("user"),
+                "assistant": m.group("assistant"),
+                "source": m.group("source"),
+                "timestamp": m.group("timestamp"),
+            })
+    return entries
 
-def memory_search(text, user_id, max_results=5):
+def memory_search(text, max_results=5):
     """Keyword-based episodic memory filter.
     Returns recent matching turns (dicts), most recent first.
     None if nothing matches (caller should escalate to Pinecone)."""
@@ -307,7 +304,7 @@ def memory_search(text, user_id, max_results=5):
         re.IGNORECASE
     )
 
-    entries = _load_entries(user_id)
+    entries = _load_entries()
     hits = []
     for entry in reversed(entries):  # most recent block last in file
          haystack = f"{entry['user']} {entry['assistant']} {entry['timestamp']}"
@@ -365,9 +362,9 @@ def handle_laptop_tool_intent(tool_name: str, **kwargs):
     if result.get("success"):
         result["message"] = describe_laptop_tool_result(tool_name, result)
     return result
-def memo_gpt(text, user_id):
+def memo_gpt(text, memoir):
     """Search for relevant past conversations in chat history and return a concise summary."""
-    memoir = memory_search(text, user_id)
+    memoir = memory_search(text)
     response = create_gemini_completion(
             model="gemini-3.1-flash-lite",
             messages=[
