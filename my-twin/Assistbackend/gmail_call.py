@@ -5,11 +5,10 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from gmail_log import main
-x = main()
 def labels():
     try:
           # Call the Gmail API
-          service = build("gmail", "v1", credentials=x)
+          service = build("gmail", "v1", credentials=main())
           results = service.users().labels().list(userId="me").execute()
           labels = results.get("labels", [])
           if not labels:
@@ -22,7 +21,7 @@ def labels():
           print(f"An error occurred: {error}")
 def mail_box(user_status,user_choice):
     try:
-        service = build("gmail", "v1", credentials=x)
+        service = build("gmail", "v1", credentials=main())
         label_ids = [label for label in [user_status, user_choice] if label]
         results = (
             service.users().messages().list(userId="me", labelIds=label_ids).execute()

@@ -221,6 +221,7 @@ def chat_prompt(message, user_id, data):
     creatorname = "Godwin Alamu"
     history = smart_chat_history(read_chat_history())
     epi = episodic_memory_search(message, user_id) or {}
+    print(f"Episodic memory search results: {epi}")
     ep = epi.get("memoran")
     episodic = epi.get("grant")
     memory_was_used = bool(ep) or bool(episodic)
@@ -258,7 +259,8 @@ def chat_prompt(message, user_id, data):
                 Context available to you:
                 - Web search results: {web_context if web_context else 'None'}
                 - Calendar events: {calevent if calevent else 'None'}
-                - Conversation history: {history if history else {episodic} if episodic else 'None'}
+                - Episodic memory: {episodic if episodic else 'None'}
+                - Conversation history: {history if history else episodic if episodic else 'None'}
                 - Current message: {message}
                 Respond to this directly and specifically. Do not get distracted by context unless it
                 How to behave:
@@ -410,7 +412,7 @@ def process_chat_message(message, user_id, data):
             reply = extract_message_content(response).strip()
 
     try:
-        push_to_db(user_id, message, reply, conversation_id= """eligible for changes"""f"user_{user_id}")
+        push_to_db(user_id, message, reply, conversation_id= "imported_conv_1")
     except Exception as e:
         print(f"Error occurred while pushing to DB: {e}")
         print("Continuing without saving to DB, saved locally.")

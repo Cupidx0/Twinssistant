@@ -49,5 +49,6 @@ def upload_to_firestore(conversation_id, messages):
         })
     batch.commit()
 
-messages = parse_chat_txt(os.path.join(CHAT_DIR, 'chat_history.txt'))
-upload_to_firestore('imported_conv_1', messages)
+if __name__ == "__main__":
+    messages = parse_chat_txt(os.path.join(CHAT_DIR, 'chat_history.txt'))
+    upload_to_firestore('imported_conv_1', messages)
