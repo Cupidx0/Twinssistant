@@ -46,8 +46,9 @@ api.interceptors.response.use(
 );
 
 export const ChatAPI = {
-  fetchAssistantResponse: async (question) => {
-    const response = await api.post("/api/chat", { question });
+  // options: { model, think, upload_ids, conversation_id }
+  fetchAssistantResponse: async (question, options = {}) => {
+    const response = await api.post("/api/chat", { question, ...options }, { timeout: 180000 });
     return response.data;
   },
   fetchRepeatResponse: async (text,want_audio) => {
@@ -136,4 +137,51 @@ export const CalendarAPI = {
       : payload?.events?.events;
     return events || [];
   },
+};
+
+export const UploadAPI = {
+  upload: async (file, conversationId) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    if (conversationId) formData.append("conversation_id", conversationId);
+    const response = await api.post("/api/upload", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+      timeout: 120000,
+    });
+    return response.data;
+  },
+};
+
+export const CostAPI = {
+  fetchCosts: async (month) => {
+    const response = await api.get("/api/costs", { params: month ? { month } : {} });
+    return response.data;
+  },
+};
+
+export const MemoryAPI = {
+  list: async () => (await api.get("/api/memory")).data,
+  edit: async (id, text) => (await api.patch(`/api/memory/${id}`, { text })).data,
+  remove: async (id) => (await api.delete(`/api/memory/${id}`)).data,
+  getProfile: async () => (await api.get("/api/profile")).data,
+  saveProfile: async (profile) => (await api.put("/api/profile", profile)).data,
+  listSamples: async () => (await api.get("/api/writing_samples")).data,
+  addSample: async (title, text) => (await api.post("/api/writing_samples", { title, text })).data,
+  removeSample: async (id) => (await api.delete(`/api/writing_samples/${id}`)).data,
+};
+
+export const StudioAPI = {
+  write: async (payload) => (await api.post("/api/studio/write", payload)).data,
+  grade: async (payload) => (await api.post("/api/studio/grade", payload)).data,
+  job: async (jobId) => (await api.get(`/api/studio/jobs/${jobId}`)).data,
+};
+
+export const ArtifactAPI = {
+  list: async () => (await api.get("/api/artifacts")).data,
+  get: async (id) => (await api.get(`/api/artifacts/${id}`)).data,
+};
+
+export const HistoryAPI = {
+  fetch: async (conversationId, limit = 20) =>
+    (await api.get("/api/history", { params: { conversation_id: conversationId, limit } })).data,
 };

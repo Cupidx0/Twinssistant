@@ -237,3 +237,46 @@
     animation: none !important;
   }
 }
+
+/* ── Chat code blocks, streaming caret ── */
+.code-wrap {
+  margin: 0.75rem 0;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  background: #0d1117;
+}
+.code-wrap__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-bottom: 1px solid hsl(var(--border));
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--card));
+}
+.code-wrap__bar button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+}
+.code-wrap__bar button:hover { color: hsl(var(--foreground)); background: hsl(var(--muted)); }
+.code-wrap pre { margin: 0; padding: 12px 14px; overflow-x: auto; }
+.code-wrap pre code.hljs { padding: 0; background: transparent; }
+.stream-caret {
+  display: inline-block;
+  width: 7px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: hsl(var(--primary));
+  animation: caret-blink 1s steps(2, start) infinite;
+}
+@keyframes caret-blink { to { visibility: hidden; } }
+@media (prefers-reduced-motion: reduce) { .stream-caret { animation: none; } }

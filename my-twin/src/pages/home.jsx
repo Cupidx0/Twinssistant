@@ -2,8 +2,11 @@ import React, { useEffect, useRef, useState } from "react";
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from "@mui/material";
 import toast from "react-hot-toast";
 import { Link } from "react-router-dom";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import ChatMessage from "../components/ChatMessage";
+import ArtifactPanel from "../components/ArtifactPanel";
+import Studio from "./page_connect/Studio";
+import Memories from "./page_connect/Memories";
+import Usage from "./page_connect/Usage";
 import Weather_cv from "./page_connect/Weather_cv";
 import Calendar_g from "./page_connect/Calendar";
 import Study from "./page_connect/Study";
@@ -34,8 +37,13 @@ import {
   Public,
   CheckCircleOutline,
   AutorenewOutlined,
+  Psychology,
+  EditNote,
+  Insights,
+  Close,
+  InsertDriveFile,
 } from "@mui/icons-material";
-import { ChatAPI, WeatherAPI, CalendarAPI } from "../Utils/Assistant";
+import { ChatAPI, WeatherAPI, CalendarAPI, UploadAPI } from "../Utils/Assistant";
 import { useAuth } from "./AuthContext";
 import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition";
 import "react-big-calendar/lib/css/react-big-calendar.css";
@@ -56,20 +64,32 @@ const readStoredThread = () => {
   try {
     const raw = localStorage.getItem("chatThread");
     const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
+    // A reply that was mid-stream when the page closed is finished as-is.
+    return Array.isArray(parsed) ? parsed.map((m) => ({ ...m, streaming: false })) : [];
   } catch {
     return [];
   }
 };
 
-const makeMessage = (role, text, sources,info = []) => ({
+const makeMessage = (role, text, sources = [], info = "", extra = {}) => ({
   id: `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
   role,
   text,
   sources,
   info,
+  thinking: "",
+  tools: [],
+  artifacts: [],
   ts: Date.now(),
+  ...extra,
 });
+
+const MODEL_OPTIONS = [
+  { value: "auto", label: "Auto" },
+  { value: "claude-haiku-5-5", label: "Haiku 5.5" },
+  { value: "claude-sonnet-5-5", label: "Sonnet 5.5" },
+  { value: "claude-opus-5-5", label: "Opus 5.5" },
+];
 
 const quickActions = [
   { label: "Search the web", icon: <Search fontSize="inherit" />, prompt: "What's the latest tech news today?" },
@@ -163,7 +183,15 @@ function Home() {
   const [events, setEvents] = useState([]);
   const [liveInfo, setLiveInfo] = useState([]);
   const [now, setNow] = useState(new Date());
+  const [model, setModel] = useState(() => readStoredValue("chatModel", "auto"));
+  const [think, setThink] = useState(false);
+  const [attachments, setAttachments] = useState([]);
+  const [confirmReq, setConfirmReq] = useState(null);
+  const [artifact, setArtifact] = useState(null);
+  const [budget, setBudget] = useState(null);
   const bottomRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const streamingIdRef = useRef(null);
 
   const {
     transcript,
@@ -266,61 +294,95 @@ function Home() {
     socketRef.current.on("disconnect", () => setConnectionStatus("Disconnected"));
     socketRef.current.on("connect_error", () => setConnectionStatus("HTTP fallback"));
 
-    socketRef.current.on("ai_response", (data) => {
-      if (data.type === "error") {
-        setMessages((current) => [
-          ...current,
-          makeMessage("assistant", data.error || "Something went wrong."),
-        ]);
-        toast.error(data.error || "Failed to get response from assistant.");
-        setPending(false);
+    socketRef.current.on("ai_response", handleStreamEvent);
+  };
+
+  // Patch the assistant message that is currently streaming.
+  const updateStreaming = (patch) => {
+    const id = streamingIdRef.current;
+    if (!id) return;
+    setMessages((current) =>
+      current.map((m) => (m.id === id ? { ...m, ...(typeof patch === "function" ? patch(m) : patch) } : m)),
+    );
+  };
+
+  const finishReply = (data) => {
+    updateStreaming((m) => ({
+      text: data.reply || "No response from assistant.",
+      sources: Array.isArray(data.sources) ? data.sources : [],
+      info: data.info || "",
+      model: data.model,
+      artifacts: data.artifacts || [],
+      streaming: false,
+      tools: (m.tools || []).map((t) => ({ ...t, done: true })),
+    }));
+    if (data.budget) setBudget(data.budget);
+    streamingIdRef.current = null;
+    setPending(false);
+    setLiveInfo([]);
+  };
+
+  const handleStreamEvent = (data) => {
+    switch (data.type) {
+      case "token":
+        updateStreaming((m) => ({ text: (m.text || "") + data.text }));
         return;
-      }
-      if (data.type === "info") {
+      case "thinking":
+        updateStreaming((m) => ({ thinking: (m.thinking || "") + data.text }));
+        return;
+      case "tool":
+        updateStreaming((m) => ({
+          // Separate text written before and after a tool call.
+          text: m.text && !m.text.endsWith("\n\n") ? m.text + "\n\n" : m.text,
+          tools: [...(m.tools || []), { name: data.name, label: data.label, input: data.input, done: false }],
+        }));
+        return;
+      case "tool_done":
+        updateStreaming((m) => ({ tools: (m.tools || []).map((t) => ({ ...t, done: true })) }));
+        return;
+      case "info":
         setLiveInfo((current) => [...current, data.info]);
         return;
-      }
-      if (data.type === "done") {
-        setMessages((current) => [
-          ...current,
-          makeMessage("assistant", data.reply, data.sources, data.info),
-        ]);
-        if (data.reply?.toLowerCase().includes("chat history is too long")) {
-          setOpenConfirm(true);
-        }
+      case "confirm":
+        setConfirmReq({ id: data.id, action: data.action, args: data.args });
+        return;
+      case "done":
+        finishReply(data);
+        return;
+      case "error":
+        updateStreaming({ text: data.error || "Something went wrong.", streaming: false });
+        streamingIdRef.current = null;
+        toast.error(data.error || "Failed to get response from assistant.");
         setPending(false);
         setLiveInfo([]);
-      }
-    });
+        return;
+      default:
+    }
+  };
+
+  const answerConfirm = (approved) => {
+    if (confirmReq) socketRef.current?.emit("tool_confirm_reply", { id: confirmReq.id, approved });
+    setConfirmReq(null);
   };
 
   const closeSocket = () => {
     socketRef.current?.disconnect();
     socketRef.current = null;
   };
-  const RecieveViaHttp = async (text) => {
+
+  const RecieveViaHttp = async (text, options) => {
     try {
-      const response = await ChatAPI.fetchAssistantResponse(text);
-      const reply = response.reply || "No response from assistant.";
-      const sources = Array.isArray(response.sources) ? response.sources : [];
-      const info = response.info || "No additional info.";
-      setMessages((current) => [...current, makeMessage("assistant", reply, sources, info)]);
-      /*if (response.audio) {
-        const audio = new Audio("data:audio/mpeg;base64," + response.audio);
-        audio.play().catch((err) => console.warn("Audio playback failed:", err));
-      }*/
-      if (reply.toLowerCase().includes("chat history is too long")) {
-        setOpenConfirm(true);
-      }
+      const response = await ChatAPI.fetchAssistantResponse(text, options);
+      finishReply(response);
     } catch (error) {
       console.error("Error fetching assistant response:", error);
-      setMessages((current) => [
-        ...current,
-        makeMessage("assistant", "Sorry I couldn't get a reply. Check that the backend is running and you're logged in."),
-      ]);
-      toast.error("Failed to get response from assistant.");
-    } finally {
+      updateStreaming({
+        text: "Sorry I couldn't get a reply. Check that the backend is running and you're logged in.",
+        streaming: false,
+      });
+      streamingIdRef.current = null;
       setPending(false);
+      toast.error("Failed to get response from assistant.");
     }
   };
 
@@ -331,23 +393,68 @@ function Home() {
       return;
     }
     if (pending) return;
+    if (attachments.some((a) => a.status === "uploading")) {
+      toast.error("Wait for the upload to finish.");
+      return;
+    }
 
-    setMessages((current) => [...current, makeMessage("user", text)]);
+    const ready = attachments.filter((a) => a.status === "ready");
+    const placeholder = makeMessage("assistant", "", [], "", { streaming: true });
+    streamingIdRef.current = placeholder.id;
+    setMessages((current) => [
+      ...current,
+      makeMessage("user", text, [], "", { attachments: ready.map((a) => a.name) }),
+      placeholder,
+    ]);
     setQuestion("");
+    setAttachments([]);
     localStorage.setItem("userQuestion", text);
     resetTranscript();
     setPending(true);
     setLiveInfo([]);
+
+    const options = {
+      upload_ids: ready.map((a) => a.upload_id),
+      think,
+      ...(model !== "auto" ? { model } : {}),
+    };
     try {
       const socket = socketRef.current;
       if (socket?.connected) {
-        socket.emit("stream_chat", { question: text });
+        socket.emit("stream_chat", { question: text, ...options });
         return;
       }
-      await RecieveViaHttp(text);
+      await RecieveViaHttp(text, options);
     } catch (error) {
       console.error("Error sending message:", error);
       setPending(false);
+    }
+  };
+
+  const handleFiles = async (fileList) => {
+    const files = Array.from(fileList || []);
+    for (const file of files) {
+      const key = `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      setAttachments((current) => [...current, { key, name: file.name, status: "uploading" }]);
+      try {
+        const res = await UploadAPI.upload(file);
+        setAttachments((current) =>
+          current.map((a) => (a.key === key ? { ...a, status: "ready", upload_id: res.upload_id } : a)),
+        );
+      } catch (error) {
+        toast.error(error.response?.data?.error || `Upload failed: ${file.name}`);
+        setAttachments((current) => current.filter((a) => a.key !== key));
+      }
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleModelChange = (value) => {
+    setModel(value);
+    try {
+      localStorage.setItem("chatModel", value);
+    } catch {
+      /* ignore */
     }
   };
   const handleRetry = () => {
@@ -437,7 +544,12 @@ function Home() {
     { key: "cal", label: "Calendar", icon: <CalendarMonth sx={{ fontSize: 19 }} /> },
     { key: "studier", label: "Study", icon: <MenuBook sx={{ fontSize: 19 }} /> },
     { key: "notepad", label: "Notepad", icon: <NoteAlt sx={{ fontSize: 19 }} /> },
+    { key: "studio", label: "Writing & grading", icon: <EditNote sx={{ fontSize: 19 }} /> },
+    { key: "memory", label: "Memory", icon: <Psychology sx={{ fontSize: 19 }} /> },
+    { key: "usage", label: "Usage & costs", icon: <Insights sx={{ fontSize: 19 }} /> },
   ];
+  const streamingMessage = messages.find((m) => m.id === streamingIdRef.current);
+  const showWorking = pending && !(streamingMessage?.text || streamingMessage?.tools?.length || streamingMessage?.thinking);
 
   const timeLabel = now.toLocaleString("en-GB", {
     weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
@@ -525,6 +637,13 @@ function Home() {
                 </p>
               ) : null}
 
+              {budget?.over_budget ? (
+                <p className="mb-3 rounded-xl border border-warning/40 bg-warning/10 px-4 py-2 text-sm text-warning">
+                  You've reached this month's budget (£{budget.spent_gbp?.toFixed(2)} of £{budget.budget_gbp}). Replies use
+                  the cheaper model except writing and grading.
+                </p>
+              ) : null}
+
               {/* Empty state */}
               {messages.length === 0 && !pending ? (
                 <div className="mt-[10vh] text-center">
@@ -553,43 +672,49 @@ function Home() {
               {messages.map((m) =>
                 m.role === "user" ? (
                   <div key={m.id} className="mb-4 mt-1.5 max-w-[78%] self-end">
-                    <div className="rounded-2xl rounded-br-[4px] border border-primary/30 bg-primary/15 px-4 py-2.5 text-[14.5px] text-foreground">
+                    <div className="whitespace-pre-wrap rounded-2xl rounded-br-[4px] border border-primary/30 bg-primary/15 px-4 py-2.5 text-[14.5px] text-foreground">
                       {m.text}
                     </div>
+                    {m.attachments?.length ? (
+                      <div className="mt-1.5 flex flex-wrap justify-end gap-1.5">
+                        {m.attachments.map((n) => (
+                          <span key={n} className="flex items-center gap-1 rounded-md bg-secondary px-2 py-0.5 text-[11px] text-muted-foreground">
+                            <InsertDriveFile sx={{ fontSize: 12 }} /> {n}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
-                ) : (
-                  <div key={m.id} className="mb-6">
-                    <div className="mb-2 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
-                        {m.info||""}
-                    </div>
+                ) : m.streaming && !m.text && !m.tools?.length && !m.thinking ? null : (
                   <div key={m.id} className="mb-6">
                     <div className="mb-2 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
                       <span className="grid h-[18px] w-[18px] place-items-center rounded-md bg-gradient-primary text-primary-foreground">
                         <GraphicEq sx={{ fontSize: 11 }} />
                       </span>
-                      Ashen{m.sources?.length ? " · web search" : ""}
+                      Ashen{m.info ? ` · ${m.info}` : m.sources?.length ? " · web search" : ""}
                     </div>
-                    <div className="markdown-body max-w-[65ch] text-[15px] leading-[1.7] text-foreground/90 [&_a]:text-primary-glow [&_a]:underline [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:font-mono [&_code]:text-[13px] [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:border [&_pre]:border-border [&_pre]:bg-card [&_pre]:p-3 [&_p]:mb-3 [&_p]:mt-0 [&_ul]:my-2 [&_ul]:pl-5 [&_ol]:my-2 [&_ol]:pl-5">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text || ""}</ReactMarkdown>
-                    </div>
-                    <SourceChips sources={m.sources} />
-                    <div className="mt-2 flex gap-1">
-                      <button onClick={() => handleCopy(m.text)} className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground">
-                        <ContentCopy sx={{ fontSize: 13 }} /> Copy
-                      </button>
-                      <button onClick={() => handleSpeak(m.text)} className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground">
-                        <VolumeUp sx={{ fontSize: 13 }} /> Speak
-                      </button>
-                      <button onClick={handleRetry} className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground">
-                        <Replay sx={{ fontSize: 13 }} /> Retry
-                      </button>
-                    </div>
-                  </div>
+                    <ChatMessage message={m} onOpenArtifact={setArtifact} />
+                    {!m.streaming ? (
+                      <>
+                        <SourceChips sources={m.sources} />
+                        <div className="mt-2 flex gap-1">
+                          <button onClick={() => handleCopy(m.text)} className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground">
+                            <ContentCopy sx={{ fontSize: 13 }} /> Copy
+                          </button>
+                          <button onClick={() => handleSpeak(m.text)} className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground">
+                            <VolumeUp sx={{ fontSize: 13 }} /> Speak
+                          </button>
+                          <button onClick={handleRetry} className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground">
+                            <Replay sx={{ fontSize: 13 }} /> Retry
+                          </button>
+                        </div>
+                      </>
+                    ) : null}
                   </div>
                 ),
               )}
 
-              {pending ? <ThinkingSteps info={liveInfo} /> : null}
+              {showWorking ? <ThinkingSteps info={liveInfo} /> : null}
               <div ref={bottomRef} />
             </div>
           </div>
@@ -598,10 +723,40 @@ function Home() {
           {/* Input dock */}
           <div className="flex justify-center px-6 pb-4 pt-2">
             <div className="w-full max-w-[720px]">
+              {attachments.length ? (
+                <div className="mb-2 flex flex-wrap gap-2">
+                  {attachments.map((a) => (
+                    <span key={a.key} className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1 text-xs text-foreground">
+                      {a.status === "uploading" ? (
+                        <AutorenewOutlined className="animate-spin text-primary" sx={{ fontSize: 13 }} />
+                      ) : (
+                        <InsertDriveFile className="text-primary" sx={{ fontSize: 13 }} />
+                      )}
+                      <span className="max-w-[180px] truncate">{a.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => setAttachments((cur) => cur.filter((x) => x.key !== a.key))}
+                        title="Remove"
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <Close sx={{ fontSize: 13 }} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
               <div className="glass flex items-end gap-1.5 rounded-[18px] p-2 transition focus-within:border-primary/50 focus-within:shadow-glow">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  hidden
+                  accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.docx,.txt,.md,.csv,.json,.py,.js,.jsx,.ts,.tsx,.html,.css,.java,.c,.cpp,.sql,.yaml,.yml,.xml,.log"
+                  onChange={(e) => handleFiles(e.target.files)}
+                />
                 <button
-                  onClick={() => setSection("weather")}
-                  title="Upload a CV"
+                  onClick={() => fileInputRef.current?.click()}
+                  title="Attach files or images (max 20 MB)"
                   className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-xl text-muted-foreground transition hover:bg-muted hover:text-foreground"
                 >
                   <AttachFile sx={{ fontSize: 17 }} />
@@ -650,9 +805,35 @@ function Home() {
               <div className="flex items-center justify-between px-2 pt-2 font-mono text-[11px] text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <span className={`pulse-dot h-1.5 w-1.5 rounded-full ${online ? "bg-success" : "bg-destructive"}`} />
-                  {online ? "Connected" : "Offline"} · auto-routing Gemini / GPT / Claude
+                  {online ? "Connected" : "Offline"}
                 </span>
-                <span>⏎ send · ⇧⏎ newline</span>
+                <span className="flex items-center gap-2">
+                  <select
+                    value={model}
+                    onChange={(e) => handleModelChange(e.target.value)}
+                    aria-label="Model"
+                    title="Model (Auto picks by difficulty)"
+                    className="rounded-md border border-border bg-secondary px-1.5 py-0.5 font-mono text-[11px] text-foreground outline-none"
+                  >
+                    {MODEL_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setThink((t) => !t)}
+                    aria-pressed={think}
+                    title="Think harder: deeper reasoning, costs more"
+                    className={`flex items-center gap-1 rounded-md border px-1.5 py-0.5 transition ${
+                      think ? "border-primary/60 bg-primary/15 text-primary-glow" : "border-border text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Psychology sx={{ fontSize: 12 }} /> Think harder
+                  </button>
+                  <span className="hidden sm:inline">⏎ send · ⇧⏎ newline</span>
+                </span>
               </div>
             </div>
           </div>
@@ -664,6 +845,9 @@ function Home() {
           {section === "oot" && <Outfit_of_day />}
           {section === "studier" && <Study />}
           {section === "notepad" && <Notepad />}
+          {section === "studio" && <Studio />}
+          {section === "memory" && <Memories />}
+          {section === "usage" && <Usage />}
         </section>
       )}
 
@@ -772,6 +956,20 @@ function Home() {
           </div>
         </div>
       </aside>
+
+      <Dialog open={Boolean(confirmReq)} onClose={() => answerConfirm(false)}>
+        <DialogTitle>Allow this action?</DialogTitle>
+        <DialogContent>
+          Ashen wants to run <b>{confirmReq?.action?.replace("_", " ")}</b>
+          {confirmReq?.args?.app_name ? ` on ${confirmReq.args.app_name}` : ""}. Unsaved work in that app may be lost.
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => answerConfirm(false)} color="secondary">Deny</Button>
+          <Button onClick={() => answerConfirm(true)} color="error" variant="contained">Allow</Button>
+        </DialogActions>
+      </Dialog>
+
+      <ArtifactPanel artifact={artifact} onClose={() => setArtifact(null)} />
 
       <Dialog open={openConfirm} onClose={() => setOpenConfirm(false)}>
         <DialogTitle>Clear chat history?</DialogTitle>

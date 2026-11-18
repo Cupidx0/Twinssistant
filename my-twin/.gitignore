@@ -42,5 +42,6 @@ node_modules/
 Assistbackend/Cv_docs/
 Assistbackend/chat/
 Assistbackend/refined/
+Assistbackend/uploads/
 *.mp3
 

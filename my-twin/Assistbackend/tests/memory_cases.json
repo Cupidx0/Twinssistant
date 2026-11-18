@@ -1,0 +1,5 @@
+[
+  {"ask": "how's the mechanic noise thing going", "expect": "car sound diagnosis app"},
+  {"ask": "what's Hey Ashen built with", "expect": "Flask/React multi-provider"},
+  {"ask": "which uni am I aiming for", "expect": "University of Greater Manchester"}
+]
